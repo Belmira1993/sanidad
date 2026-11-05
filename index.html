@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12454F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Sanidad truchícola</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ECF1F1;--surface:#FFFFFF;--surface-2:#DFE8E8;--ink:#13232A;--ink-2:#4A5D63;--line:#C7D4D5;
+  --brand:#12454F;--brand-ink:#FFFFFF;--accent:#2F6FA0;--trout:#C2577A;--ok:#2E7D4F;--warn:#9A6500;--bad:#B3261E;--info:#2F6FA0;
+  --ok-bg:#DDEFE3;--warn-bg:#F6E8C8;--bad-bg:#F7DAD7;--info-bg:#DCE7F1;
+  --s1:#1F7A6A;--s2:#C2577A;--s3:#3D5FA8;
+  --font:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0D1719;--surface:#152226;--surface-2:#1D2E33;--ink:#E2ECEE;--ink-2:#9FB3B8;--line:#2C4046;
+  --brand:#7FC3CF;--brand-ink:#0D1719;--accent:#8DBBE0;--trout:#EE93B2;--ok:#6CC593;--warn:#E3B04B;--bad:#F07167;--info:#8DBBE0;
+  --ok-bg:#1C3628;--warn-bg:#3A2F14;--bad-bg:#3E1E1C;--info-bg:#1B2C3A;--s1:#62C7B3;--s2:#EE93B2;--s3:#86A6E8;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1719;--surface:#152226;--surface-2:#1D2E33;--ink:#E2ECEE;--ink-2:#9FB3B8;--line:#2C4046;
+  --brand:#7FC3CF;--brand-ink:#0D1719;--accent:#8DBBE0;--trout:#EE93B2;--ok:#6CC593;--warn:#E3B04B;--bad:#F07167;--info:#8DBBE0;
+  --ok-bg:#1C3628;--warn-bg:#3A2F14;--bad-bg:#3E1E1C;--info-bg:#1B2C3A;--s1:#62C7B3;--s2:#EE93B2;--s3:#86A6E8;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--font)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--brand)}
+h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:.01em;margin:0;line-height:1.1}
+h2{font-size:1.75rem}h3{font-size:1.3rem}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.top{background:var(--brand);color:var(--brand-ink);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.top-in{max-width:1240px;margin:0 auto;padding:12px 20px 0;display:flex;flex-wrap:wrap;align-items:flex-end;gap:6px 20px}
+.top h1{font-size:1.55rem;padding-bottom:10px;display:flex;align-items:center;gap:10px}
+.stripe{display:inline-block;width:26px;height:6px;border-radius:3px;background:linear-gradient(90deg,var(--trout),#E9A6BE)}
+#pend{font-family:var(--font);font-size:.78rem;font-weight:600;background:var(--warn-bg);color:var(--warn);border:0;border-radius:99px;padding:3px 10px;cursor:pointer;display:none}
+nav.desk{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;flex:1;justify-content:flex-end}
+nav.desk a{color:inherit;text-decoration:none;padding:9px 11px 11px;white-space:nowrap;opacity:.8;border-bottom:3px solid transparent;font-weight:500;font-size:.93rem}
+nav.desk a[aria-current="page"]{opacity:1;border-bottom-color:currentColor}
+nav.desk a:hover{opacity:1}
+nav.mob{display:none}
+main{max-width:1240px;margin:0 auto;padding:20px 20px 60px}
+@media (max-width:760px){
+  nav.desk{display:none}
+  .top h1{font-size:1.3rem}
+  main{padding:14px 12px calc(96px + env(safe-area-inset-bottom,0px))}
+  nav.mob{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+  nav.mob a,nav.mob button{border:0;background:none;color:var(--ink-2);text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 2px 10px;font-size:.72rem;font-weight:600;cursor:pointer}
+  nav.mob svg{width:22px;height:22px}
+  nav.mob [aria-current="page"]{color:var(--brand)}
+}
+.sheet{position:fixed;inset:0;z-index:30;background:rgb(0 0 0 / .35);display:none;align-items:flex-end}
+.sheet.open{display:flex}
+.sheet>div{background:var(--surface);width:100%;border-radius:12px 12px 0 0;padding:14px 12px calc(16px + env(safe-area-inset-bottom,0px))}
+.sheet a{display:block;padding:14px 12px;color:var(--ink);text-decoration:none;font-weight:600;border-bottom:1px solid var(--line)}
+.muted{color:var(--ink-2)}.small{font-size:.86rem}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.spacer{flex:1}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px}
+@media (max-width:760px){.panel{padding:14px}}
+.stack>*+*{margin-top:16px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px}
+.btn{border:1px solid var(--line);background:var(--surface);padding:9px 14px;border-radius:6px;cursor:pointer;font-weight:600;min-height:40px}
+.btn:hover{border-color:var(--ink-2)}
+.btn.pri{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.btn.big{min-height:52px;font-size:1.05rem;width:100%}
+.btn.danger{color:var(--bad)}
+.btn.sm{padding:4px 10px;font-size:.84rem;min-height:32px}
+.btn:disabled{opacity:.5;cursor:default}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.88rem;font-weight:600}
+label.f .hint{font-weight:400;color:var(--ink-2);font-size:.8rem}
+label.f input,label.f select,label.f textarea,.inp{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:9px 10px;font-weight:400;font-size:1rem;min-width:0;min-height:42px}
+label.f textarea{min-height:80px;resize:vertical}
+input[data-r="warn"]{border-color:var(--warn)!important;background:var(--warn-bg)!important}
+input[data-r="bad"]{border-color:var(--bad)!important;background:var(--bad-bg)!important}
+input[data-r="ok"]{border-color:var(--ok)!important}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr));gap:12px}
+.fgrid .wide{grid-column:1/-1}
+.fincas{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px;margin-bottom:18px}
+.finca{background:var(--surface);border:1px solid var(--line);border-left:10px solid var(--line);border-radius:8px;padding:16px 18px;text-align:left;width:100%}
+.finca[data-n="alta"]{border-left-color:var(--bad)}.finca[data-n="media"]{border-left-color:var(--warn)}.finca[data-n="ok"]{border-left-color:var(--ok)}
+.finca .nm{font-family:var(--display);font-size:2.2rem;font-weight:700;line-height:1}
+.finca .st{font-weight:600;margin:4px 0 10px}
+.finca[data-n="alta"] .st{color:var(--bad)}.finca[data-n="media"] .st{color:var(--warn)}.finca[data-n="ok"] .st{color:var(--ok)}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 14px}
+.kpi b{display:block;font-family:var(--display);font-size:1.45rem;font-weight:600;line-height:1.1}
+.kpi span{font-size:.8rem;color:var(--ink-2)}
+.hoy{margin-top:12px;padding:10px 12px;border-radius:6px;background:var(--surface-2);font-size:.88rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.hoy.done{background:var(--ok-bg)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.76rem;font-weight:700;padding:2px 9px;border-radius:99px;background:var(--surface-2);white-space:nowrap}
+.chip.alta,.chip.bad{background:var(--bad-bg);color:var(--bad)}.chip.media,.chip.warn{background:var(--warn-bg);color:var(--warn)}.chip.info{background:var(--info-bg);color:var(--info)}.chip.ok{background:var(--ok-bg);color:var(--ok)}
+.alert{border-top:1px solid var(--line);padding:12px 0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px}
+.alert:first-child{border-top:0}
+.alert .t{font-weight:600}
+.alert .s{grid-column:2;font-size:.9rem}
+.alert .s b{font-weight:600}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--ink-2);font-size:.82rem}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto}
+.layout-lotes{display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start}
+@media (max-width:860px){.layout-lotes{grid-template-columns:1fr}.lotelist{max-height:40vh!important}}
+.lotelist{display:flex;flex-direction:column;gap:2px;max-height:70vh;overflow:auto}
+.lotelist button{border:0;background:none;text-align:left;padding:9px 10px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+.lotelist button:hover{background:var(--surface-2)}
+.lotelist button[aria-current="true"]{background:var(--brand);color:var(--brand-ink)}
+.tl{list-style:none;margin:0;padding:0}
+.tl li{border-left:3px solid var(--line);padding:8px 0 12px 14px}
+.tl li[data-t="tratamiento"]{border-left-color:var(--accent)}.tl li[data-t="necropsia"]{border-left-color:var(--trout)}
+.tl li[data-t="laboratorio"]{border-left-color:var(--s3)}.tl li[data-t="muestreo"]{border-left-color:var(--ok)}.tl li[data-t="evaluacion"]{border-left-color:var(--brand)}.tl li[data-t="suplementacion"]{border-left-color:var(--warn)}
+.tl .h{display:flex;gap:8px;flex-wrap:wrap;align-items:baseline}
+.tl dl{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:6px 0 0;font-size:.88rem}
+.tl dt{color:var(--ink-2)}.tl dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:99px;cursor:pointer;font-weight:600;min-height:40px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.seg.big button{flex:1;font-family:var(--display);font-size:1.25rem;border-radius:8px;min-height:52px}
+.dayctl{display:flex;align-items:center;gap:6px}
+.dayctl input{flex:1}
+.dayctl .btn{min-width:44px}
+.estanque{display:grid;grid-template-columns:1fr 110px;gap:8px 12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.estanque:first-of-type{border-top:0}
+.estanque .lbl b{font-family:var(--display);font-size:1.2rem;font-weight:600}
+.estanque input{font-size:1.25rem;text-align:center;border:1px solid var(--line);border-radius:6px;min-height:48px;background:var(--surface);width:100%}
+.estanque select{grid-column:1/-1;border:1px solid var(--line);border-radius:6px;min-height:40px;background:var(--surface);padding:6px 8px}
+.estanque .who{grid-column:1/-1;font-size:.78rem;color:var(--ink-2);margin-top:-4px}
+.savebar{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 30%);padding:18px 0 4px;z-index:4}
+@media (max-width:760px){.savebar{bottom:calc(62px + env(safe-area-inset-bottom,0px))}}
+.chart{position:relative;width:100%}
+.chart svg{display:block;width:100%;height:auto}
+.chart .ax{fill:var(--ink-2);font-size:11px;font-family:var(--font)}
+.chart .gl{stroke:var(--line)}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:.8rem;padding:6px 8px;border-radius:4px;max-width:240px;z-index:3;display:none;line-height:1.35}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem;margin-top:6px}
+.legend i{display:inline-block;width:12px;height:3px;vertical-align:middle;margin-right:5px}
+.heat td{text-align:center;font-variant-numeric:tabular-nums;min-width:52px}
+.corr td.c{text-align:center;font-variant-numeric:tabular-nums}
+.empty{padding:28px;text-align:center;color:var(--ink-2)}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:6px;z-index:40;display:none;max-width:min(92vw,520px);text-align:center}
+.ai-out{line-height:1.6}
+.ai-out h4{font-family:var(--display);font-size:1.25rem;margin:18px 0 6px;font-weight:600}
+.ai-out ul{margin:4px 0;padding-left:20px}
+.banner{background:var(--warn-bg);color:var(--ink);padding:10px 14px;border-radius:6px;margin-bottom:14px}
+.banner.info{background:var(--info-bg)}
+.meter{height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;min-width:80px}
+.meter i{display:block;height:100%}
+details summary{cursor:pointer;font-weight:600;padding:4px 0}
+.score{font-family:var(--display);font-size:3rem;font-weight:700;line-height:1}
+.adj{display:flex;flex-wrap:wrap;gap:10px}
+.adj-it{display:flex;flex-direction:column;gap:4px;width:112px;font-size:.78rem;overflow-wrap:anywhere}
+.adj img{width:112px;height:92px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block;background:var(--surface-2)}
+.adj-pdf{display:flex;align-items:center;justify-content:center;width:112px;height:92px;border:1px solid var(--line);border-radius:6px;font-family:var(--display);font-size:1.4rem;font-weight:700;color:var(--bad);text-decoration:none;background:var(--surface-2)}
+.adj-box{border:1px dashed var(--line);border-radius:8px;padding:12px;margin-top:14px}
+.adj-box.falta{border-color:var(--warn);background:var(--warn-bg)}
+.login{position:fixed;inset:0;z-index:50;background:var(--brand);display:flex;align-items:center;justify-content:center;padding:20px}
+.login[hidden]{display:none}
+.login-card{background:var(--surface);color:var(--ink);border-radius:12px;padding:28px 24px;width:min(420px,100%)}
+.login-t{font-size:2.2rem;display:flex;align-items:center;gap:12px}
+.login-card .stack>*+*{margin-top:14px}
+.linkbtn{background:none;border:0;color:var(--accent);text-decoration:underline;cursor:pointer;padding:6px 0;font-weight:500}
+.msg{font-size:.9rem;min-height:1.2em;margin:0}
+.msg.err{color:var(--bad)}.msg.ok{color:var(--ok)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="login" class="login" hidden>
+  <div class="login-card">
+    <h1 class="login-t"><span class="stripe" aria-hidden="true"></span>Sanidad truchícola</h1>
+    <p class="muted" style="margin:6px 0 22px">San Miguel, Yolombal y Abriaquí</p>
+    <div id="lbody"></div>
+  </div>
+</div>
+<header class="top"><div class="top-in">
+  <h1><span class="stripe" aria-hidden="true"></span>Sanidad truchícola <button id="pend" type="button"></button></h1>
+  <nav class="desk" id="nav">
+    <a href="#inicio">Inicio</a><a href="#diario">Registro diario</a><a href="#evento">Eventos sanitarios</a><a href="#lotes">Lotes</a>
+    <a href="#comparar">Lote entre fincas</a><a href="#temporadas">Temporadas</a><a href="#calidad">Calidad de datos</a><a href="#claude">Análisis</a><a href="#ajustes">Ajustes</a>
+  </nav>
+</div></header>
+<main id="main"><div id="status" class="empty">Cargando datos…</div><div id="view"></div></main>
+<nav class="mob" id="mnav" aria-label="Navegación">
+  <a href="#inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Inicio</a>
+  <a href="#diario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M9 15l2 2 4-4"/></svg>Diario</a>
+  <a href="#evento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="10"/></svg>Evento</a>
+  <a href="#lotes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z"/><circle cx="8" cy="11" r="1"/></svg>Lotes</a>
+  <button type="button" id="mas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>Más</button>
+</nav>
+<div class="sheet" id="sheet"><div>
+  <a href="#comparar">Lote entre fincas</a><a href="#temporadas">Temporadas y clima</a><a href="#calidad">Calidad de datos</a><a href="#claude">Análisis con Claude</a><a href="#ajustes">Ajustes, históricos y exportar</a>
+</div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<datalist id="dl-diag"></datalist><datalist id="dl-agente"></datalist>
+<script>
+(() => {
+"use strict";
+/* ===== Constantes (trucha arcoíris) ===== */
+const FINCAS=[{id:"san-miguel",nombre:"San Miguel"},{id:"yolombal",nombre:"Yolombal"},{id:"abriaqui",nombre:"Abriaquí"}];
+const FCOLOR={"san-miguel":"var(--s1)","yolombal":"var(--s2)","abriaqui":"var(--s3)"};
+const fNom=id=>(FINCAS.find(f=>f.id===id)||{nombre:id||"—"}).nombre;
+const MESES=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const temporada=m=>[2,3,4,8,9,10].includes(m)?"Lluvias":"Seca";
+const RIESGO_TEMP={Lluvias:"turbidez y sedimentos en la bocatoma, crecientes, daño branquial y brotes de Flavobacterium tras eventos de turbidez",Seca:"menor caudal, agua más caliente en la tarde, menos oxígeno y más estrés; vigilar Lactococcus y Aeromonas con agua tibia"};
+const MOMENTOS={manana:"Mañana",tarde:"Tarde"};
+// Parámetros de agua. min/max = límites físicos (bloquean); agg = cómo se resume el día
+const AGUA=[
+ {k:"tAgua",n:"Temp. del agua",u:"°C",min:0,max:30,agg:"max"},
+ {k:"oxigeno",n:"Oxígeno disuelto",u:"mg/L",min:0,max:20,agg:"min"},
+ {k:"ph",n:"pH",u:"",min:3,max:11,agg:"mean"},
+ {k:"amoniaco",n:"Amoníaco total",u:"mg/L",min:0,max:20,agg:"max"},
+ {k:"nitrito",n:"Nitritos",u:"mg/L",min:0,max:20,agg:"max"},
+ {k:"turbidez",n:"Turbidez",u:"NTU",min:0,max:3000,agg:"max"},
+ {k:"caudal",n:"Caudal de entrada",u:"L/s",min:0,max:20000,agg:"min"},
+ {k:"tAire",n:"Temp. del aire",u:"°C",min:-5,max:40,agg:"max"},
+ {k:"lluvia",n:"Lluvia",u:"mm",min:0,max:400,agg:"sum"}];
+const CAUSAS=["Sin causa aparente","Enfermedad (ver necropsia)","Baja de oxígeno","Temperatura alta","Turbidez o creciente","Manejo (clasificación, traslado, pesca)","Depredación (aves, nutria)","Agresión o canibalismo","Deformidad o descarte","Otra"];
+const DIAGS=["Flavobacteriosis (columnaris)","Enfermedad bacteriana de agua fría (F. psychrophilum)","Boca roja entérica (Yersinia ruckeri)","Aeromoniasis (Aeromonas spp.)","Lactococosis / estreptococosis","Necrosis pancreática infecciosa (IPN)","Ictioftiriasis (punto blanco)","Saprolegniosis (hongo)","Enfermedad branquial bacteriana","Parásitos branquiales o de piel","Hipoxia (falta de oxígeno)","Daño branquial por sedimentos","Problema nutricional","Trauma o manejo","Sin diagnóstico concluyente"];
+const AGENTES=["Flavobacterium columnare","Flavobacterium psychrophilum","Yersinia ruckeri","Aeromonas hydrophila","Aeromonas salmonicida","Lactococcus garvieae","Streptococcus iniae","Virus IPN","Ichthyophthirius multifiliis","Ichthyobodo (Costia)","Gyrodactylus spp.","Saprolegnia spp.","Sin aislamiento"];
+const TIPOS={evaluacion:"Evaluación o visita",tratamiento:"Tratamiento",suplementacion:"Suplementación",necropsia:"Necropsia de campo",laboratorio:"Laboratorio",muestreo:"Muestreo de peso",observacion:"Observación"};
+const FW=t=>t==="observacion"||t==="evaluacion";
+const CAMPOS={
+ evaluacion:[{k:"motivo",l:"Motivo",t:"select",opts:["Visita de rutina","Aviso por teléfono","Seguimiento de tratamiento","Evaluación antes de cosecha","Ingreso de lote"]},{k:"peces",l:"Peces observados",t:"number"},{k:"comportamiento",l:"Comportamiento y consumo",t:"textarea",ph:"Nado, apetito, boqueo, aglomeración en la entrada"},{k:"hallazgos",l:"Hallazgos",t:"textarea",req:1,ph:"Piel, aletas, branquias, ojos, instalaciones, agua"},{k:"recomendaciones",l:"Recomendaciones dejadas",t:"textarea"},{k:"seguimiento",l:"Próxima revisión",t:"date"}],
+ suplementacion:[{k:"producto",l:"Producto",req:1},{k:"clase",l:"Tipo",t:"select",opts:["Vitaminas","Probiótico","Inmunoestimulante","Minerales o sales","Otro"]},{k:"motivo",l:"Motivo",ph:"Ej.: estrés por clasificación, post-tratamiento"},{k:"dosis",l:"Dosis"},{k:"via",l:"Vía",t:"select",opts:["Alimento","Baño o agua"]},{k:"inicio",l:"Inicio",t:"date",req:1},{k:"fin",l:"Fin",t:"date"},{k:"prescribe",l:"Quién lo indica"}],
+ tratamiento:[{k:"producto",l:"Producto comercial",req:1},{k:"principio",l:"Principio activo"},{k:"loteProducto",l:"Lote del producto"},{k:"motivo",l:"Motivo o diagnóstico",list:"dl-diag"},{k:"dosis",l:"Dosis",ph:"Ej.: 75 mg/kg de pez/día"},{k:"via",l:"Vía",t:"select",opts:["Alimento medicado","Baño","Inyectable","Otra"]},{k:"inicio",l:"Inicio",t:"date",req:1},{k:"fin",l:"Fin",t:"date",req:1},{k:"retiro",l:"Tiempo de retiro",t:"number",req:1,hint:"Según etiqueta o fórmula"},{k:"retiroUnidad",l:"Unidad del retiro",t:"select",opts:["grados-día","días"]},{k:"prescribe",l:"Médico veterinario que formula",req:1}],
+ necropsia:[{k:"n",l:"Peces examinados",t:"number",req:1},{k:"externos",l:"Signos externos",t:"textarea",ph:"Piel, aletas, branquias, ojos, comportamiento"},{k:"internos",l:"Signos internos",t:"textarea",ph:"Hígado, bazo, riñón, intestino, vejiga natatoria"},{k:"diagnostico",l:"Diagnóstico presuntivo",list:"dl-diag",req:1},{k:"muestras",l:"¿Se enviaron muestras?",t:"select",opts:["No","Sí"]}],
+ laboratorio:[{k:"laboratorio",l:"Laboratorio"},{k:"muestra",l:"Tipo de muestra",ph:"Peces vivos, órganos, agua"},{k:"analisis",l:"Análisis",ph:"Bacteriología, PCR, histopatología"},{k:"resultado",l:"Resultado",t:"select",opts:["Pendiente","Positivo","Negativo","No concluyente"],req:1},{k:"agente",l:"Agente aislado",list:"dl-agente"},{k:"antibiograma",l:"Antibiograma o sensibilidad",t:"textarea"},{k:"fechaResultado",l:"Fecha del resultado",t:"date"}],
+ muestreo:[{k:"n",l:"Peces muestreados",t:"number",req:1},{k:"peso",l:"Peso promedio (g)",t:"number",req:1},{k:"talla",l:"Talla promedio (cm)",t:"number"},{k:"cv",l:"Coeficiente de variación (%)",t:"number"}],
+ observacion:[{k:"texto",l:"Observación",t:"textarea",req:1}]
+};
+const DEF={mortDiariaMax:0.1,mortSemanalMax:0.5,saltoMort:2,tAguaMax:17,tAguaCrit:19,oxMin:6,oxCrit:5,phMin:6.5,phMax:8.5,amonMax:0.5,nitMax:0.1,turbMax:25,diasSinRegistro:2,ratioFincas:1.5};
+const CFGL={mortDiariaMax:["Mortalidad diaria máxima","%"],mortSemanalMax:["Mortalidad semanal máxima","%"],saltoMort:["Pedir confirmación si un día supera","% del estanque"],tAguaMax:["Temp. del agua: atención desde","°C"],tAguaCrit:["Temp. del agua: crítica desde","°C"],oxMin:["Oxígeno: atención por debajo de","mg/L"],oxCrit:["Oxígeno: crítico por debajo de","mg/L"],phMin:["pH mínimo",""],phMax:["pH máximo",""],amonMax:["Amoníaco total máximo","mg/L"],nitMax:["Nitritos máximo","mg/L"],turbMax:["Turbidez máxima","NTU"],diasSinRegistro:["Avisar si no hay mortalidad registrada en","días"],ratioFincas:["Diferencia entre fincas para alertar","veces"]};
+
+/* ===== Utilidades ===== */
+const DAY=864e5;
+const num=v=>{if(v===""||v==null)return null;if(typeof v==="number")return isFinite(v)?v:null;const s=String(v).trim().replace(/\s/g,"").replace(/,(\d+)$/,".$1");const n=+s;return s===""||isNaN(n)?null:n};
+const dn=s=>{if(!s)return null;const[y,m,d]=String(s).slice(0,10).split("-").map(Number);if(!y||!m||!d)return null;return Math.round(Date.UTC(y,m-1,d)/DAY)};
+const ds=n=>new Date(n*DAY).toISOString().slice(0,10);
+const hoyStr=()=>{const t=new Date();return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0")};
+const fmtF=s=>{const n=typeof s==="number"?s:dn(s);return n==null?"—":new Date(n*DAY).toLocaleDateString("es-CO",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"})};
+const fmtFc=n=>new Date(n*DAY).toLocaleDateString("es-CO",{weekday:"short",day:"numeric",month:"short",timeZone:"UTC"});
+const fmtN=(v,d=0)=>v==null||!isFinite(v)?"—":v.toLocaleString("es-CO",{maximumFractionDigits:d,minimumFractionDigits:d});
+const pct=(v,d=2)=>v==null||!isFinite(v)?"—":fmtN(v,d)+" %";
+const norm=s=>String(s??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g," ").trim();
+const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const $=(s,r=document)=>r.querySelector(s);
+function el(tag,a,...kids){const e=document.createElement(tag);if(a)for(const[k,v]of Object.entries(a)){if(v==null||v===false)continue;if(k==="class")e.className=v;else if(k==="text")e.textContent=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(k==="value")e.value=v;else e.setAttribute(k,v===true?"":v)}add(e,kids);return e}
+function add(e,kids){for(const k of [kids].flat(9)){if(k==null||k===false)continue;e.append(k instanceof Node?k:document.createTextNode(String(k)))}return e}
+const SVGNS="http://www.w3.org/2000/svg";
+function sv(tag,a,...kids){const e=document.createElementNS(SVGNS,tag);if(a)for(const[k,v]of Object.entries(a))if(v!=null)k==="text"?e.textContent=v:e.setAttribute(k,v);add(e,kids);return e}
+function toast(m,ms=3400){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display="none",ms)}
+function pearson(xs,ys){const n=xs.length;if(n<3)return null;let mx=0,my=0;for(let i=0;i<n;i++){mx+=xs[i];my+=ys[i]}mx/=n;my/=n;let sxy=0,sxx=0,syy=0;for(let i=0;i<n;i++){const a=xs[i]-mx,b=ys[i]-my;sxy+=a*b;sxx+=a*a;syy+=b*b}if(!sxx||!syy)return null;return sxy/Math.sqrt(sxx*syy)}
+function ncdf(z){const t=1/(1+.2316419*Math.abs(z)),d=.3989423*Math.exp(-z*z/2),p=d*t*(.3193815+t*(-.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p}
+function ztest(d1,n1,d2,n2){if(!n1||!n2)return null;const p=(d1+d2)/(n1+n2);const se=Math.sqrt(p*(1-p)*(1/n1+1/n2));if(!se)return null;const z=(d1/n1-d2/n2)/se;return{z,p:2*(1-ncdf(Math.abs(z)))}}
+const fuerza=r=>{const a=Math.abs(r);return a>=.7?"fuerte":a>=.5?"moderada-fuerte":a>=.3?"moderada":"débil"};
+const LS={get(k,d){try{const v=localStorage.getItem("sanidad:"+k);return v==null?d:JSON.parse(v)}catch{return d}},set(k,v){try{localStorage.setItem("sanidad:"+k,JSON.stringify(v))}catch{}}};
+function rango(k,v){const c=S.cfg;if(v==null)return null;
+ if(k==="tAgua")return v>=c.tAguaCrit?"bad":v>=c.tAguaMax?"warn":"ok";
+ if(k==="oxigeno")return v<c.oxCrit?"bad":v<c.oxMin?"warn":"ok";
+ if(k==="ph")return v<c.phMin||v>c.phMax?"warn":"ok";
+ if(k==="amoniaco")return v>c.amonMax?"warn":"ok";
+ if(k==="nitrito")return v>c.nitMax?"warn":"ok";
+ if(k==="turbidez")return v>c.turbMax?"warn":"ok";return null}
+
+/* ===== Estado ===== */
+const S={db:null,user:null,me:{id:null,name:""},canWrite:true,lotes:new Map(),diario:new Map(),eventos:new Map(),legacy:[],cfg:{...DEF},
+ ok:{lotes:false,diario:false,eventos:false},ready:false,view:"inicio",loteSel:null,cmpLote:null,editLote:null,evPre:null,
+ dia:{finca:LS.get("finca","san-miguel"),fecha:null,momento:"manana"},M:null,ai:null,resp:LS.get("resp","")};
+
+/* ===== Cola de envío (funciona con mala señal) ===== */
+const OB={list:LS.get("outbox",[]),busy:false,timer:null};
+function obSave(){LS.set("outbox",OB.list);renderPend()}
+function renderPend(){const b=$("#pend");const n=OB.list.length;b.style.display=n?"inline-block":"none";b.textContent=n===1?"1 registro sin enviar":`${n} registros sin enviar`;b.title="Toca para reintentar el envío"}
+const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r({code:"timeout"}),ms))]);
+async function execOp(op){const ref=S.db.doc(op.path);
+ if(op.kind==="set")return ref.set(op.data);
+ if(op.kind==="del")return ref.delete();
+ if(op.kind==="merge"){try{return await ref.update(op.data)}catch(e){if(e&&e.code==="invalid_argument"){const s=await ref.get();if(!s.exists)return ref.set({...op.base,...op.data})}throw e}}}
+async function enqueue(ops){for(const op of[ops].flat())OB.list.push({...op,qid:uid("q"),ts:Date.now()});obSave();return flush()}
+async function flush(){if(!S.db)return false;if(OB.busy)return false;OB.busy=true;
+ try{while(OB.list.length){const op=OB.list[0];try{await withTimeout(execOp(op),20000);OB.list.shift();obSave()}
+  catch(e){const c=e&&e.code;if(["invalid_argument","quota_exceeded","transform_error","not_granted","revoked"].includes(c)){OB.list.shift();obSave();toast(c==="quota_exceeded"?"Se llenó el espacio de datos; avisa al administrador.":"Un registro fue rechazado ("+c+"). Revisa permisos.",6000)}else break}}}
+ finally{OB.busy=false}
+ clearTimeout(OB.timer);if(OB.list.length)OB.timer=setTimeout(flush,30000);return!OB.list.length}
+window.addEventListener("online",()=>flush());
+
+/* ===== Modelo ===== */
+function compute(){
+ const hoy=dn(hoyStr());
+ const mort=new Map(),envRaw=new Map(FINCAS.map(f=>[f.id,new Map()]));
+ const putMort=(lid,f,d,e)=>{const k=lid+"|"+f;let m=mort.get(k);if(!m)mort.set(k,m=new Map());const prev=m.get(d);m.set(d,prev?{...e,m:prev.m+e.m}:e)};
+ for(const doc of S.diario.values()){const f=doc.finca;
+  for(const[fecha,lots]of Object.entries(doc.mort||{})){const d=dn(fecha);if(d==null||!lots)continue;for(const[lid,e]of Object.entries(lots))if(e&&e.m!=null&&num(e.m)!=null)putMort(lid,f,d,{m:num(e.m),c:e.c||"",r:e.r||"",t:e.t||"",d,lote:lid,finca:f})}
+  for(const[fecha,moms]of Object.entries(doc.amb||{})){const d=dn(fecha);const m=envRaw.get(f);if(d==null||!moms||!m)continue;const o=m.get(d)||{};for(const[mo,v]of Object.entries(moms))if(v)o[mo]=v;m.set(d,o)}}
+ const evs=[...S.eventos.values()];
+ for(const r of S.legacy){const d=dn(r.fecha),x=r.datos||{};if(d==null)continue;
+  if(r.tipo==="mortalidad")putMort(r.lote,r.finca,d,{m:(num(x.muertos)||0)+(num(x.descarte)||0),c:x.causa||"",r:r.responsable||"",d,lote:r.lote,finca:r.finca,legacy:1});
+  else if(r.tipo==="ambiente"){const m=envRaw.get(r.finca);if(m){const o=m.get(d)||{};o["v_"+r.id]={...x,tAire:x.tAire??x.tMax};m.set(d,o)}}
+  else evs.push({...r,legacy:1})}
+ const env=new Map();
+ for(const f of FINCAS){const out=new Map();for(const[d,moms]of envRaw.get(f.id)){const r={};for(const a of AGUA){const vals=Object.values(moms).map(o=>num(o[a.k])).filter(v=>v!=null);if(!vals.length)continue;
+  r[a.k]=a.agg==="max"?Math.max(...vals):a.agg==="min"?Math.min(...vals):a.agg==="sum"?vals.reduce((p,q)=>p+q,0):vals.reduce((p,q)=>p+q,0)/vals.length}
+  const evt=Object.values(moms).map(o=>o.evento).filter(Boolean);if(evt.length)r.evento=evt.join("; ");out.set(d,r)}env.set(f.id,out)}
+ const envDay=(f,d)=>env.get(f)?.get(d)||null;
+ const eventos=evs.filter(r=>dn(r.fecha)!=null).sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);
+ const ubs=[];
+ for(const l of S.lotes.values())for(const u of(l.ubicaciones||[])){const start=dn(u.fechaIngreso);if(!u.finca||start==null)continue;const sal=dn(u.fechaSalida);
+  ubs.push({key:l.id+"|"+u.finca,lote:l,ub:u,finca:u.finca,start,sal,end:Math.min(sal!=null?sal:hoy,hoy),inicial:+u.inicial||0,activo:l.estado!=="cerrado"&&(sal==null||sal>=hoy)&&start<=hoy,
+   mort:mort.get(l.id+"|"+u.finca)||new Map(),evs:[]})}
+ const byKey=new Map(ubs.map(u=>[u.key,u]));
+ for(const r of eventos){const u=byKey.get(r.lote+"|"+r.finca);if(u)u.evs.push(r)}
+ for(const u of ubs){let vivos=u.inicial,acum=0;u.dias=[];
+  for(let d=u.start;d<=u.end;d++){const e=u.mort.get(d);const mu=e?e.m:0;u.dias.push({d,vivos,muertos:mu,reg:!!e,pct:vivos>0&&e?mu/vivos*100:null});vivos-=mu;acum+=mu}
+  u.acum=acum;u.vivos=Math.max(vivos,0);u.acumPct=u.inicial?acum/u.inicial*100:null;
+  u.ult=-Infinity;for(const d of u.mort.keys())if(d>u.ult)u.ult=d;
+  u.w7=ventana(u,hoy-6,hoy);u.p7=ventana(u,hoy-13,hoy-7);
+  const ms=u.evs.filter(r=>r.tipo==="muestreo"&&num(r.datos?.peso)!=null);u.peso=ms.length?num(ms[ms.length-1].datos.peso):null;u.pesoFecha=ms.length?ms[ms.length-1].fecha:null;
+  u.biomasa=u.peso!=null?u.vivos*u.peso/1000:null;u.trats=u.evs.filter(r=>r.tipo==="tratamiento")}
+ // Estacionalidad
+ const est={};for(const f of FINCAS)est[f.id]={moy:Array.from({length:12},()=>({mu:0,ad:0,byYear:{}})),ym:new Map(),env:new Map(),diag:new Map()};
+ for(const u of ubs){const E=est[u.finca];if(!E)continue;for(const x of u.dias){if(x.vivos<=0)continue;const dt=new Date(x.d*DAY),y=dt.getUTCFullYear(),mo=dt.getUTCMonth();
+  const a=E.moy[mo];a.mu+=x.muertos;a.ad+=x.vivos;const by=a.byYear[y]||(a.byYear[y]={mu:0,ad:0});by.mu+=x.muertos;by.ad+=x.vivos;
+  const ym=y+"-"+String(mo+1).padStart(2,"0");const b=E.ym.get(ym)||{mu:0,ad:0};b.mu+=x.muertos;b.ad+=x.vivos;E.ym.set(ym,b)}}
+ for(const f of FINCAS){const E=est[f.id];for(const[d,o]of env.get(f.id)){const ym=ds(d).slice(0,7);const b=E.env.get(ym)||{};for(const a of AGUA){if(o[a.k]==null)continue;const s=b[a.k]||(b[a.k]={s:0,n:0});s.s+=o[a.k];s.n++}E.env.set(ym,b)}}
+ for(const r of eventos){const E=est[r.finca];if(!E)continue;const x=r.datos||{};let dg=null;
+  if(r.tipo==="necropsia")dg=x.diagnostico;if(r.tipo==="laboratorio"&&norm(x.resultado)==="positivo")dg=x.agente||x.analisis||"Positivo";
+  if(dg){const mo=+r.fecha.slice(5,7)-1;const m=E.diag.get(mo)||new Map();const k=canon(dg);m.set(k,(m.get(k)||0)+1);E.diag.set(mo,m)}}
+ S.M={hoy,ubs,byKey,mort,env,envRaw,envDay,eventos,est};
+ S.M.alertas=alertas(S.M);
+ S.M.fincas=FINCAS.map(f=>{const us=ubs.filter(u=>u.finca===f.id&&u.activo);const al=S.M.alertas.filter(a=>a.finca===f.id||(!a.finca&&us.some(u=>u.lote.id===a.lote)));
+  let mu=0,v0=0;for(const u of us){mu+=u.w7.muertos;v0+=u.w7.vivos0||0}
+  const regHoy=us.filter(u=>u.mort.has(hoy)).length;const aguaHoy=!!envRaw.get(f.id).get(hoy);
+  const nivel=!us.length&&!al.length?"sin":al.some(a=>a.nivel==="alta")?"alta":al.some(a=>a.nivel==="media")?"media":"ok";
+  return{...f,us,al,vivos:us.reduce((a,u)=>a+u.vivos,0),biomasa:us.every(u=>u.biomasa!=null)&&us.length?us.reduce((a,u)=>a+u.biomasa,0):null,m7:v0?mu/v0*100:null,mu7:mu,nivel,lotes:new Set(us.map(u=>u.lote.id)).size,regHoy,aguaHoy}});
+}
+const canon=s=>{const n=norm(s);const hit=[...DIAGS,...AGENTES].find(x=>norm(x)===n);return hit||String(s).trim()};
+function ventana(u,desde,hasta){let m=0,v0=null,regs=0;const i0=Math.max(0,desde-u.start),i1=Math.min(u.dias.length-1,hasta-u.start);for(let i=i0;i<=i1;i++){const x=u.dias[i];if(v0==null)v0=x.vivos;m+=x.muertos;if(x.reg)regs++}return{muertos:m,vivos0:v0,pct:v0?m/v0*100:null,regs,dias:Math.max(0,i1-i0+1)}}
+function vivosEn(u,d){const i=d-u.start;if(i<0)return u.inicial;if(i<u.dias.length)return u.dias[i].vivos;return u.vivos}
+function liberacion(M,finca,fin,ret,unidad){if(fin==null||ret==null)return null;if(unidad!=="grados-día")return{d:fin+ret,est:false};
+ let acc=0,d=fin,est=false;const temps=[];for(let x=fin-30;x<=fin;x++){const e=M.envDay(finca,x);if(e&&e.tAgua!=null)temps.push(e.tAgua)}const prom=temps.length?temps.reduce((a,b)=>a+b,0)/temps.length:12;
+ while(acc<ret&&d<fin+800){d++;const e=M.envDay(finca,d);let t=e&&e.tAgua!=null?e.tAgua:null;if(t==null){t=prom;est=true}acc+=Math.max(t,0.5)}return{d,est}}
+function corrUb(M,u,lag){const out=[];for(const v of AGUA){const xs=[],ys=[];for(const x of u.dias){if(!x.reg||x.pct==null)continue;const e=M.envDay(u.finca,x.d-lag);if(!e||e[v.k]==null)continue;xs.push(e[v.k]);ys.push(x.pct)}out.push({v,r:pearson(xs,ys),n:xs.length})}return out}
+function corrFinca(M,f,lag){const days=new Map();for(const u of M.ubs){if(u.finca!==f)continue;for(const x of u.dias){if(!x.reg)continue;const o=days.get(x.d)||{mu:0,v:0};o.mu+=x.muertos;o.v+=x.vivos;days.set(x.d,o)}}
+ const out=[];for(const v of AGUA){const xs=[],ys=[];for(const[d,o]of days){if(!o.v)continue;const e=M.envDay(f,d-lag);if(!e||e[v.k]==null)continue;xs.push(e[v.k]);ys.push(o.mu/o.v*100)}out.push({v,r:pearson(xs,ys),n:xs.length})}return out}
+function cmpLote(M,loteId){const us=M.ubs.filter(u=>u.lote.id===loteId&&u.dias.length&&u.inicial>0);if(us.length<2)return null;
+ const W=Math.min(...us.map(u=>u.dias.length));const rows=us.map(u=>{let mu=0;for(let i=0;i<W;i++)mu+=u.dias[i].muertos;return{u,mu,n:u.inicial,pct:mu/u.inicial*100}});
+ const pares=[];for(let i=0;i<rows.length;i++)for(let j=i+1;j<rows.length;j++){const t=ztest(rows[i].mu,rows[i].n,rows[j].mu,rows[j].n);pares.push({a:rows[i],b:rows[j],t,ratio:Math.min(rows[i].pct,rows[j].pct)>0?Math.max(rows[i].pct,rows[j].pct)/Math.min(rows[i].pct,rows[j].pct):null})}
+ return{W,rows,pares}}
+/* ===== Alertas ===== */
+function alertas(M){
+ const A=[],c=S.cfg,hoy=M.hoy;const P=(nivel,finca,lote,titulo,detalle,sug)=>A.push({nivel,finca,lote,titulo,detalle,sug});
+ for(const u of M.ubs){if(!u.activo)continue;const L=`Lote ${u.lote.codigo}${u.ub.unidad?" ("+u.ub.unidad+")":""}`;
+  let pico=null;for(let d=hoy-2;d<=hoy;d++){const x=u.dias[d-u.start];if(x&&x.pct!=null&&(!pico||x.pct>pico.pct))pico=x}
+  if(pico&&pico.pct>c.mortDiariaMax)P("alta",u.finca,u.lote.id,`${L}: mortalidad diaria alta`,`${pct(pico.pct)} el ${fmtF(pico.d)} (${pico.muertos} peces). Umbral ${pct(c.mortDiariaMax)}.`,"Sacar y examinar peces moribundos (necropsia de campo), medir oxígeno y temperatura en el estanque, revisar branquias y comportamiento al comer. Si se repite, enviar peces vivos al laboratorio.");
+  if(u.w7.pct!=null&&u.w7.regs&&u.w7.pct>c.mortSemanalMax)P(u.w7.pct>2*c.mortSemanalMax?"alta":"media",u.finca,u.lote.id,`${L}: mortalidad semanal sobre el umbral`,`${pct(u.w7.pct)} en 7 días (${u.w7.muertos} peces). Umbral ${pct(c.mortSemanalMax)}.`,"Buscar una causa dominante en necropsias y causas registradas, y si coincide con cambios de alimento, clasificación, traslado o clima.");
+  if(u.w7.pct!=null&&u.p7.pct&&u.w7.muertos>=5&&u.w7.pct/u.p7.pct>=1.5)P("media",u.finca,u.lote.id,`${L}: mortalidad en aumento`,`${pct(u.w7.pct)} esta semana frente a ${pct(u.p7.pct)} la anterior.`,"Comparar con los parámetros de agua de la semana y con los otros estanques de la finca para separar un problema del lote de uno de la finca.");
+  if(u.ult===-Infinity||hoy-u.ult>=c.diasSinRegistro)P("info",u.finca,u.lote.id,`${L}: sin mortalidad registrada`,u.ult===-Infinity?"Este estanque no tiene registros de mortalidad.":`Último registro: ${fmtF(u.ult)}.`,"Registrar todos los días, incluso cuando la mortalidad es cero (botón «Sin mortalidad» del registro diario).");
+  for(const t of u.trats){const x=t.datos||{};const ini=dn(x.inicio)??dn(t.fecha),fin=dn(x.fin)??ini,ret=num(x.retiro??x.retiroDias);
+   if(ret!=null&&fin!=null){const lb=liberacion(M,u.finca,fin,ret,x.retiroUnidad||(x.retiroDias!=null?"días":"grados-día"));
+    if(lb.d>=hoy)P("info",u.finca,u.lote.id,`${L}: en periodo de retiro`,`${x.producto||"Tratamiento"}: liberación ${lb.est?"estimada ":""}el ${fmtF(lb.d)}${x.retiroUnidad==="grados-día"?` (${fmtN(ret)} grados-día)`:""}.`,"No cosechar ni despachar antes de esa fecha."+(lb.est?" La fecha se ajustará cuando se registre la temperatura diaria del agua.":""));
+    if(u.sal!=null&&u.sal<lb.d&&u.sal>=hoy-1)P("alta",u.finca,u.lote.id,`${L}: salida antes de terminar el retiro`,`Salida ${fmtF(u.sal)}; retiro de ${x.producto||"tratamiento"} hasta ${fmtF(lb.d)}.`,"Reprogramar la cosecha o confirmar con el médico veterinario el tiempo de retiro.")}
+   if(ini!=null&&hoy-ini>=8&&hoy-ini<=30){const a=ventana(u,ini-5,ini-1),b=ventana(u,ini+3,ini+7);if(a.pct!=null&&b.pct!=null&&b.regs>=3&&a.muertos>0&&b.pct>=a.pct)P("media",u.finca,u.lote.id,`${L}: tratamiento sin respuesta aparente`,`${x.producto||"Tratamiento"}: ${pct(a.pct)} en los 5 días previos y ${pct(b.pct)} entre los días 3 y 7 después.`,"Confirmar que el pez está comiendo el alimento medicado, revisar dosis real y pedir antibiograma antes de repetir o cambiar el producto.")}}
+  if(u.peso!=null&&u.pesoFecha&&hoy-dn(u.pesoFecha)>30)P("info",u.finca,u.lote.id,`${L}: muestreo de peso desactualizado`,`Último muestreo el ${fmtF(u.pesoFecha)}.`,"Un muestreo mensual permite calcular biomasa y dosificar bien los tratamientos.")}
+ const diagF=new Map();
+ for(const r of M.eventos){const d=dn(r.fecha),x=r.datos||{},L=r.lote?"Lote "+(S.lotes.get(r.lote)?.codigo||"?"):fNom(r.finca);
+  if(r.tipo==="laboratorio"){const res=norm(x.resultado);
+   if(res==="positivo"&&hoy-d<=30)P(hoy-d<=14?"alta":"media",r.finca,r.lote,`${L}: laboratorio positivo`,`${x.analisis||"Análisis"}${x.agente?": "+x.agente:""} (${fmtF(d)}).`,"Ajustar el tratamiento al antibiograma, reforzar desinfección de equipos y redes, y vigilar los estanques aguas abajo y los lotes hermanos en otras fincas.");
+   if(res==="pendiente"&&hoy-d>=10)P("info",r.finca,r.lote,`${L}: resultado pendiente`,`Muestra del ${fmtF(d)} sin resultado registrado.`,"Hacer seguimiento con el laboratorio y actualizar el registro.")}
+  const dg=r.tipo==="necropsia"?x.diagnostico:(r.tipo==="laboratorio"&&norm(x.resultado)==="positivo")?x.agente:null;
+  if(dg&&hoy-d<=21&&norm(dg)!==norm("Sin diagnóstico concluyente")){const k=r.finca+"|"+norm(canon(dg));const o=diagF.get(k)||{n:0,lotes:new Set(),txt:canon(dg),f:r.finca};o.n++;if(r.lote)o.lotes.add(r.lote);diagF.set(k,o)}}
+ for(const o of diagF.values())if(o.n>=2)P(o.lotes.size>=2?"alta":"media",o.f,null,`${fNom(o.f)}: «${o.txt}» se repite`,`${o.n} registros en 21 días${o.lotes.size>=2?" en "+o.lotes.size+" lotes":""}.`,o.lotes.size>=2?"Al aparecer en varios lotes, revisar lo común de la finca: fuente de agua, orden de los estanques, alimento, equipos y personal compartidos.":"Confirmar con laboratorio y revisar si aparece en las otras fincas con el mismo lote.");
+ for(const f of FINCAS){const act=M.ubs.some(u=>u.finca===f.id&&u.activo);if(!act)continue;let visto=false;
+  for(let d=hoy;d>hoy-3&&!visto;d--){const e=M.envDay(f.id,d);if(!e)continue;visto=true;const crit=[],aten=[];
+   if(e.tAgua!=null){if(e.tAgua>=c.tAguaCrit)crit.push(`agua a ${fmtN(e.tAgua,1)} °C`);else if(e.tAgua>=c.tAguaMax)aten.push(`agua a ${fmtN(e.tAgua,1)} °C`)}
+   if(e.oxigeno!=null){if(e.oxigeno<c.oxCrit)crit.push(`oxígeno ${fmtN(e.oxigeno,1)} mg/L`);else if(e.oxigeno<c.oxMin)aten.push(`oxígeno ${fmtN(e.oxigeno,1)} mg/L`)}
+   if(e.ph!=null&&(e.ph<c.phMin||e.ph>c.phMax))aten.push(`pH ${fmtN(e.ph,1)}`);if(e.amoniaco!=null&&e.amoniaco>c.amonMax)aten.push(`amoníaco ${fmtN(e.amoniaco,2)} mg/L`);
+   if(e.nitrito!=null&&e.nitrito>c.nitMax)aten.push(`nitritos ${fmtN(e.nitrito,2)} mg/L`);if(e.turbidez!=null&&e.turbidez>c.turbMax)aten.push(`turbidez ${fmtN(e.turbidez)} NTU`);
+   const all=[...crit,...aten];if(all.length){const sug=[];if(e.oxigeno!=null&&e.oxigeno<c.oxMin)sug.push("activar aireación, suspender o reducir alimento y revisar caudal y bocatoma");
+    if(e.tAgua!=null&&e.tAgua>=c.tAguaMax)sug.push("reducir ración, evitar clasificar o trasladar en horas calurosas y vigilar Lactococcus y Flavobacterium");
+    if(e.turbidez!=null&&e.turbidez>c.turbMax)sug.push("reducir alimento, revisar desarenador y bocatoma y observar branquias en los próximos días");
+    if(!sug.length)sug.push("repetir la medición, revisar recambio de agua y observar el comportamiento de los peces");
+    P(crit.length?"alta":"media",f.id,null,`${fNom(f.id)}: agua fuera de rango`,`${fmtF(d)}: ${all.join(", ")}.`,sug.join("; ").replace(/^./,m=>m.toUpperCase())+". Vigilar la mortalidad de 1 a 3 días después.")}}
+  if(!visto){let last=null;for(let d=hoy;d>hoy-7;d--)if(M.envDay(f.id,d)){last=d;break}if(last==null)P("info",f.id,null,`${fNom(f.id)}: sin parámetros de agua recientes`,"No hay temperatura ni oxígeno registrados en los últimos 7 días.","Medir al menos temperatura y oxígeno cada mañana (a primera hora, cuando el oxígeno está más bajo).")}}
+ for(const lid of new Set(M.ubs.filter(u=>u.activo).map(u=>u.lote.id))){const C=cmpLote(M,lid);if(!C||C.W<7)continue;const cod=S.lotes.get(lid)?.codigo;
+  for(const p of C.pares){if(p.t&&p.t.p<.05&&p.ratio&&p.ratio>=c.ratioFincas){const hi=p.a.pct>p.b.pct?p.a:p.b,lo=hi===p.a?p.b:p.a;
+   P("media",hi.u.finca,lid,`Lote ${cod}: se comporta distinto según la finca`,`Primeros ${C.W} días: ${fNom(hi.u.finca)} ${pct(hi.pct)} frente a ${fNom(lo.u.finca)} ${pct(lo.pct)} (${fmtN(p.ratio,1)} veces; p=${fmtN(p.t.p,3)}).`,`Con el mismo origen, la diferencia apunta a ${fNom(hi.u.finca)}: comparar temperatura y oxígeno, densidad, caudal por estanque, alimento y manejo.`)}}
+  const act=C.rows.filter(r=>r.u.activo);if(act.length>=2&&act.every(r=>r.u.w7.pct!=null&&r.u.w7.pct>c.mortSemanalMax))P("alta",null,lid,`Lote ${cod}: mortalidad alta en todas sus fincas`,act.map(r=>`${fNom(r.u.finca)} ${pct(r.u.w7.pct)}`).join(", ")+" en 7 días.","Si el lote falla en todas las fincas a la vez, revisar el origen: calidad de ovas o alevinos, transporte, aclimatación o una enfermedad de transmisión vertical (por ejemplo IPN o F. psychrophilum).")}
+ for(const f of FINCAS){const malos=M.ubs.filter(u=>u.finca===f.id&&u.activo&&u.w7.pct!=null&&u.w7.pct>c.mortSemanalMax);
+  if(malos.length>=2)P("alta",f.id,null,`${fNom(f.id)}: varios estanques con mortalidad alta`,`${malos.length} estanques sobre el umbral semanal.`,"Un problema compartido sugiere una causa de la finca: agua de entrada, alimento, un agente que circula entre estanques o equipos compartidos.")}
+ const mesAct=new Date(hoy*DAY).getUTCMonth(),yAct=new Date(hoy*DAY).getUTCFullYear();
+ for(const f of FINCAS){const E=M.est[f.id];let mu=0,ad=0;for(const m of E.moy)for(const y in m.byYear)if(+y<yAct){mu+=m.byYear[y].mu;ad+=m.byYear[y].ad}
+  if(!ad)continue;const base=mu/ad;let mm=0,ma=0;for(const y in E.moy[mesAct].byYear)if(+y<yAct){mm+=E.moy[mesAct].byYear[y].mu;ma+=E.moy[mesAct].byYear[y].ad}
+  if(ma&&base&&mm/ma>=1.5*base)P("info",f.id,null,`${fNom(f.id)}: ${MESES[mesAct].toLowerCase()} suele ser un mes difícil`,`En años anteriores la mortalidad de este mes fue ${fmtN(mm/ma/base,1)} veces el promedio de la finca.`,`Anticipar riesgos de temporada de ${temporada(mesAct).toLowerCase()}: ${RIESGO_TEMP[temporada(mesAct)]}.`)}
+ const ord={alta:0,media:1,info:2};return A.sort((a,b)=>ord[a.nivel]-ord[b.nivel]);
+}
+
+/* ===== Auditoría de datos ===== */
+function auditar(M){const hoy=M.hoy,c=S.cfg,I=[];const P=(sev,cat,texto,fix)=>I.push({sev,cat,texto,fix});
+ const ubKeys=new Set(M.ubs.map(u=>u.key));
+ for(const[k,m]of M.mort){if(ubKeys.has(k))continue;const[lid,f]=k.split("|");const n=m.size;const l=S.lotes.get(lid);
+  P("bad","Coherencia",l?`${n} registros de mortalidad del lote ${l.codigo} en ${fNom(f)}, pero el lote no figura en esa finca.`:`${n} registros de mortalidad de un lote que ya no existe (${fNom(f)}).`,l?{view:"lotes",lote:lid}:null)}
+ for(const u of M.ubs){const L=`Lote ${u.lote.codigo} en ${fNom(u.finca)}`;
+  const fuera=[...u.mort.keys()].filter(d=>d<u.start||d>(u.sal??hoy));if(fuera.length)P("bad","Coherencia",`${L}: ${fuera.length} registros de mortalidad fuera de su periodo (ingreso ${fmtF(u.start)}${u.sal!=null?", salida "+fmtF(u.sal):""}). Revisa las fechas o el ingreso del lote.`,{view:"diario",finca:u.finca,fecha:ds(fuera[0])});
+  if(u.inicial&&u.acum>u.inicial)P("bad","Coherencia",`${L}: las muertes registradas (${fmtN(u.acum)}) superan los peces que ingresaron (${fmtN(u.inicial)}).`,{view:"lotes",lote:u.lote.id});
+  const picos=u.dias.filter(x=>x.reg&&x.vivos>0&&x.muertos/x.vivos*100>c.saltoMort);for(const x of picos.slice(0,3))P("warn","Posible error de digitación",`${L}: ${fmtN(x.muertos)} muertes el ${fmtF(x.d)} (${pct(x.muertos/x.vivos*100,1)} del estanque). Confirma que no sobra un cero.`,{view:"diario",finca:u.finca,fecha:ds(x.d)});
+  if(u.lote.estado!=="cerrado"&&u.sal!=null&&u.sal<hoy-3)P("warn","Mantenimiento",`${L}: la salida fue el ${fmtF(u.sal)} y el lote sigue activo. ¿Cerrar el lote?`,{view:"lotes",lote:u.lote.id});
+  if(u.inicial<=0)P("bad","Coherencia",`${L}: no tiene número de peces de ingreso; no se pueden calcular porcentajes.`,{view:"lotes",lote:u.lote.id});
+  const ms=u.evs.filter(r=>r.tipo==="muestreo"&&num(r.datos?.peso)!=null);for(let i=1;i<ms.length;i++){const a=num(ms[i-1].datos.peso),b=num(ms[i].datos.peso);if(b<a*.9)P("warn","Posible error de digitación",`${L}: el peso promedio bajó de ${fmtN(a)} g a ${fmtN(b)} g (${fmtF(ms[i].fecha)}).`,{view:"evento",id:ms[i].id})}}
+ for(const r of M.eventos){const x=r.datos||{},d=dn(r.fecha),L=S.lotes.get(r.lote);
+  if(r.lote&&!L){P("bad","Coherencia",`${TIPOS[r.tipo]||r.tipo} del ${fmtF(d)} pertenece a un lote que ya no existe.`,{view:"evento",id:r.id});continue}
+  if(L){const u=M.byKey.get(r.lote+"|"+r.finca);if(!u)P("bad","Coherencia",`${TIPOS[r.tipo]} del ${fmtF(d)}: el lote ${L.codigo} no está en ${fNom(r.finca)}.`,{view:"evento",id:r.id});else if(d<u.start||(u.sal!=null&&d>u.sal))P("warn","Coherencia",`${TIPOS[r.tipo]} del ${fmtF(d)} está fuera del periodo del lote ${L.codigo} en ${fNom(r.finca)}.`,{view:"evento",id:r.id})}
+  if(r.tipo==="tratamiento"){if(num(x.retiro??x.retiroDias)==null)P("bad","Inocuidad",`Tratamiento ${x.producto||""} (${fmtF(d)}) sin tiempo de retiro.`,{view:"evento",id:r.id});if(!r.legacy&&!(r.adjuntos||[]).length)P("warn","Inocuidad",`Tratamiento ${x.producto||""} (${fmtF(d)}) sin soporte de la fórmula médica adjunto.`,{view:"evento",id:r.id});if(!x.prescribe&&!r.legacy)P("warn","Inocuidad",`Tratamiento ${x.producto||""} (${fmtF(d)}) sin médico veterinario que formula.`,{view:"evento",id:r.id});if(dn(x.fin)!=null&&dn(x.inicio)!=null&&dn(x.fin)<dn(x.inicio))P("bad","Coherencia",`Tratamiento ${x.producto||""}: la fecha de fin es anterior al inicio.`,{view:"evento",id:r.id})}
+  if(r.tipo==="laboratorio"&&norm(x.resultado)==="pendiente"&&hoy-d>=10)P("warn","Seguimiento",`Laboratorio del ${fmtF(d)} lleva ${hoy-d} días pendiente.`,{view:"evento",id:r.id});
+  if(r.tipo==="laboratorio"&&norm(x.resultado)==="positivo"&&!x.agente)P("warn","Completitud",`Laboratorio positivo del ${fmtF(d)} sin agente registrado.`,{view:"evento",id:r.id});
+  if(r.tipo==="necropsia"&&!x.diagnostico)P("warn","Completitud",`Necropsia del ${fmtF(d)} sin diagnóstico presuntivo.`,{view:"evento",id:r.id})}
+ const variantes=new Map();for(const r of M.eventos){const v=r.tipo==="necropsia"?r.datos?.diagnostico:r.tipo==="laboratorio"?r.datos?.agente:null;if(!v)continue;if(![...DIAGS,...AGENTES].some(x=>norm(x)===norm(v)))variantes.set(v,(variantes.get(v)||0)+1)}
+ for(const[v,n]of variantes)P("info","Estandarización",`«${v}» (${n} vez/veces) no está en la lista estándar. Usar la lista hace comparables los diagnósticos entre fincas y temporadas.`,null);
+ for(const f of FINCAS)for(const[d,moms]of M.envRaw.get(f.id))for(const o of Object.values(moms))for(const a of AGUA){const v=num(o[a.k]);if(v!=null&&(v<a.min||v>a.max))P("bad","Posible error de digitación",`${fNom(f.id)} ${fmtF(d)}: ${a.n} = ${v} ${a.u} está fuera de lo posible.`,{view:"diario",finca:f.id,fecha:ds(d)})}
+ // Completitud y uso
+ const desde=hoy-29;const comp=FINCAS.map(f=>{const us=M.ubs.filter(u=>u.finca===f.id&&u.end>=desde&&u.start<=hoy);let esp=0,ok=0;const huecos=[];
+  for(const u of us){for(let d=Math.max(u.start,desde);d<=Math.min(u.end,hoy);d++){esp++;if(u.mort.has(d))ok++;else if(huecos.length<200)huecos.push({u,d})}}
+  let dEnv=0,dOk=0;if(us.length)for(let d=desde;d<=hoy;d++){dEnv++;const m=M.envRaw.get(f.id).get(d);if(m&&Object.values(m).some(o=>num(o.tAgua)!=null||num(o.oxigeno)!=null))dOk++}
+  return{f,esp,ok,mortPct:esp?ok/esp*100:null,envPct:dEnv?dOk/dEnv*100:null,huecos,us:us.length}});
+ const quien=new Map();const bump=(r,f,t)=>{const k=(r||"Sin nombre").trim()||"Sin nombre";const o=quien.get(k)||{n:0,fincas:new Set(),ult:-Infinity};o.n++;o.fincas.add(f);if(t>o.ult)o.ult=t;quien.set(k,o)};
+ for(const[k,m]of M.mort)for(const[d,e]of m)if(d>=desde)bump(e.r,e.finca,d);
+ for(const f of FINCAS)for(const[d,moms]of M.envRaw.get(f.id))if(d>=desde)for(const o of Object.values(moms))bump(o.r,f.id,d);
+ for(const r of M.eventos){const d=dn(r.fecha);if(d>=desde)bump(r.responsable,r.finca,d)}
+ const tarde=[];for(const[k,m]of M.mort)for(const[d,e]of m){if(d<desde||!e.t)continue;const lag=Math.floor((Date.parse(e.t)-d*DAY)/DAY);if(lag>=3)tarde.push(lag)}
+ const tot=comp.reduce((a,x)=>a+x.esp,0),okT=comp.reduce((a,x)=>a+x.ok,0);const envs=comp.filter(x=>x.envPct!=null);
+ const graves=I.filter(i=>i.sev==="bad").length;
+ const score=tot?Math.max(0,Math.round((okT/tot*60)+(envs.length?envs.reduce((a,x)=>a+x.envPct,0)/envs.length*.3:0)+10-Math.min(10,graves*2))):null;
+ const ord={bad:0,warn:1,info:2};I.sort((a,b)=>ord[a.sev]-ord[b.sev]);
+ return{issues:I,comp,quien,tarde,score}}
+
+/* ===== Gráficos ===== */
+function lineChart(host,{series,markers=[],height=240,yFmt=v=>fmtN(v,2),xNum=false,xLabel,xFmt,yLabel,bands=[]}){
+ host.textContent="";host.classList.add("chart");const pts=series.flatMap(s=>s.points);
+ if(!pts.length){host.append(el("div",{class:"empty",text:"Aún no hay datos suficientes para graficar."}));return}
+ const W=Math.max(300,host.clientWidth||600),H=height,m={l:48,r:12,t:14,b:xLabel?40:28};
+ let x0=Infinity,x1=-Infinity,y1=-Infinity,y0=Infinity;for(const p of pts){if(p.x<x0)x0=p.x;if(p.x>x1)x1=p.x;if(p.y>y1)y1=p.y;if(p.y<y0)y0=p.y}if(x0===x1){x0--;x1++}
+ y0=Math.min(0,y0);y1=(y1-y0)*1.12+y0||1;if(y1===y0)y1=y0+1;
+ const sx=x=>m.l+(x-x0)/(x1-x0)*(W-m.l-m.r),sy=y=>H-m.b-(y-y0)/(y1-y0)*(H-m.t-m.b);
+ const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%",role:"img","aria-label":yLabel||"Gráfico"});
+ for(const b of bands){const ya=sy(Math.min(b.to,y1)),yb=sy(Math.max(b.from,y0));if(yb>ya)svg.append(sv("rect",{x:m.l,y:ya,width:W-m.l-m.r,height:yb-ya,fill:b.color,opacity:.18}))}
+ for(let i=0;i<=4;i++){const v=y0+(y1-y0)*i/4,y=sy(v);svg.append(sv("line",{x1:m.l,x2:W-m.r,y1:y,y2:y,class:"gl"}),sv("text",{x:m.l-6,y:y+4,"text-anchor":"end",class:"ax",text:yFmt(v)}))}
+ const nt=Math.min(6,Math.max(2,Math.floor(W/110)));const xf=xFmt||(xNum?v=>fmtN(v):v=>fmtF(Math.round(v)).replace(/ de /g," "));
+ for(let i=0;i<=nt;i++){const x=x0+(x1-x0)*i/nt;svg.append(sv("text",{x:sx(x),y:H-m.b+16,"text-anchor":i===0?"start":i===nt?"end":"middle",class:"ax",text:xf(x)}))}
+ if(xLabel)svg.append(sv("text",{x:(m.l+W-m.r)/2,y:H-4,"text-anchor":"middle",class:"ax",text:xLabel}));
+ for(const mk of markers){const x=sx(mk.x);if(x<m.l-1||x>W-m.r+1)continue;svg.append(sv("line",{x1:x,x2:x,y1:m.t,y2:H-m.b,stroke:mk.color,"stroke-dasharray":"3 3"}),sv("path",{d:`M${x-5},${m.t-2}L${x+5},${m.t-2}L${x},${m.t+6}Z`,fill:mk.color}))}
+ for(const s of series){if(!s.points.length)continue;const p=[...s.points].sort((a,b)=>a.x-b.x);let d="";for(let i=0;i<p.length;i++){const gap=i&&s.gap&&p[i].x-p[i-1].x>s.gap;d+=(i===0||gap?"M":"L")+sx(p[i].x).toFixed(1)+","+sy(p[i].y).toFixed(1)}
+  svg.append(sv("path",{d,fill:"none",stroke:s.color,"stroke-width":2,"stroke-linejoin":"round"}));if(p.length<45)for(const q of p)svg.append(sv("circle",{cx:sx(q.x),cy:sy(q.y),r:2.5,fill:s.color}))}
+ const vl=sv("line",{y1:m.t,y2:H-m.b,stroke:"var(--ink-2)",visibility:"hidden"});svg.append(vl);
+ const ov=sv("rect",{x:m.l,y:m.t,width:W-m.l-m.r,height:H-m.t-m.b,fill:"transparent"});svg.append(ov);
+ const tip=el("div",{class:"tip"});host.append(svg,tip);
+ const xs=[...new Set(pts.map(p=>p.x).concat(markers.map(k=>k.x)))].sort((a,b)=>a-b);
+ const idx=new Map(series.map(s=>[s,new Map(s.points.map(p=>[p.x,p]))]));
+ const move=ev=>{const r=svg.getBoundingClientRect(),px=(ev.clientX-r.left)*W/r.width;const xv=x0+(px-m.l)/(W-m.l-m.r)*(x1-x0);
+  let lo=0,hi=xs.length-1;while(hi-lo>1){const mid=(lo+hi)>>1;if(xs[mid]<xv)lo=mid;else hi=mid}const best=Math.abs(xs[lo]-xv)<=Math.abs(xs[hi]-xv)?xs[lo]:xs[hi];
+  vl.setAttribute("x1",sx(best));vl.setAttribute("x2",sx(best));vl.setAttribute("visibility","visible");
+  tip.textContent="";tip.append(el("b",{text:xNum?(xLabel||"")+" "+xf(best):fmtF(best)}));
+  for(const s of series){const q=idx.get(s).get(best);if(q)tip.append(el("div",{text:`${s.name}: ${yFmt(q.y)}${q.extra?" · "+q.extra:""}`}))}
+  for(const mk of markers)if(mk.x===best)tip.append(el("div",{text:mk.label}));
+  tip.style.display="block";const hw=host.clientWidth,tw=tip.offsetWidth;let left=sx(best)*r.width/W+10;if(left+tw>hw)left=Math.max(0,left-tw-20);tip.style.left=left+"px";tip.style.top="8px"};
+ ov.addEventListener("pointermove",move);ov.addEventListener("pointerdown",move);ov.addEventListener("pointerleave",()=>{tip.style.display="none";vl.setAttribute("visibility","hidden")})}
+function spark(us,days=30){const hoy=S.M.hoy;const by=new Map();for(const u of us)for(let d=hoy-days+1;d<=hoy;d++){const x=u.dias[d-u.start];if(!x)continue;const o=by.get(d)||{m:0,v:0};o.m+=x.muertos;o.v+=x.vivos;by.set(d,o)}
+ const W=260,H=34;const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%","aria-hidden":"true",style:"margin-top:10px"});if(!by.size)return svg;
+ const arr=[];for(let d=hoy-days+1;d<=hoy;d++){const o=by.get(d);arr.push(o&&o.v?o.m/o.v*100:0)}const mx=Math.max(...arr)||1;const bw=W/arr.length;
+ arr.forEach((v,i)=>svg.append(sv("rect",{x:i*bw+.5,y:H-v/mx*H,width:Math.max(bw-1,1),height:v/mx*H,fill:v>S.cfg.mortDiariaMax?"var(--bad)":"var(--ink-2)",opacity:.6})));return svg}
+const legend=items=>el("div",{class:"legend"},items.map(i=>el("span",null,el("i",{style:`background:${i.color}`}),i.name)));
+/* ===== Vistas ===== */
+const V={};
+const card=(title,...kids)=>el("section",{class:"panel"},title?el("h3",{style:"margin-bottom:12px"},title):null,kids);
+const gap=()=>el("div",{style:"height:16px"});
+const chipN={alta:"Alerta",media:"Atención",info:"Aviso",ok:"Normal",sin:"Sin lotes"};
+function go(view,opts={}){Object.assign(S,opts.state||{});if(location.hash==="#"+view)render();else location.hash=view}
+function render(){if(!S.M)compute();const v=$("#view");v.textContent="";
+ for(const a of document.querySelectorAll("#nav a,#mnav a"))a.getAttribute("href")==="#"+S.view?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current");
+ if(!S.canWrite)v.append(el("div",{class:"banner",text:"Tienes acceso de solo lectura: puedes consultar, pero no registrar. Pide al administrador que revise tu usuario."}));
+ (V[S.view]||V.inicio)(v)}
+
+V.inicio=v=>{const M=S.M,hoy=M.hoy,mes=new Date(hoy*DAY).getUTCMonth();
+ if(!S.lotes.size){v.append(card("Bienvenido",el("p",{text:"Para empezar, crea los lotes que hay en cada finca con su estanque, fecha de ingreso y número de peces. Después, el registro diario solo toma un par de minutos."}),
+  S.canWrite?el("div",{class:"row"},el("button",{class:"btn pri",onclick:()=>go("lotes",{state:{editLote:""}})},"Crear el primer lote"),el("button",{class:"btn",onclick:()=>go("ajustes")},"Cargar históricos desde Excel")):null));return}
+ v.append(el("div",{class:"banner info",text:`Temporada actual: ${temporada(mes).toLowerCase()} (${MESES[mes].toLowerCase()}). Riesgos típicos: ${RIESGO_TEMP[temporada(mes)]}.`}));
+ v.append(el("div",{class:"fincas"},M.fincas.map(f=>{const pend=f.us.length-f.regHoy;const done=f.us.length&&!pend&&f.aguaHoy;
+  return el("div",{class:"finca","data-n":f.nivel},el("div",{class:"nm",text:f.nombre}),
+   el("div",{class:"st",text:f.nivel==="sin"?"Sin lotes activos":chipN[f.nivel]+(f.al.filter(a=>a.nivel!=="info").length?`: ${f.al.filter(a=>a.nivel!=="info").length} por revisar`:"")}),
+   el("div",{class:"kpis"},el("div",{class:"kpi"},el("b",{text:fmtN(f.us.length)}),el("span",{text:"estanques con lote"})),el("div",{class:"kpi"},el("b",{text:fmtN(f.vivos)}),el("span",{text:"peces"+(f.biomasa!=null?` · ${fmtN(f.biomasa/1000,1)} t`:"")})),
+    el("div",{class:"kpi"},el("b",{text:pct(f.m7)}),el("span",{text:"mortalidad 7 días"})),el("div",{class:"kpi"},el("b",{text:fmtN(f.mu7)}),el("span",{text:"muertes 7 días"}))),
+   spark(f.us),
+   f.us.length?el("div",{class:"hoy"+(done?" done":"")},el("span",{class:"spacer",text:done?"Registro de hoy completo.":[pend?`${pend} de ${f.us.length} estanques sin mortalidad de hoy`:null,!f.aguaHoy?"falta el agua de hoy":null].filter(Boolean).join("; ").replace(/^./,m=>m.toUpperCase())+"."}),
+    S.canWrite?el("button",{class:"btn sm"+(done?"":" pri"),onclick:()=>{S.dia.finca=f.id;S.dia.fecha=hoyStr();go("diario")}},done?"Ver o corregir":"Registrar hoy"):null):null)})));
+ const lst=el("div");const als=M.alertas;
+ if(!als.length)lst.append(el("p",{class:"muted",text:"Sin alertas con los datos registrados."}));
+ for(const a of als.slice(0,60))lst.append(el("div",{class:"alert"},el("span",{class:"chip "+a.nivel,text:chipN[a.nivel]}),el("div",null,el("div",{class:"t",text:a.titulo}),el("div",{class:"small",text:(a.finca?fNom(a.finca)+". ":"")+a.detalle})),
+  el("div",{class:"s"},el("b",null,"Qué revisar: "),a.sug,a.lote&&S.lotes.has(a.lote)?el("button",{class:"btn sm",style:"margin-left:8px",onclick:()=>go("lotes",{state:{loteSel:a.lote,editLote:null}})},"Ver lote"):null)));
+ const aud=auditar(M);const multi=[...new Set(M.ubs.map(u=>u.lote.id))].filter(id=>M.ubs.filter(u=>u.lote.id===id).length>1);
+ v.append(el("div",{class:"grid2"},card("Alertas y sugerencias",lst),el("div",{class:"stack"},
+  card("Calidad de los datos",el("div",{class:"row"},el("div",{class:"score",text:aud.score==null?"—":aud.score}),el("div",{class:"spacer"},el("div",{text:aud.score==null?"Sin datos suficientes":"de 100 puntos"}),el("div",{class:"small muted",text:`${aud.issues.filter(i=>i.sev==="bad").length} inconsistencias, ${aud.issues.filter(i=>i.sev==="warn").length} advertencias`})),el("button",{class:"btn",onclick:()=>go("calidad")},"Ver auditoría"))),
+  card("Lotes repartidos en varias fincas",multi.length?el("table",null,el("tbody",null,multi.map(id=>{const C=cmpLote(M,id);const l=S.lotes.get(id);
+   return el("tr",null,el("td",null,el("b",{text:l.codigo})),el("td",{text:[...new Set((l.ubicaciones||[]).map(u=>fNom(u.finca)))].join(", ")}),el("td",null,C&&C.pares.some(p=>p.t&&p.t.p<.05)?el("span",{class:"chip media",text:"Difiere"}):el("span",{class:"chip ok",text:C?"Similar":"Pocos datos"})),el("td",null,el("button",{class:"btn sm",onclick:()=>go("comparar",{state:{cmpLote:id}})},"Comparar")))}))):el("p",{class:"muted",text:"Ningún lote está en más de una finca todavía."})))))};
+
+/* --- Registro diario --- */
+function diarioDoc(f,fecha){return S.diario.get(f+"-"+fecha.slice(0,7))}
+V.diario=v=>{const M=S.M;if(!S.dia.fecha)S.dia.fecha=hoyStr();const st=S.dia;const d=dn(st.fecha),hoy=M.hoy;
+ const segF=el("div",{class:"seg big",role:"group","aria-label":"Finca"},FINCAS.map(f=>el("button",{"aria-pressed":st.finca===f.id?"true":"false",onclick:()=>{st.finca=f.id;LS.set("finca",f.id);render()}},f.nombre)));
+ const fecha=el("input",{type:"date",class:"inp",value:st.fecha,max:hoyStr(),"aria-label":"Fecha",onchange:e=>{if(!dn(e.target.value))return;if(dn(e.target.value)>hoy){toast("No se puede registrar una fecha futura");e.target.value=st.fecha;return}st.fecha=e.target.value;render()}});
+ const mover=k=>{const n=d+k;if(n>hoy)return;st.fecha=ds(n);render()};
+ v.append(el("section",{class:"panel stack"},segF,el("div",{class:"dayctl"},el("button",{class:"btn","aria-label":"Día anterior",onclick:()=>mover(-1)},"‹"),fecha,el("button",{class:"btn","aria-label":"Día siguiente",disabled:d>=hoy,onclick:()=>mover(1)},"›"),d!==hoy?el("button",{class:"btn",onclick:()=>{st.fecha=hoyStr();render()}},"Hoy"):null),
+  el("div",{class:"small muted",text:d===hoy?"Registrando el día de hoy.":`Registrando ${fmtFc(d)}${hoy-d>1?" (registro histórico)":""}.`})));
+ const doc=diarioDoc(st.finca,st.fecha);const exM=(doc?.mort||{})[st.fecha]||{};const exA=((doc?.amb||{})[st.fecha]||{});
+ // Agua
+ const draftA={};const segM=el("div",{class:"seg",role:"group","aria-label":"Momento"});const aguaBox=el("div");
+ const drawAgua=()=>{segM.textContent="";for(const[k,n]of Object.entries(MOMENTOS))segM.append(el("button",{"aria-pressed":st.momento===k?"true":"false",onclick:()=>{st.momento=k;drawAgua()}},n+(exA[k]?" ✓":"")));
+  aguaBox.textContent="";const ex=exA[st.momento]||{};const cur=draftA[st.momento]||(draftA[st.momento]=Object.fromEntries([...AGUA.map(a=>[a.k,ex[a.k]??""]),["evento",ex.evento||""]]));
+  add(aguaBox,[el("div",{class:"fgrid",style:"margin-top:12px"},AGUA.map(a=>{const i=el("input",{type:"text",inputmode:"decimal",value:cur[a.k]===""?"":String(cur[a.k]).replace(".",","),placeholder:a.u||"",autocomplete:"off"});
+   const chk=()=>{const n=num(i.value);i.dataset.r=i.value.trim()===""?"":n==null||n<a.min||n>a.max?"bad":(rango(a.k,n)||"")};chk();
+   i.addEventListener("input",()=>{cur[a.k]=i.value;chk()});return el("label",{class:"f"},`${a.n}${a.u?" ("+a.u+")":""}`,i)}),
+   el("label",{class:"f wide"},"Evento del día",el("input",{value:cur.evento,placeholder:"Ej.: creciente, corte de energía, bocatoma tapada",oninput:e=>cur.evento=e.target.value}))),
+   ex.r?el("p",{class:"small muted",text:`Registrado por ${ex.r}.`}):null])};drawAgua();
+ v.append(gap(),el("section",{class:"panel"},el("div",{class:"row"},el("h3",{text:"Agua y clima"}),el("span",{class:"spacer"}),segM),el("p",{class:"small muted",style:"margin:4px 0 0",text:"Mide el oxígeno a primera hora: es el momento más bajo del día. Los campos se colorean si salen del rango para trucha."}),aguaBox));
+ // Mortalidad
+ const us=M.ubs.filter(u=>u.finca===st.finca&&u.start<=d&&(u.sal==null||d<=u.sal)).sort((a,b)=>String(a.ub.unidad||"").localeCompare(String(b.ub.unidad||""),"es",{numeric:true})||a.lote.codigo.localeCompare(b.lote.codigo));
+ const draftM={};const mortBox=el("div");
+ for(const u of us){const e=exM[u.lote.id];draftM[u.lote.id]={m:e&&e.m!=null?String(e.m):"",c:e?.c||""};
+  const inp=el("input",{type:"text",inputmode:"numeric",pattern:"[0-9]*",value:draftM[u.lote.id].m,placeholder:"—","aria-label":`Muertes lote ${u.lote.codigo}`,autocomplete:"off"});
+  const sel=el("select",{"aria-label":"Causa probable"},el("option",{value:"",text:"Causa probable (opcional)"}),CAUSAS.map(c=>el("option",{value:c,text:c})));sel.value=draftM[u.lote.id].c;
+  const vivos=vivosEn(u,d);
+  const chk=()=>{const n=num(inp.value);inp.dataset.r=inp.value.trim()===""?"":n==null||n<0||!Number.isInteger(n)||n>vivos?"bad":vivos&&n/vivos*100>S.cfg.mortDiariaMax?"warn":"ok"};chk();
+  inp.addEventListener("input",()=>{draftM[u.lote.id].m=inp.value;chk()});sel.addEventListener("change",()=>draftM[u.lote.id].c=sel.value);
+  draftM[u.lote.id].inp=inp;draftM[u.lote.id].chk=chk;
+  mortBox.append(el("div",{class:"estanque"},el("div",{class:"lbl"},el("b",{text:u.ub.unidad?"Estanque "+u.ub.unidad:"Lote "+u.lote.codigo}),el("div",{class:"small muted",text:`${u.ub.unidad?"Lote "+u.lote.codigo+" · ":""}${fmtN(vivos)} peces`})),inp,sel,e?.r?el("div",{class:"who",text:`Registrado por ${e.r}`}):null))}
+ if(!us.length)mortBox.append(el("p",{class:"muted",text:`No hay lotes en ${fNom(st.finca)} en esta fecha. Revisa las fechas de ingreso y salida en Lotes.`}));
+ const resp=el("input",{value:S.resp||S.me.name||"",placeholder:"Tu nombre",oninput:e=>{S.resp=e.target.value;LS.set("resp",S.resp)}});
+ v.append(gap(),el("section",{class:"panel"},el("div",{class:"row"},el("h3",{text:"Mortalidad por estanque"}),el("span",{class:"spacer"}),us.length?el("button",{class:"btn sm",onclick:()=>{for(const k in draftM)if(draftM[k].inp.value.trim()===""){draftM[k].inp.value="0";draftM[k].m="0";draftM[k].chk()}}},"Sin mortalidad en los vacíos"):null),
+  el("p",{class:"small muted",style:"margin:4px 0 6px",text:"Número de peces muertos o retirados ese día. Un estanque sin dato se considera no registrado."}),mortBox,
+  el("label",{class:"f",style:"margin-top:12px;max-width:340px"},"Responsable",resp)));
+ const save=async()=>{if(!S.canWrite)return;const who=(resp.value||"").trim();if(!who)return toast("Escribe tu nombre en Responsable");
+  const t=new Date().toISOString(),errs=[],warns=[],mortP={},ambP={};
+  for(const u of us){const dr=draftM[u.lote.id],e=exM[u.lote.id];const raw=dr.inp.value.trim();
+   if(raw===""){if(e&&e.m!=null)mortP[u.lote.id]=null;continue}
+   const n=num(raw),vivos=vivosEn(u,d);const L=u.ub.unidad?"Estanque "+u.ub.unidad:"Lote "+u.lote.codigo;
+   if(n==null||n<0||!Number.isInteger(n)){errs.push(`${L}: escribe un número entero`);continue}
+   if(n>vivos){errs.push(`${L}: ${n} supera los ${fmtN(vivos)} peces del estanque`);continue}
+   if(vivos&&n/vivos*100>S.cfg.saltoMort)warns.push(`${L}: ${n} peces (${pct(n/vivos*100,1)} del estanque)`);
+   if(!e||e.m!==n||(e.c||"")!==dr.c)mortP[u.lote.id]={m:n,c:dr.c||"",r:who,p:S.me.id||"",t}}
+  for(const[mo,cur]of Object.entries(draftA)){const ex=exA[mo]||{};const o={};let any=false,changed=false;
+   for(const a of AGUA){const raw=String(cur[a.k]??"").trim();const n=raw===""?null:num(raw);if(raw!==""&&(n==null||n<a.min||n>a.max)){errs.push(`${a.n} (${MOMENTOS[mo].toLowerCase()}): ${raw} no es un valor posible (${a.min} a ${a.max} ${a.u})`);continue}
+    o[a.k]=n;if(n!=null)any=true;if((ex[a.k]??null)!==n)changed=true}
+   o.evento=(cur.evento||"").trim();if(o.evento)any=true;if((ex.evento||"")!==o.evento)changed=true;
+   if(changed)ambP[mo]=any?{...o,r:who,p:S.me.id||"",t}:null}
+  if(errs.length)return toast("Corrige antes de guardar: "+errs.slice(0,3).join(". "),7000);
+  if(!Object.keys(mortP).length&&!Object.keys(ambP).length)return toast("No hay cambios para guardar");
+  if(warns.length&&!confirm("Estas cifras son muy altas para un solo día:\n\n"+warns.join("\n")+"\n\n¿Están bien?"))return;
+  const vacios=us.filter(u=>draftM[u.lote.id].inp.value.trim()==="").length;
+  const data={};if(Object.keys(mortP).length)data.mort={[st.fecha]:mortP};if(Object.keys(ambP).length)data.amb={[st.fecha]:ambP};
+  const mes=st.fecha.slice(0,7);btn.disabled=true;btn.textContent="Guardando…";
+  const ok=await enqueue({kind:"merge",path:`diario/${st.finca}-${mes}`,base:{finca:st.finca,mes},data});
+  btn.disabled=false;btn.textContent="Guardar día";
+  toast((ok?"Día guardado.":"Guardado en este teléfono; se enviará cuando haya señal.")+(vacios?` Quedan ${vacios} estanques sin dato.`:""),4500);
+  if(ok)render()};
+ const btn=el("button",{class:"btn pri big",onclick:save,disabled:!S.canWrite},"Guardar día");
+ v.append(el("div",{class:"savebar"},btn));
+};
+
+/* --- Eventos sanitarios --- */
+V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.eventos.get(pre.id)||S.legacy.find(r=>r.id===pre.id):null;
+ const st=ex?{id:ex.id,tipo:ex.tipo,lote:ex.lote||"",finca:ex.finca,fecha:ex.fecha,notas:ex.notas||"",datos:{...(ex.datos||{})},legacy:!!S.legacy.find(r=>r.id===ex.id),adjuntos:[...(ex.adjuntos||[])]}:
+  {id:null,tipo:pre.tipo||LS.get("evtipo","necropsia"),lote:pre.lote||"",finca:pre.finca||S.dia.finca,fecha:hoyStr(),notas:"",datos:{},adjuntos:[]};
+ if(st.tipo==="retiroDias")st.tipo="tratamiento";
+ const seg=el("div",{class:"seg",role:"group","aria-label":"Tipo de evento"});const body=el("div");
+ const draw=()=>{seg.textContent="";for(const[k,n]of Object.entries(TIPOS))seg.append(el("button",{"aria-pressed":st.tipo===k?"true":"false",disabled:!!st.id,onclick:()=>{st.tipo=k;LS.set("evtipo",k);st.datos={};draw()}},n));
+  body.textContent="";const d=dn(st.fecha);
+  const fs=el("select",{onchange:e=>{st.finca=e.target.value;draw()}},FINCAS.map(f=>el("option",{value:f.id,text:f.nombre})));fs.value=st.finca;
+  const us=M.ubs.filter(u=>u.finca===st.finca&&d!=null&&u.start<=d&&(u.sal==null||d<=u.sal));
+  if(st.lote&&!us.some(u=>u.lote.id===st.lote)&&!st.id)st.lote="";
+  const ls=el("select",{onchange:e=>st.lote=e.target.value},el("option",{value:"",text:FW(st.tipo)?"Toda la finca":us.length?"Elige lote":"Sin lotes en esa fecha"}),us.map(u=>el("option",{value:u.lote.id,text:`${u.ub.unidad?"Estanque "+u.ub.unidad+" · ":""}Lote ${u.lote.codigo}`})));
+  if(st.lote&&!us.some(u=>u.lote.id===st.lote)&&S.lotes.get(st.lote))ls.append(el("option",{value:st.lote,text:"Lote "+S.lotes.get(st.lote).codigo+" (fuera de periodo)"}));ls.value=st.lote;
+  if(!st.lote&&us.length===1&&!FW(st.tipo)){st.lote=us[0].lote.id;ls.value=st.lote}
+  const fields=CAMPOS[st.tipo].map(c=>{if(st.datos[c.k]==null)st.datos[c.k]=c.t==="select"?c.opts[0]:c.t==="date"&&(c.k==="inicio")?st.fecha:"";const val=st.datos[c.k];const on=e=>st.datos[c.k]=e.target.value;let i;
+   if(c.t==="select"){i=el("select",{onchange:on},c.opts.map(o=>el("option",{value:o,text:o})));i.value=val}
+   else if(c.t==="textarea"){i=el("textarea",{oninput:on,placeholder:c.ph});i.value=val}
+   else i=el("input",{type:c.t==="date"?"date":"text",inputmode:c.t==="number"?"decimal":null,list:c.list,value:val,placeholder:c.ph,max:c.t==="date"&&c.k!=="fin"?hoyStr():null,oninput:on});
+   return el("label",{class:"f"+(c.t==="textarea"?" wide":"")},c.l+(c.req?" *":""),c.hint?el("span",{class:"hint",text:c.hint}):null,i)});
+  const notas=el("textarea",{oninput:e=>st.notas=e.target.value});notas.value=st.notas;
+  add(body,[el("div",{class:"fgrid",style:"margin-top:14px"},el("label",{class:"f"},"Finca *",fs),el("label",{class:"f"},FW(st.tipo)?"Lote (opcional)":"Lote *",ls),
+   el("label",{class:"f"},"Fecha *",el("input",{type:"date",value:st.fecha,max:hoyStr(),onchange:e=>{st.fecha=e.target.value;draw()}})),fields,el("label",{class:"f wide"},"Notas",notas)),adjBox(st,draw),
+   st.tipo==="tratamiento"?el("p",{class:"small muted",text:"Para trucha el retiro suele venir en grados-día (suma de la temperatura diaria del agua). La app calcula la fecha de liberación con las temperaturas registradas en la finca."}):null,
+   el("div",{class:"row",style:"margin-top:14px"},st.id&&!st.legacy?el("button",{class:"btn danger",onclick:async()=>{if(!confirm("¿Eliminar este evento?"))return;const ok=await enqueue({kind:"del",path:"eventos/"+st.id});toast(ok?"Evento eliminado":"Se eliminará cuando haya señal");go("lotes")}},"Eliminar"):null,
+    el("span",{class:"spacer"}),st.id?el("button",{class:"btn",onclick:()=>history.back()},"Cancelar"):null,el("button",{class:"btn pri",onclick:save,disabled:!S.canWrite},st.id?"Guardar cambios":"Guardar evento"))])};
+ const save=async()=>{const d=dn(st.fecha),hoy=M.hoy,x=st.datos;
+  if(d==null)return toast("Revisa la fecha");if(d>hoy)return toast("La fecha no puede ser futura");
+  if(!FW(st.tipo)&&!st.lote)return toast("Elige el lote");
+  for(const c of CAMPOS[st.tipo])if(c.req&&!String(x[c.k]??"").trim())return toast("Completa: "+c.l);
+  for(const c of CAMPOS[st.tipo])if(c.t==="number"&&String(x[c.k]??"").trim()!==""&&(num(x[c.k])==null||num(x[c.k])<0))return toast(c.l+": debe ser un número positivo");
+  if(st.tipo==="tratamiento"){if(dn(x.fin)<dn(x.inicio))return toast("La fecha de fin no puede ser anterior al inicio");if(x.retiroUnidad==="días"&&num(x.retiro)>120&&!confirm("¿Seguro que el retiro es de "+x.retiro+" días? Si la etiqueta dice grados-día, cambia la unidad."))return;
+   if(x.retiroUnidad==="grados-día"&&num(x.retiro)<30&&!confirm("Un retiro de "+x.retiro+" grados-día es muy corto. ¿Quizás son días?"))return}
+  if(st.tipo==="laboratorio"&&x.fechaResultado&&dn(x.fechaResultado)<d)return toast("El resultado no puede ser anterior a la toma de la muestra");
+  if(st.tipo==="laboratorio"&&norm(x.resultado)==="positivo"&&!String(x.agente||"").trim()&&!confirm("Resultado positivo sin agente. ¿Guardar así?"))return;
+  if(st.tipo==="muestreo"){const u=M.byKey.get(st.lote+"|"+st.finca);if(u&&u.peso!=null&&num(x.peso)<u.peso*.9&&!confirm(`El peso promedio (${x.peso} g) es menor que el del muestreo anterior (${u.peso} g). ¿Está bien?`))return}
+  if(st.subiendo)return toast("Espera a que terminen de subir los archivos");
+  if(st.tipo==="tratamiento"&&!st.adjuntos.length&&!confirm("¿Guardar el tratamiento sin el soporte de la fórmula médica? Quedará pendiente en Calidad de datos y podrás adjuntarlo después desde Editar."))return;
+  const datos={};for(const c of CAMPOS[st.tipo]){const val=x[c.k];if(val===""||val==null)continue;datos[c.k]=c.t==="number"?num(val):c.list?canon(val):String(val).trim()}
+  const who=(S.resp||S.me.name||"").trim();
+  const docu={tipo:st.tipo,lote:st.lote||"",finca:st.finca,fecha:st.fecha,notas:(st.notas||"").trim(),datos,responsable:ex?.responsable||who,por:ex?.por||S.me.id||"",creado:ex?.creado||new Date().toISOString(),editado:new Date().toISOString(),editadoPor:who,adjuntos:st.adjuntos.map(a=>({id:a.id,nombre:a.nombre||"",tipo:a.tipo||"",kb:a.kb||0,subido:a.subido||"",por:a.por||""}))};
+  if(st.legacy){toast("Los registros antiguos se corrigen en su versión anterior; crea uno nuevo si hace falta.");return}
+  const id=st.id||uid("e");const ok=await enqueue({kind:"set",path:"eventos/"+id,data:docu});
+  toast(ok?"Evento guardado.":"Guardado en este teléfono; se enviará cuando haya señal.");
+  if(st.id)go("lotes",{state:{loteSel:st.lote||S.loteSel}});else{st.datos={};st.notas="";st.adjuntos=[];draw()}};
+ draw();
+ v.append(card(st.id?"Editar evento":"Nuevo evento sanitario",seg,body));
+ if(!st.id){const rec=M.eventos.filter(r=>r.finca===st.finca).slice(-6).reverse();if(rec.length)v.append(gap(),card(`Últimos eventos en ${fNom(st.finca)}`,el("ul",{class:"tl"},rec.map(r=>tlItem(r,true)))))}
+};
+/* --- Soportes (fotos y PDF) --- */
+const blobUrl=id=>"/_blob/"+id;
+function adjThumb(a){const pdf=a.tipo==="application/pdf";const link=el("a",{href:"#",target:"_blank",rel:"noopener",class:pdf?"adj-pdf":null,"aria-label":(pdf?"Abrir PDF ":"Ver foto ")+(a.nombre||"")},pdf?"PDF":null);let img=null;
+ if(!pdf){img=el("img",{alt:a.nombre||"Soporte",loading:"lazy"});link.append(img)}
+ signedUrl(a.id).then(u=>{link.href=u;if(img)img.src=u}).catch(()=>{link.replaceWith(el("span",{class:"adj-pdf",style:"font-size:.8rem;color:var(--ink-2)",text:"No disponible"}))});return link}
+function adjView(list){return el("div",{class:"adj",style:"margin-top:8px"},list.map(a=>el("div",{class:"adj-it"},adjThumb(a),el("span",{class:"muted",text:(a.nombre||"")+(a.por?" · "+a.por:"")}))))}
+function adjBox(st,redraw){S.adjRedraw=redraw;const req=st.tipo==="tratamiento";
+ const title=req?"Soporte de la fórmula médica (foto o PDF) *":st.tipo==="laboratorio"?"Informe del laboratorio (PDF o foto)":st.tipo==="suplementacion"?"Soporte o indicación (opcional)":"Fotos o documentos (opcional)";
+ const list=el("div",{class:"adj"},st.adjuntos.map((a,i)=>el("div",{class:"adj-it"},adjThumb(a),el("span",{class:"muted",text:a.nombre||""}),el("button",{class:"btn sm danger",onclick:()=>{if(confirm("¿Quitar este archivo del registro?")){st.adjuntos.splice(i,1);redraw()}}},"Quitar"))));
+ if(st.subiendo)list.append(el("div",{class:"adj-it"},el("span",{class:"adj-pdf",style:"font-size:.85rem;color:var(--ink-2)",text:"Subiendo…"})));
+ const pick=cam=>{const i=el("input",{type:"file",accept:cam?"image/*":"image/*,application/pdf",multiple:cam?null:true,capture:cam?"environment":null,style:"position:fixed;left:-9999px"});i.addEventListener("change",()=>{subir([...i.files],st,redraw);i.remove()});document.body.append(i);i.click()};
+ let ctl;if(S.assets===undefined)ctl=el("p",{class:"small muted",text:"Comprobando permisos para subir archivos…"});
+ else if(!S.assets)ctl=el("p",{class:"small muted",text:"Tu usuario no tiene permiso para subir archivos. Pide al administrador que lo revise."});
+ else ctl=el("div",{class:"row",style:"margin-top:10px"},el("button",{class:"btn",type:"button",onclick:()=>pick(true)},"Tomar foto"),el("button",{class:"btn",type:"button",onclick:()=>pick(false)},"Subir foto o PDF"));
+ return el("div",{class:"adj-box"+(req&&!st.adjuntos.length?" falta":"")},el("div",{style:"font-weight:600;font-size:.9rem;margin-bottom:8px",text:title}),st.adjuntos.length||st.subiendo?list:null,ctl,
+  req?el("p",{class:"small muted",style:"margin:8px 0 0",text:"El original firmado queda físicamente en la finca; aquí queda la copia digital para consulta y auditoría."}):null)}
+async function comprimir(f){let bmp;try{bmp=await createImageBitmap(f)}catch{if(["image/jpeg","image/png","image/webp"].includes(f.type))return{blob:f,type:f.type};throw{code:"decode"}}
+ const s=Math.min(1,2000/Math.max(bmp.width,bmp.height));const c=document.createElement("canvas");c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
+ const blob=await new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej({code:"decode"}),"image/jpeg",.82));return{blob,type:"image/jpeg"}}
+async function subir(files,st,redraw){if(!S.assets)return;for(const f of files.slice(0,6)){st.subiendo=(st.subiendo||0)+1;redraw();
+  try{let blob=f,type=f.type,nombre=f.name||"archivo";
+   if(type==="application/pdf"||/\.pdf$/i.test(nombre))type="application/pdf";
+   else{const r=await comprimir(f);blob=r.blob;type=r.type;if(type==="image/jpeg")nombre=nombre.replace(/\.[^.]+$/,"")+".jpg"}
+   if(blob.size>20*1024*1024)throw{code:"too_large"};
+   let r;try{r=await withTimeout(S.assets.upload(blob,{type}),90000)}catch(e){if(e&&e.code==="store_unavailable")r=await withTimeout(S.assets.upload(blob,{type}),90000);else throw e}
+   st.adjuntos.push({id:r.id,nombre,tipo:type,kb:Math.round((r.sizeBytes||blob.size)/1024),subido:new Date().toISOString(),por:(S.resp||S.me.name||"").trim()})}
+  catch(e){const m={too_large:"El archivo supera 20 MB.",unsupported_type:"Formato no soportado. Usa JPG, PNG o PDF.",not_granted:"No tienes permiso para subir archivos.",timeout:"La señal no alcanzó para subir el archivo. Guarda el registro y adjúntalo después desde Editar.",decode:"No se pudo leer la imagen. Tómala con la cámara o envíala en JPG o PDF.",quota_or_state:"Se llenó el espacio de archivos de la app; avisa al administrador.",rate_limited:"Demasiados archivos seguidos; intenta en un momento."};toast(m[e&&e.code]||"No se pudo subir el archivo. Revisa la conexión e intenta de nuevo.",6500)}
+  finally{st.subiendo--;redraw()}}}
+function tlItem(r,showLote){const x=r.datos||{};const L=S.lotes.get(r.lote);const det=(CAMPOS[r.tipo]||[]).filter(c=>x[c.k]!==""&&x[c.k]!=null);
+ const extra=r.legacy?Object.entries(x).filter(([k])=>!(CAMPOS[r.tipo]||[]).some(c=>c.k===k)):[];
+ return el("li",{"data-t":r.tipo},el("div",{class:"h"},el("b",{text:TIPOS[r.tipo]||r.tipo}),el("span",{class:"small muted",text:`${fmtF(r.fecha)} · ${fNom(r.finca)}${L&&showLote?" · Lote "+L.codigo:""}${r.responsable?" · "+r.responsable:""}`}),
+  r.tipo==="laboratorio"&&x.resultado?el("span",{class:"chip "+(norm(x.resultado)==="positivo"?"alta":norm(x.resultado)==="negativo"?"ok":"info"),text:x.resultado}):null,el("span",{class:"spacer"}),
+  S.canWrite&&!r.legacy?el("button",{class:"btn sm",onclick:()=>go("evento",{state:{evPre:{id:r.id}}})},"Editar"):null),
+  det.length||r.notas||extra.length?el("dl",null,det.map(c=>[el("dt",{text:c.l}),el("dd",{text:c.t==="date"?fmtF(x[c.k]):c.t==="number"?fmtN(num(x[c.k]),2).replace(/,00$/,""):String(x[c.k])})]),extra.map(([k,v])=>[el("dt",{text:k}),el("dd",{text:String(v)})]),r.notas?[el("dt",{text:"Notas"}),el("dd",{text:r.notas})]:null):null,(r.adjuntos||[]).length?adjView(r.adjuntos):r.tipo==="tratamiento"&&!r.legacy?el("div",{class:"small",style:"margin-top:6px;color:var(--warn);font-weight:600",text:"Falta adjuntar el soporte de la fórmula médica."}):null)}
+/* --- Lotes --- */
+V.lotes=v=>{const M=S.M;const lotes=[...S.lotes.values()].sort((a,b)=>(a.estado==="cerrado")-(b.estado==="cerrado")||String(b.creado||"").localeCompare(String(a.creado||"")));
+ if(S.editLote!=null)return loteForm(v);
+ if(!S.loteSel||!S.lotes.has(S.loteSel))S.loteSel=lotes[0]?.id||null;
+ const q=el("input",{class:"inp",placeholder:"Buscar lote o estanque",type:"search","aria-label":"Buscar lote"});const list=el("div",{class:"lotelist"});
+ const fill=()=>{list.textContent="";for(const l of lotes){const ubs=l.ubicaciones||[];if(q.value&&!norm(l.codigo+" "+ubs.map(u=>u.unidad+" "+fNom(u.finca)).join(" ")+" "+(l.origen||"")).includes(norm(q.value)))continue;
+  list.append(el("button",{"aria-current":l.id===S.loteSel?"true":"false",onclick:()=>{S.loteSel=l.id;render()}},el("span",null,el("b",{text:l.codigo}),el("br"),el("span",{class:"small",text:ubs.map(u=>fNom(u.finca)+(u.unidad?" "+u.unidad:"")).join(", ")||"Sin finca"})),el("span",{class:"small",text:l.estado==="cerrado"?"Cerrado":""})))}};
+ q.addEventListener("input",fill);fill();
+ const side=el("aside",{class:"panel stack"},S.canWrite?el("button",{class:"btn pri",style:"width:100%",onclick:()=>{S.editLote="";render()}},"Nuevo lote"):null,q,list);
+ const main=el("div",{class:"stack"});v.append(el("div",{class:"layout-lotes"},side,main));
+ if(!S.loteSel){main.append(card(null,el("div",{class:"empty"},el("p",{text:"Aún no hay lotes. Crea el primero indicando la finca, el estanque, la fecha de ingreso y el número de peces."}),S.canWrite?el("button",{class:"btn pri",onclick:()=>{S.editLote="";render()}},"Crear lote"):null)));return}
+ const l=S.lotes.get(S.loteSel),us=M.ubs.filter(u=>u.lote.id===l.id);
+ main.append(el("section",{class:"panel"},el("div",{class:"row"},el("h2",{text:"Lote "+l.codigo}),el("span",{class:"chip "+(l.estado==="cerrado"?"":"ok"),text:l.estado==="cerrado"?"Cerrado":"Activo"}),el("span",{class:"spacer"}),
+  S.canWrite?el("button",{class:"btn",onclick:()=>{S.editLote=l.id;render()}},"Editar"):null,S.canWrite?el("button",{class:"btn pri",onclick:()=>go("evento",{state:{evPre:{lote:l.id,finca:us[0]?.finca}}})},"Nuevo evento"):null,
+  el("button",{class:"btn",onclick:()=>go("claude",{state:{ai:{scope:"lote:"+l.id}}})},"Analizar")),
+  el("p",{class:"muted",style:"margin:6px 0 12px",text:[l.especie,l.etapa,l.origen?"Origen: "+l.origen:null,l.fechaNacimiento?"Eclosión: "+fmtF(l.fechaNacimiento):null,l.pesoInicial?"Peso al ingreso: "+l.pesoInicial+" g":null].filter(Boolean).join(". ")}),
+  l.notas?el("p",{class:"small",text:l.notas}):null,
+  el("div",{class:"scroll"},el("table",null,el("thead",null,el("tr",null,["Finca","Estanque","Ingreso","Salida","Ingresaron","Muertes","Mort. acum.","Mort. 7 d","Peces","Peso prom.","Biomasa"].map((h,i)=>el("th",{class:i>3?"n":null,text:h})))),
+   el("tbody",null,us.map(u=>el("tr",null,el("td",null,el("b",{text:fNom(u.finca)})),el("td",{text:u.ub.unidad||"—"}),el("td",{text:fmtF(u.start)}),el("td",{text:u.sal!=null?fmtF(u.sal):"—"}),el("td",{class:"n",text:fmtN(u.inicial)}),el("td",{class:"n",text:fmtN(u.acum)}),el("td",{class:"n",text:pct(u.acumPct)}),el("td",{class:"n",text:pct(u.w7.pct)}),el("td",{class:"n",text:fmtN(u.vivos)}),el("td",{class:"n",text:u.peso!=null?fmtN(u.peso)+" g":"—"}),el("td",{class:"n",text:u.biomasa!=null?fmtN(u.biomasa)+" kg":"—"}))))))));
+ const varSel=el("select",{class:"inp","aria-label":"Parámetro del agua"},el("option",{value:"",text:"Sin parámetro de agua"}),AGUA.map(x=>el("option",{value:x.k,text:x.n})));varSel.value=S.varSel||"tAgua";
+ const ch=el("div"),ch2=el("div");
+ const draw=()=>{S.varSel=varSel.value;const series=us.map(u=>({name:fNom(u.finca),color:FCOLOR[u.finca],gap:3,points:u.dias.filter(x=>x.pct!=null).map(x=>({x:x.d,y:x.pct,extra:x.muertos+" peces"}))}));
+  const mk=[];for(const u of us)for(const r of u.evs)if(["tratamiento","necropsia","laboratorio"].includes(r.tipo)){const x=r.datos||{};mk.push({x:dn(r.tipo==="tratamiento"?(x.inicio||r.fecha):r.fecha),color:r.tipo==="tratamiento"?"var(--accent)":r.tipo==="necropsia"?"var(--trout)":"var(--s3)",label:`${TIPOS[r.tipo]} (${fNom(r.finca)}): ${x.producto||x.diagnostico||x.agente||x.resultado||""}`})}
+  lineChart(ch,{series,markers:mk,yFmt:v=>fmtN(v,2)+" %",yLabel:"Mortalidad diaria"});
+  ch2.textContent="";if(varSel.value){const vv=AGUA.find(x=>x.k===varSel.value);const s2=us.map(u=>({name:fNom(u.finca),color:FCOLOR[u.finca],gap:3,points:u.dias.map(x=>{const e=M.envDay(u.finca,x.d);return e&&e[vv.k]!=null?{x:x.d,y:e[vv.k]}:null}).filter(Boolean)}));
+   const c=S.cfg;const bands=vv.k==="tAgua"?[{from:c.tAguaMax,to:c.tAguaCrit,color:"var(--warn)"},{from:c.tAguaCrit,to:99,color:"var(--bad)"}]:vv.k==="oxigeno"?[{from:c.oxCrit,to:c.oxMin,color:"var(--warn)"},{from:0,to:c.oxCrit,color:"var(--bad)"}]:[];
+   ch2.append(el("h3",{style:"margin:16px 0 6px;font-size:1.1rem",text:`${vv.n}${vv.u?" ("+vv.u+")":""}`}));const h=el("div");ch2.append(h);lineChart(h,{series:s2,height:170,yFmt:v=>fmtN(v,1),bands})}};
+ main.append(el("section",{class:"panel"},el("div",{class:"row",style:"margin-bottom:10px"},el("h3",{text:"Mortalidad diaria y agua"}),el("span",{class:"spacer"}),varSel),ch,
+  legend([...us.map(u=>({name:fNom(u.finca),color:FCOLOR[u.finca]})),{name:"Tratamiento",color:"var(--accent)"},{name:"Necropsia",color:"var(--trout)"},{name:"Laboratorio",color:"var(--s3)"}]),ch2));
+ requestAnimationFrame(draw);varSel.addEventListener("change",draw);
+ const cs=el("div",{class:"stack"});
+ for(const u of us){const rows=[0,1,2,3].map(g=>corrUb(M,u,g));
+  if(!rows.some(r=>r.some(c=>c.n>=8))){cs.append(el("p",{class:"small muted",text:`${fNom(u.finca)}: se necesitan al menos 8 días con mortalidad y agua registradas.`}));continue}
+  let best=null;for(let g=0;g<4;g++)for(const c of rows[g])if(c.r!=null&&c.n>=8&&(!best||Math.abs(c.r)>Math.abs(best.r)))best={...c,g};
+  cs.append(el("div",null,el("h3",{style:"font-size:1.1rem;margin-bottom:6px",text:fNom(u.finca)}),corrTable(rows),
+   best&&Math.abs(best.r)>=.3?el("p",{class:"small",text:`Lo más marcado: ${best.v.n.toLowerCase()} ${best.g?best.g+" día(s) antes":"el mismo día"}, correlación ${fuerza(best.r)} ${best.r>0?"positiva (cuando sube, sube la mortalidad)":"negativa (cuando baja, sube la mortalidad)"}; r=${fmtN(best.r,2)} con ${best.n} días.`}):el("p",{class:"small muted",text:"Ningún parámetro muestra una relación clara con la mortalidad por ahora."})))}
+ main.append(card("Relación entre agua y mortalidad",el("p",{class:"small muted",text:"Coeficiente r de Pearson entre la mortalidad diaria y cada parámetro el mismo día y 1 a 3 días antes. Para el oxígeno se usa el valor más bajo del día y para la temperatura el más alto. Indica asociación, no causa."}),cs));
+ const evs=us.flatMap(u=>u.evs).sort((a,b)=>a.fecha<b.fecha?1:-1);
+ const mortRows=us.flatMap(u=>[...u.mort.values()].map(e=>({...e,u}))).sort((a,b)=>b.d-a.d).slice(0,40);
+ main.append(card("Bitácora del lote",evs.length?el("ul",{class:"tl"},evs.slice(0,200).map(r=>tlItem(r))):el("p",{class:"muted",text:"Sin eventos sanitarios."}),
+  el("details",{style:"margin-top:12px"},el("summary",null,"Mortalidad registrada (últimos 40 registros)"),el("div",{class:"scroll"},el("table",null,el("thead",null,el("tr",null,el("th",{text:"Fecha"}),el("th",{text:"Finca"}),el("th",{class:"n",text:"Muertes"}),el("th",{text:"Causa"}),el("th",{text:"Registró"}),el("th",{text:""}))),
+   el("tbody",null,mortRows.map(e=>el("tr",null,el("td",{text:fmtF(e.d)}),el("td",{text:fNom(e.finca)}),el("td",{class:"n",text:fmtN(e.m)}),el("td",{class:"small",text:e.c||"—"}),el("td",{class:"small",text:e.r||"—"}),el("td",null,S.canWrite&&!e.legacy?el("button",{class:"btn sm",onclick:()=>{S.dia.finca=e.finca;S.dia.fecha=ds(e.d);go("diario")}},"Corregir"):null)))))))));
+};
+function corrTable(rows){return el("div",{class:"scroll"},el("table",{class:"corr"},el("thead",null,el("tr",null,el("th",{text:"Parámetro"}),["Mismo día","1 día antes","2 días antes","3 días antes"].map(h=>el("th",{class:"n",text:h})))),
+ el("tbody",null,AGUA.map((v,i)=>{const cells=rows.map(r=>r[i]);if(cells.every(c=>c.n<8))return null;return el("tr",null,el("td",{text:v.n}),cells.map(c=>{const ok=c.r!=null&&c.n>=8;const a=ok?Math.abs(c.r):0;
+  return el("td",{class:"c",style:ok&&a>=.3?`background:${c.r>0?"var(--bad-bg)":"var(--info-bg)"};font-weight:${a>=.5?700:500}`:null,title:ok?`${c.n} días`:"Datos insuficientes",text:ok?fmtN(c.r,2):"—"})}))}))))}
+function loteForm(v){const l=S.editLote?S.lotes.get(S.editLote):null;
+ const d=l?JSON.parse(JSON.stringify(l)):{codigo:"",especie:"Trucha arcoíris",etapa:"",origen:"",fechaNacimiento:"",pesoInicial:"",estado:"activo",notas:"",ubicaciones:[{finca:S.dia.finca||"",unidad:"",fechaIngreso:hoyStr(),inicial:"",fechaSalida:""}]};
+ const inp=(k,lab,t="text",ph,extra={})=>el("label",{class:"f"},lab,el("input",{type:t,value:d[k]??"",placeholder:ph,oninput:e=>d[k]=e.target.value,...extra}));
+ const ubBox=el("div",{class:"stack"});const drawUb=()=>{ubBox.textContent="";d.ubicaciones.forEach((u,i)=>{const fs=el("select",{onchange:e=>u.finca=e.target.value},el("option",{value:"",text:"Elige finca"}),FINCAS.map(f=>el("option",{value:f.id,text:f.nombre})));fs.value=u.finca;
+  ubBox.append(el("div",{class:"fgrid",style:"padding:12px;border:1px solid var(--line);border-radius:8px"},el("label",{class:"f"},"Finca *",fs),el("label",{class:"f"},"Estanque",el("input",{value:u.unidad||"",placeholder:"Ej.: 4 o E-04",oninput:e=>u.unidad=e.target.value})),
+   el("label",{class:"f"},"Fecha de ingreso *",el("input",{type:"date",value:u.fechaIngreso||"",oninput:e=>u.fechaIngreso=e.target.value})),el("label",{class:"f"},"Peces que ingresaron *",el("input",{type:"text",inputmode:"numeric",value:u.inicial??"",oninput:e=>u.inicial=e.target.value})),
+   el("label",{class:"f"},"Salida o cosecha",el("span",{class:"hint",text:"Real o programada"}),el("input",{type:"date",value:u.fechaSalida||"",oninput:e=>u.fechaSalida=e.target.value})),
+   el("div",{style:"align-self:end"},d.ubicaciones.length>1?el("button",{class:"btn danger",onclick:()=>{d.ubicaciones.splice(i,1);drawUb()}},"Quitar"):null)))})};drawUb();
+ const est=el("select",{onchange:e=>d.estado=e.target.value},el("option",{value:"activo",text:"Activo"}),el("option",{value:"cerrado",text:"Cerrado"}));est.value=d.estado||"activo";
+ const etapa=el("select",{onchange:e=>d.etapa=e.target.value},["","Ova embrionada","Alevino","Levante","Engorde","Reproductores"].map(o=>el("option",{value:o,text:o||"—"})));etapa.value=d.etapa||"";
+ const notas=el("textarea",{oninput:e=>d.notas=e.target.value});notas.value=d.notas||"";
+ const save=async()=>{d.codigo=String(d.codigo||"").trim();if(!d.codigo)return toast("Escribe el código del lote");
+  if([...S.lotes.values()].some(o=>o.id!==l?.id&&norm(o.codigo)===norm(d.codigo)))return toast("Ya existe un lote con ese código");
+  const ubs=d.ubicaciones.filter(u=>u.finca);if(!ubs.length)return toast("Indica al menos una finca");
+  for(const u of ubs){const n=num(u.inicial);if(!u.fechaIngreso||!(n>0)||!Number.isInteger(n))return toast("Cada finca necesita fecha de ingreso y número entero de peces");if(dn(u.fechaIngreso)>dn(hoyStr())+60)return toast("La fecha de ingreso está muy en el futuro");if(u.fechaSalida&&dn(u.fechaSalida)<dn(u.fechaIngreso))return toast("La salida no puede ser antes del ingreso")}
+  const keys=ubs.map(u=>u.finca+"|"+norm(u.unidad));if(new Set(keys).size!==keys.length)return toast("Hay una finca y estanque repetidos");
+  if(new Set(ubs.map(u=>u.finca)).size!==ubs.length)return toast("Por ahora cada lote va en un estanque por finca. Si se dividió en varios estanques, crea un lote por estanque (ej.: L-41A, L-41B).");
+  if(l){const M=S.M;for(const u of M.ubs.filter(x=>x.lote.id===l.id)){const nu=ubs.find(x=>x.finca===u.finca);const regs=u.mort.size+u.evs.length;if(!nu&&regs&&!confirm(`Quitar ${fNom(u.finca)} deja ${regs} registros sin ubicación. ¿Continuar?`))return}}
+  const id=l?.id||uid("l");const doc={codigo:d.codigo,especie:d.especie||"",etapa:d.etapa||"",origen:d.origen||"",fechaNacimiento:d.fechaNacimiento||"",pesoInicial:num(d.pesoInicial),estado:d.estado||"activo",notas:d.notas||"",
+   ubicaciones:ubs.map(u=>({finca:u.finca,unidad:String(u.unidad||"").trim(),fechaIngreso:u.fechaIngreso,inicial:num(u.inicial),fechaSalida:u.fechaSalida||""})),creado:l?.creado||new Date().toISOString(),editado:new Date().toISOString()};
+  try{await withTimeout(S.db.doc("lotes/"+id).set(doc),20000);S.loteSel=id;S.editLote=null;toast("Lote guardado");render()}catch(e){toast(e.code==="timeout"?"Sin conexión: el lote no se guardó. Intenta de nuevo con señal.":"No se pudo guardar ("+(e.code||"error")+")",6000)}};
+ v.append(card(l?"Editar lote "+l.codigo:"Nuevo lote",el("div",{class:"fgrid"},inp("codigo","Código del lote *","text","Ej.: L-2026-041"),inp("especie","Especie"),el("label",{class:"f"},"Etapa",etapa),inp("origen","Origen de ovas o alevinos","text","Proveedor o centro de incubación"),inp("fechaNacimiento","Fecha de eclosión","date"),inp("pesoInicial","Peso promedio al ingreso (g)","text","",{inputmode:"decimal"}),el("label",{class:"f"},"Estado",est),el("label",{class:"f wide"},"Notas",notas)),
+  el("h3",{style:"margin:20px 0 4px;font-size:1.15rem",text:"Dónde está el lote"}),el("p",{class:"small muted",style:"margin:0 0 10px",text:"Si el mismo lote de ovas o alevinos se repartió en varias fincas, agrega cada una con sus peces: así se compara su comportamiento."}),ubBox,
+  el("div",{class:"row",style:"margin-top:12px"},d.ubicaciones.length<3?el("button",{class:"btn",onclick:()=>{d.ubicaciones.push({finca:"",unidad:"",fechaIngreso:hoyStr(),inicial:"",fechaSalida:""});drawUb()}},"Agregar otra finca"):null,el("span",{class:"spacer"}),
+   l&&S.canWrite?el("button",{class:"btn danger",onclick:async()=>{const M=S.M;const n=M.ubs.filter(u=>u.lote.id===l.id).reduce((a,u)=>a+u.mort.size+u.evs.length,0);if(!confirm(n?`Este lote tiene ${n} registros. Si lo eliminas quedarán sin lote. Es mejor marcarlo como cerrado. ¿Eliminar de todas formas?`:"¿Eliminar el lote?"))return;try{await S.db.doc("lotes/"+l.id).delete();S.loteSel=null;S.editLote=null;toast("Lote eliminado");render()}catch(e){toast("No se pudo eliminar")}}},"Eliminar"):null,
+   el("button",{class:"btn",onclick:()=>{S.editLote=null;render()}},"Cancelar"),el("button",{class:"btn pri",onclick:save},"Guardar lote"))))}
+
+/* --- Comparar --- */
+V.comparar=v=>{const M=S.M;const ids=[...new Set(M.ubs.map(u=>u.lote.id))].filter(id=>M.ubs.filter(u=>u.lote.id===id).length>1);
+ if(!ids.length){v.append(card("Mismo lote en diferentes fincas",el("p",{class:"muted",text:"Ningún lote está registrado en más de una finca. Cuando un lote de ovas o alevinos se reparta, edítalo y agrega cada finca con sus peces."})));return}
+ if(!ids.includes(S.cmpLote))S.cmpLote=ids[0];const sel=el("select",{class:"inp",onchange:e=>{S.cmpLote=e.target.value;render()}},ids.map(id=>el("option",{value:id,text:"Lote "+S.lotes.get(id).codigo})));sel.value=S.cmpLote;
+ const l=S.lotes.get(S.cmpLote),C=cmpLote(M,l.id),us=M.ubs.filter(u=>u.lote.id===l.id);
+ v.append(el("section",{class:"panel"},el("div",{class:"row"},el("h2",{text:"Lote "+l.codigo+" entre fincas"}),el("span",{class:"spacer"}),sel),el("p",{class:"muted small",text:"Las curvas se alinean por días desde el ingreso a cada finca, para comparar peces de la misma edad y origen."})));
+ const ch=el("div");v.append(gap(),card("Mortalidad acumulada según días en la finca",ch,legend(us.map(u=>({name:fNom(u.finca),color:FCOLOR[u.finca]})))));
+ requestAnimationFrame(()=>lineChart(ch,{xNum:true,xLabel:"Días en la finca",series:us.map(u=>{let a=0;return{name:fNom(u.finca),color:FCOLOR[u.finca],points:u.dias.map((x,i)=>{a+=x.muertos;return{x:i,y:u.inicial?a/u.inicial*100:0}})}}),yFmt:v=>fmtN(v,2)+" %"}));
+ if(!C){v.append(gap(),card(null,el("p",{class:"muted",text:"Falta el número de peces de ingreso o días registrados en alguna finca."})));return}
+ const concl=[];for(const p of C.pares){if(!p.t)continue;const hi=p.a.pct>=p.b.pct?p.a:p.b,lo=hi===p.a?p.b:p.a;
+  concl.push(p.t.p<.05?`${fNom(hi.u.finca)} tiene más mortalidad que ${fNom(lo.u.finca)} (${pct(hi.pct)} frente a ${pct(lo.pct)}) y la diferencia es estadísticamente significativa (p=${fmtN(p.t.p,3)}). Siendo el mismo lote, la causa probable está en las condiciones de ${fNom(hi.u.finca)}.`:`${fNom(p.a.u.finca)} y ${fNom(p.b.u.finca)} se comportan de forma similar (${pct(p.a.pct)} y ${pct(p.b.pct)}; p=${fmtN(p.t.p,3)}). Si ambas están altas, el origen del lote es la primera hipótesis.`)}
+ const envRes=us.map(u=>{const acc={};for(const x of u.dias.slice(0,C.W)){const e=M.envDay(u.finca,x.d);if(!e)continue;for(const a of AGUA)if(e[a.k]!=null)(acc[a.k]||(acc[a.k]=[])).push(e[a.k])}return acc});
+ const regsBy=t=>us.map(u=>u.evs.filter(r=>r.tipo===t).length);
+ const diag=us.map(u=>{const m=new Map();for(const r of u.evs){const x=r.datos||{};const v=r.tipo==="necropsia"?x.diagnostico:r.tipo==="laboratorio"&&norm(x.resultado)==="positivo"?x.agente||x.analisis:null;if(v)m.set(norm(canon(v)),canon(v))}return[...m.values()].join(", ")||"—"});
+ const causas=us.map(u=>{const m=new Map();for(const e of u.mort.values())if(e.c&&e.m)m.set(e.c,(m.get(e.c)||0)+e.m);return[...m].sort((a,b)=>b[1]-a[1]).slice(0,3).map(([c,n])=>`${c} (${n})`).join(", ")||"—"});
+ v.append(gap(),el("div",{class:"grid2"},card(`Primeros ${C.W} días en cada finca`,el("div",{class:"scroll"},el("table",null,el("thead",null,el("tr",null,el("th",{text:""}),us.map(u=>el("th",{class:"n",text:fNom(u.finca)})))),
+  el("tbody",null,el("tr",null,el("td",{text:"Peces de ingreso"}),C.rows.map(r=>el("td",{class:"n",text:fmtN(r.n)}))),el("tr",null,el("td",{text:"Muertes"}),C.rows.map(r=>el("td",{class:"n",text:fmtN(r.mu)}))),el("tr",null,el("td",{text:"Mortalidad"}),C.rows.map(r=>el("td",{class:"n",text:pct(r.pct)}))),
+   AGUA.filter(x=>envRes.some(e=>e[x.k])).map(x=>el("tr",null,el("td",{text:x.n+" (prom.)"}),envRes.map(e=>el("td",{class:"n",text:e[x.k]?fmtN(e[x.k].reduce((a,b)=>a+b,0)/e[x.k].length,1):"—"})))),
+   el("tr",null,el("td",{text:"Tratamientos"}),regsBy("tratamiento").map(n=>el("td",{class:"n",text:n}))),el("tr",null,el("td",{text:"Necropsias"}),regsBy("necropsia").map(n=>el("td",{class:"n",text:n}))),
+   el("tr",null,el("td",{text:"Diagnósticos"}),diag.map(t=>el("td",{class:"small",text:t}))),el("tr",null,el("td",{text:"Causas más registradas"}),causas.map(t=>el("td",{class:"small",text:t}))))))),
+  card("Lectura",concl.map(t=>el("p",{text:t})),el("p",{class:"small muted",text:"Prueba de diferencia de proporciones (z) sobre la mortalidad en el mismo número de días. Con pocos peces o pocos días la conclusión es tentativa."}))))};
+
+/* --- Temporadas --- */
+V.temporadas=v=>{const M=S.M;const rate=o=>o&&o.ad?o.mu/o.ad*1000:null;const all=FINCAS.flatMap(f=>M.est[f.id].moy.map(rate)).filter(x=>x!=null);const mx=Math.max(...all,0)||1;const mesAct=new Date(M.hoy*DAY).getUTCMonth();
+ const anios=new Set(FINCAS.flatMap(f=>M.est[f.id].moy.flatMap(o=>Object.keys(o.byYear))));
+ if(anios.size<2)v.append(el("div",{class:"banner",text:`Hay datos de ${anios.size} año(s). Los patrones de temporada son confiables desde dos años; cargar históricos en Ajustes ayuda mucho.`}));
+ v.append(card("Mortalidad por mes del año",el("p",{class:"small muted",text:"Muertes por cada 1.000 peces-día, sumando todos los años. Temporadas según el régimen bimodal de lluvias de Antioquia; El Niño y La Niña pueden desplazarlas."}),
+  el("div",{class:"scroll"},el("table",{class:"heat"},el("thead",null,el("tr",null,el("th",{text:"Finca"}),MESES.map((m,i)=>el("th",{style:"text-align:center;"+(i===mesAct?"color:var(--ink)":""),text:m})))),
+   el("tbody",null,el("tr",null,el("td",{class:"small muted",text:"Temporada"}),MESES.map((m,i)=>el("td",{class:"small",style:temporada(i)==="Lluvias"?"color:var(--info)":"color:var(--warn)",text:temporada(i)}))),
+    FINCAS.map(f=>el("tr",null,el("td",null,el("b",{text:f.nombre})),M.est[f.id].moy.map(o=>{const r=rate(o);return el("td",{style:r!=null?`background:color-mix(in srgb,var(--bad) ${Math.round(r/mx*70)}%,transparent)`:null,title:o.ad?`${fmtN(o.mu)} muertes en ${fmtN(o.ad)} peces-día`:"Sin datos",text:r!=null?fmtN(r,2):"—"})}))))))));
+ const yms=[...new Set(FINCAS.flatMap(f=>[...M.est[f.id].ym.keys(),...M.est[f.id].env.keys()]))].sort().slice(-24);
+ const ymF=i=>{const ym=yms[Math.round(i)];return ym?MESES[+ym.slice(5)-1]+" "+ym.slice(2,4):""};
+ const ch=el("div"),ch2=el("div");v.append(gap(),el("div",{class:"grid2"},card("Mortalidad mes a mes (últimos 24 meses)",ch,legend(FINCAS.map(f=>({name:f.nombre,color:FCOLOR[f.id]})))),card("Temperatura máxima del agua, promedio mensual",ch2,legend(FINCAS.map(f=>({name:f.nombre,color:FCOLOR[f.id]}))))));
+ requestAnimationFrame(()=>{lineChart(ch,{xNum:true,xFmt:ymF,series:FINCAS.map(f=>({name:f.nombre,color:FCOLOR[f.id],points:yms.map((ym,i)=>{const r=rate(M.est[f.id].ym.get(ym));return r!=null?{x:i,y:r,extra:ymF(i)}:null}).filter(Boolean)})),yFmt:v=>fmtN(v,2)});
+  lineChart(ch2,{xNum:true,xFmt:ymF,series:FINCAS.map(f=>({name:f.nombre,color:FCOLOR[f.id],points:yms.map((ym,i)=>{const e=M.est[f.id].env.get(ym)?.tAgua;return e?{x:i,y:e.s/e.n,extra:ymF(i)}:null}).filter(Boolean)})),yFmt:v=>fmtN(v,1)+" °C",bands:[{from:S.cfg.tAguaMax,to:S.cfg.tAguaCrit,color:"var(--warn)"},{from:S.cfg.tAguaCrit,to:99,color:"var(--bad)"}]})});
+ const dg=el("div",{class:"scroll"},el("table",null,el("thead",null,el("tr",null,el("th",{text:"Mes"}),FINCAS.map(f=>el("th",{text:f.nombre})))),el("tbody",null,MESES.map((m,i)=>{const cells=FINCAS.map(f=>{const mm=M.est[f.id].diag.get(i);return mm?[...mm].sort((a,b)=>b[1]-a[1]).map(([k,n])=>`${k} (${n})`).join(", "):""});if(cells.every(c=>!c))return null;return el("tr",null,el("td",{text:m}),cells.map(c=>el("td",{class:"small",text:c||"—"})))}))));
+ v.append(gap(),el("div",{class:"grid2"},card("Diagnósticos por mes del año",el("p",{class:"small muted",text:"Necropsias con diagnóstico y laboratorios positivos, todos los años."}),dg),
+  card("Relación agua y mortalidad por finca",el("p",{class:"small muted",text:"Todos los estanques de cada finca juntos; solo parámetros con al menos 8 días de datos."}),FINCAS.map(f=>{const rows=[0,1,2,3].map(g=>corrFinca(M,f.id,g));return el("div",{style:"margin-bottom:14px"},el("b",{text:f.nombre}),rows.some(r=>r.some(c=>c.n>=8))?corrTable(rows):el("p",{class:"small muted",text:"Datos insuficientes."}))}))))};
+
+/* --- Calidad de datos --- */
+V.calidad=v=>{const M=S.M,A=auditar(M);
+ const sev={bad:["bad","Inconsistencia"],warn:["warn","Advertencia"],info:["info","Sugerencia"]};
+ v.append(el("div",{class:"grid2"},card("Puntaje de calidad",el("div",{class:"row"},el("div",{class:"score",text:A.score==null?"—":A.score}),el("div",{class:"small muted",style:"flex:1;min-width:200px",text:"Combina qué tan completo está el registro diario de mortalidad (60 %), del agua (30 %) y la ausencia de inconsistencias graves (10 %), en los últimos 30 días."}))),
+  card("Completitud últimos 30 días",el("table",null,el("thead",null,el("tr",null,el("th",{text:"Finca"}),el("th",{text:"Mortalidad diaria"}),el("th",{text:"Agua diaria"}))),el("tbody",null,A.comp.map(c=>el("tr",null,el("td",null,el("b",{text:c.f.nombre})),
+   [c.mortPct,c.envPct].map(p=>el("td",null,p==null?el("span",{class:"muted",text:"Sin lotes"}):el("div",{class:"row",style:"gap:8px;flex-wrap:nowrap"},el("div",{class:"meter",style:"flex:1"},el("i",{style:`width:${p}%;background:${p>=90?"var(--ok)":p>=60?"var(--warn)":"var(--bad)"}`})),el("span",{class:"small",text:pct(p,0)})))))))))));
+ const filt=S.audFiltro||"";const cats=[...new Set(A.issues.map(i=>i.cat))];
+ const segC=el("div",{class:"seg",style:"margin-bottom:8px"},el("button",{"aria-pressed":!filt?"true":"false",onclick:()=>{S.audFiltro="";render()}},`Todo (${A.issues.length})`),cats.map(c=>el("button",{"aria-pressed":filt===c?"true":"false",onclick:()=>{S.audFiltro=c;render()}},`${c} (${A.issues.filter(i=>i.cat===c).length})`)));
+ const lst=el("div");const items=A.issues.filter(i=>!filt||i.cat===filt);if(!items.length)lst.append(el("p",{class:"muted",text:"No se encontraron problemas."}));
+ for(const i of items.slice(0,150))lst.append(el("div",{class:"alert"},el("span",{class:"chip "+sev[i.sev][0],text:sev[i.sev][1]}),el("div",{class:"row"},el("span",{class:"spacer",text:i.texto}),i.fix&&S.canWrite?el("button",{class:"btn sm",onclick:()=>fixGo(i.fix)},"Corregir"):null)));
+ v.append(gap(),card("Revisión de coherencia",segC,lst));
+ const hu=A.comp.flatMap(c=>c.huecos).sort((a,b)=>b.d-a.d);const byDay=new Map();for(const h of hu){const k=h.u.finca+"|"+h.d;const o=byDay.get(k)||{f:h.u.finca,d:h.d,n:0};o.n++;byDay.set(k,o)}
+ v.append(gap(),el("div",{class:"grid2"},card("Días sin mortalidad registrada",byDay.size?el("div",{class:"scroll",style:"max-height:340px;overflow:auto"},el("table",null,el("tbody",null,[...byDay.values()].slice(0,60).map(o=>el("tr",null,el("td",{text:fmtFc(o.d)}),el("td",{text:fNom(o.f)}),el("td",{class:"n small",text:o.n+" estanque(s)"}),el("td",null,S.canWrite?el("button",{class:"btn sm",onclick:()=>fixGo({view:"diario",finca:o.f,fecha:ds(o.d)})},"Completar"):null))))))
+  :el("p",{class:"muted",text:"No hay días sin registro en los últimos 30 días."})),
+  card("Uso de la app (últimos 30 días)",A.quien.size?el("table",null,el("thead",null,el("tr",null,el("th",{text:"Responsable"}),el("th",{class:"n",text:"Registros"}),el("th",{text:"Fincas"}),el("th",{text:"Último día registrado"}))),el("tbody",null,[...A.quien].sort((a,b)=>b[1].n-a[1].n).map(([k,o])=>el("tr",null,el("td",{text:k}),el("td",{class:"n",text:fmtN(o.n)}),el("td",{class:"small",text:[...o.fincas].map(fNom).join(", ")}),el("td",{class:"small",text:fmtF(o.ult)})))))
+   :el("p",{class:"muted",text:"Aún no hay registros recientes."}),A.tarde.length?el("p",{class:"small",style:"margin-top:10px",text:`${A.tarde.length} registros de mortalidad se digitaron 3 o más días después de la fecha. Registrar el mismo día mejora la exactitud.`}):null)))};
+function fixGo(f){if(f.view==="diario"){S.dia.finca=f.finca;S.dia.fecha=f.fecha;go("diario")}else if(f.view==="evento")go("evento",{state:{evPre:{id:f.id}}});else go("lotes",{state:{loteSel:f.lote,editLote:null}})}
+/* --- Análisis con Claude --- */
+V.claude=v=>{const scope=el("select",{class:"inp"},el("option",{value:"all",text:"Las tres fincas"}),FINCAS.map(f=>el("option",{value:"finca:"+f.id,text:"Finca "+f.nombre})),[...S.lotes.values()].map(l=>el("option",{value:"lote:"+l.id,text:"Lote "+l.codigo})));
+ scope.value=S.ai?.scope||"all";const extra=el("textarea",{class:"inp",style:"width:100%;min-height:70px",placeholder:"Contexto opcional: cambio de alimento, vacunación, clasificación, visita del veterinario, eventos de la semana…"});
+ const out=el("div");const texto=()=>buildPrompt(scope.value,extra.value.trim());
+ const copiar=async()=>{const t=texto();try{await navigator.clipboard.writeText(t);toast("Resumen copiado. Abre Claude y pégalo.",5000)}catch{out.textContent="";const ta=el("textarea",{class:"inp",style:"width:100%;min-height:200px",readonly:true});ta.value=t;out.append(el("p",{class:"small",text:"El navegador no permitió copiar automáticamente. Selecciona todo el texto y cópialo:"}),ta);ta.select()}};
+ v.append(card("Análisis y recomendaciones con Claude",el("p",{class:"small muted",text:"La app arma un resumen con indicadores, alertas, agua, correlaciones, lotes en varias fincas, temporadas, hallazgos recientes y calidad del registro, junto con las instrucciones de análisis. Cópialo y pégalo en una conversación de Claude para recibir prioridades y recomendaciones. No reemplaza el criterio del médico veterinario."}),
+  el("div",{class:"row",style:"margin:12px 0"},scope,el("button",{class:"btn pri",onclick:copiar},"Copiar resumen para Claude"),el("a",{class:"btn",href:"https://claude.ai/new",target:"_blank",rel:"noopener",style:"text-decoration:none;display:inline-flex;align-items:center"},"Abrir Claude")),extra,el("div",{style:"margin-top:14px"},out)))};
+function renderMd(host,t){host.textContent="";let ul=null;for(const raw of t.split("\n")){const line=raw.trim();if(!line){ul=null;continue}const clean=s=>s.replace(/\*\*(.+?)\*\*/g,"$1").replace(/`/g,"");
+ if(/^#+\s/.test(line)){ul=null;host.append(el("h4",{text:clean(line.replace(/^#+\s/,""))}))}else if(/^[-*•]\s/.test(line)){if(!ul){ul=el("ul");host.append(ul)}ul.append(el("li",{text:clean(line.replace(/^[-*•]\s/,""))}))}else{ul=null;host.append(el("p",{text:clean(line)}))}}}
+function buildPrompt(scope,extra){const M=S.M;const[kind,id]=scope.split(":");const inScope=u=>kind==="all"||(kind==="finca"&&u.finca===id)||(kind==="lote"&&u.lote.id===id);
+ const r3=x=>x==null?null:+x.toFixed(3);
+ const ubs=M.ubs.filter(inScope).map(u=>{const best=[];for(let g=0;g<4;g++)for(const c of corrUb(M,u,g))if(c.r!=null&&c.n>=8&&Math.abs(c.r)>=.3)best.push({parametro:c.v.n,diasAntes:g,r:+c.r.toFixed(2),dias:c.n});
+  const causas={};for(const e of u.mort.values())if(e.c&&e.m&&M.hoy-e.d<=30)causas[e.c]=(causas[e.c]||0)+e.m;
+  return{lote:u.lote.codigo,etapa:u.lote.etapa,origen:u.lote.origen,finca:fNom(u.finca),estanque:u.ub.unidad,activo:u.activo,ingreso:ds(u.start),salida:u.sal!=null?ds(u.sal):null,diasEnFinca:u.dias.length,pecesIngreso:u.inicial,peces:u.vivos,pesoProm_g:u.peso,biomasa_kg:u.biomasa&&Math.round(u.biomasa),
+   mortAcumPct:r3(u.acumPct),mort7dPct:r3(u.w7.pct),mortSemanaPreviaPct:r3(u.p7.pct),diasRegistradosUlt14:ventana(u,M.hoy-13,M.hoy).regs,causasUlt30d:causas,correlaciones:best.sort((a,b)=>Math.abs(b.r)-Math.abs(a.r)).slice(0,5),tratamientos:u.trats.slice(-5).map(t=>({fecha:t.fecha,...t.datos}))}});
+ const lotIds=new Set(M.ubs.filter(inScope).map(u=>u.lote.id));
+ const comparaciones=[...lotIds].map(i=>{const C=cmpLote(M,i);return C&&{lote:S.lotes.get(i).codigo,diasComparados:C.W,fincas:C.rows.map(r=>({finca:fNom(r.u.finca),mortPct:r3(r.pct),muertes:r.mu,peces:r.n})),pruebas:C.pares.map(p=>({entre:fNom(p.a.u.finca)+" y "+fNom(p.b.u.finca),p:p.t&&+p.t.p.toFixed(4)}))}}).filter(Boolean);
+ const fsc=kind==="finca"?[id]:kind==="lote"?[...new Set(M.ubs.filter(inScope).map(u=>u.finca))]:FINCAS.map(f=>f.id);
+ const hall=M.eventos.filter(r=>fsc.includes(r.finca)&&(kind!=="lote"||r.lote===id||!r.lote)&&["evaluacion","suplementacion","necropsia","laboratorio","observacion","muestreo"].includes(r.tipo)&&M.hoy-dn(r.fecha)<=60).slice(-40).map(r=>({fecha:r.fecha,tipo:r.tipo,finca:fNom(r.finca),lote:S.lotes.get(r.lote)?.codigo||null,...Object.fromEntries(Object.entries(r.datos||{}).map(([k,v])=>[k,String(v).slice(0,240)])),notas:r.notas?.slice(0,240)||undefined}));
+ const amb=fsc.map(f=>{const d=[];for(let x=M.hoy-13;x<=M.hoy;x++){const e=M.envDay(f,x);if(e)d.push({fecha:ds(x),...Object.fromEntries(Object.entries(e).map(([k,v])=>[k,typeof v==="number"?+v.toFixed(2):v]))})}return{finca:fNom(f),ultimos14dias:d}});
+ const est=fsc.map(f=>({finca:fNom(f),porMes:M.est[f].moy.map((o,i)=>o.ad?{mes:MESES[i],temporada:temporada(i),muertesPor1000PecesDia:+(o.mu/o.ad*1000).toFixed(3),anios:Object.keys(o.byYear)}:null).filter(Boolean)}));
+ const aud=auditar(M);const mes=new Date(M.hoy*DAY).getUTCMonth();
+ const data={fechaHoy:hoyStr(),mesActual:MESES[mes],temporadaActual:temporada(mes),alcance:kind==="all"?"Tres fincas":kind==="finca"?"Finca "+fNom(id):"Lote "+S.lotes.get(id)?.codigo,umbrales:S.cfg,
+  calidadDatos:{puntaje:aud.score,completitud:aud.comp.map(c=>({finca:c.f.nombre,mortalidadPct:c.mortPct&&Math.round(c.mortPct),aguaPct:c.envPct&&Math.round(c.envPct)})),inconsistencias:aud.issues.filter(i=>i.sev==="bad").length},
+  estadoFincas:M.fincas.filter(f=>fsc.includes(f.id)).map(f=>({finca:f.nombre,estado:chipN[f.nivel],estanques:f.us.length,peces:f.vivos,mort7dPct:r3(f.m7)})),
+  alertas:M.alertas.filter(a=>(!a.finca||fsc.includes(a.finca))&&(kind!=="lote"||a.lote===id)).slice(0,30).map(a=>({nivel:a.nivel,finca:a.finca?fNom(a.finca):null,titulo:a.titulo,detalle:a.detalle})),
+  lotes:ubs.slice(0,40),comparacionesLoteEntreFincas:comparaciones,hallazgosRecientes:hall,agua:amb,estacionalidad:est};
+ return `Actúas como asesor en sanidad acuícola para un productor de trucha arcoíris (Oncorhynchus mykiss) en Antioquia, Colombia, con tres fincas de montaña: San Miguel, Yolombal y Abriaquí. Analiza su bitácora sanitaria y responde en español de Colombia, claro y práctico.
+
+Usa estos títulos (líneas que empiezan con "## ") y viñetas con "- ":
+## Lectura general
+## Prioridades para revisar ya
+## Qué dicen el agua y las correlaciones
+## Lotes en varias fincas
+## Patrones de temporada
+## Calidad del registro
+## Información que pediría
+
+Reglas: no inventes datos ni cifras; si los datos son pocos o incompletos, dilo y explica cómo afecta la conclusión. Una correlación no prueba causa. Separa lo que apunta al origen del lote (ovas, alevinos, transporte, transmisión vertical) de lo que apunta a la finca (agua, temperatura, oxígeno, caudal, densidad, alimento, manejo, bioseguridad). Considera enfermedades frecuentes de trucha en Colombia cuando los signos lo sugieran, sin afirmar diagnósticos. Ten en cuenta los tiempos de retiro (en grados-día cuando aplique). Toda decisión sobre medicamentos queda sujeta al médico veterinario. No uses tablas. En "Información que pediría" sé específico: qué dato, de qué lote o finca y para qué.
+${extra?"\nContexto del productor: "+extra+"\n":""}
+Datos (JSON):
+${JSON.stringify(data)}`}
+
+/* --- Ajustes, históricos y exportación --- */
+V.ajustes=v=>{const c={...S.cfg};
+ v.append(cuentaCard(),gap());
+ v.append(card("Cargar históricos",importBox()));
+ v.append(gap(),card("Umbrales para trucha",el("p",{class:"small muted",text:"Valores sugeridos para trucha arcoíris en engorde. Ajústalos con tu médico veterinario según etapa, altitud y estándares de la empresa."}),
+  el("div",{class:"fgrid"},Object.keys(DEF).map(k=>el("label",{class:"f"},CFGL[k][0]+(CFGL[k][1]?` (${CFGL[k][1]})`:""),el("input",{type:"text",inputmode:"decimal",value:String(c[k]).replace(".",","),disabled:!S.canWrite,oninput:e=>c[k]=num(e.target.value)})))),
+  S.canWrite?el("div",{class:"row",style:"margin-top:14px"},el("button",{class:"btn",onclick:()=>{S.cfg={...S.cfg};render();toast("Para restaurar, guarda después de revisar los valores");Object.assign(c,DEF)}},"Valores sugeridos"),el("span",{class:"spacer"}),el("button",{class:"btn pri",onclick:async()=>{for(const k in DEF)if(c[k]==null)return toast("Completa: "+CFGL[k][0]);if(c.tAguaCrit<=c.tAguaMax||c.oxCrit>=c.oxMin||c.phMin>=c.phMax)return toast("Revisa que los niveles críticos sean más extremos que los de atención");try{await withTimeout(S.db.doc("config/umbrales").set(c),20000);toast("Umbrales guardados")}catch(e){toast("No se pudo guardar")}}},"Guardar umbrales")):null));
+ v.append(gap(),card("Exportar y respaldar",el("p",{class:"small muted",text:"Descarga la información en CSV (abre en Excel), con el mismo formato que acepta la carga de históricos."}),el("div",{class:"row"},el("button",{class:"btn",onclick:()=>exportar("diario")},"Mortalidad y agua"),el("button",{class:"btn",onclick:()=>exportar("eventos")},"Eventos sanitarios"),el("button",{class:"btn",onclick:()=>exportar("lotes")},"Lotes"))));
+ v.append(gap(),card("Usar como app en el celular",el("p",{class:"small",text:"Abre esta página en el navegador del celular, entra con tu usuario y usa «Agregar a la pantalla de inicio» (Chrome: menú ⋮; Safari: compartir). Queda como un ícono. Si no hay señal en la finca, los registros se guardan en el teléfono y se envían solos cuando vuelve la conexión; el aviso naranja arriba muestra cuántos faltan por enviar."})));
+};
+const HMAP={fecha:"fecha",dia:"fecha",finca:"finca",granja:"finca",lote:"lote",codigolote:"lote",estanque:"estanque",unidad:"estanque",tipo:"tipo",momento:"momento",hora:"momento",responsable:"responsable",registro:"responsable",notas:"notas",observaciones:"notas",
+ muertos:"muertos",muertes:"muertos",mortalidad:"muertos",peces_muertos:"muertos",pecesmuertos:"muertos",causa:"causa",causaprobable:"causa",
+ tagua:"tAgua",temperaturaagua:"tAgua",tempagua:"tAgua",temperaturadelagua:"tAgua",temperatura:"tAgua",oxigeno:"oxigeno",od:"oxigeno",oxigenodisuelto:"oxigeno",o2:"oxigeno",ph:"ph",amoniaco:"amoniaco",amonio:"amoniaco",nh3:"amoniaco",tan:"amoniaco",nitrito:"nitrito",nitritos:"nitrito",no2:"nitrito",
+ turbidez:"turbidez",caudal:"caudal",taire:"tAire",temperaturaaire:"tAire",tempaire:"tAire",lluvia:"lluvia",precipitacion:"lluvia",evento:"evento"};
+for(const t in CAMPOS)for(const c of CAMPOS[t]){const k=norm(c.k).replace(/[^a-z0-9]/g,"");if(!HMAP[k])HMAP[k]=c.k;const k2=norm(c.l).replace(/[^a-z0-9]/g,"");if(!HMAP[k2])HMAP[k2]=c.k}
+function parseCSV(t){const first=t.split("\n")[0];const sep=(first.match(/;/g)||[]).length>(first.match(/,/g)||[]).length?";":(first.match(/\t/g)||[]).length>(first.match(/,/g)||[]).length?"\t":",";const rows=[];let row=[],f="",q=false;
+ for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=ch}else if(ch==='"')q=true;else if(ch===sep){row.push(f);f=""}else if(ch==="\n"){row.push(f);rows.push(row);row=[];f=""}else if(ch!=="\r")f+=ch}
+ if(f||row.length){row.push(f);rows.push(row)}return rows.filter(r=>r.some(x=>String(x).trim()))}
+function parseFecha(v){if(v instanceof Date&&!isNaN(v))return v.getFullYear()+"-"+String(v.getMonth()+1).padStart(2,"0")+"-"+String(v.getDate()).padStart(2,"0");
+ if(typeof v==="number"&&v>20000&&v<80000)return ds(Math.round(v)-25569);const s=String(v??"").trim();let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return`${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`;
+ m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);if(m){const y=m[3].length===2?"20"+m[3]:m[3];return`${y}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`}return null}
+let xlsxP=null;function loadXLSX(){if(window.XLSX)return Promise.resolve(window.XLSX);return xlsxP||(xlsxP=new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=()=>res(window.XLSX);s.onerror=()=>{xlsxP=null;rej(new Error("xlsx"))};document.head.append(s)}))}
+function importBox(){const out=el("div",{class:"small",style:"margin-top:10px"});const file=el("input",{type:"file",accept:".csv,.xlsx,.xls,.txt",class:"inp"});const ta=el("textarea",{class:"inp",style:"width:100%;min-height:110px",placeholder:"O pega aquí filas copiadas de Excel (con encabezado)"});let plan=null;
+ const prev=async rows=>{plan=planImport(rows);out.textContent="";const p=plan;
+  out.append(el("p",null,el("b",null,`Listo para cargar: ${p.nMort} registros de mortalidad, ${p.nAmb} de agua y ${p.eventos.length} eventos.`),p.sobre?` ${p.sobre} reemplazarán datos ya registrados.`:"",p.dup?` ${p.dup} filas repetidas (se toma la última).`:""));
+  if(p.errs.length)out.append(el("details",{open:p.errs.length<=10},el("summary",{text:`${p.errs.length} filas con problemas no se cargarán`}),el("ul",null,p.errs.slice(0,80).map(e=>el("li",{text:e})))));
+  if(p.nMort+p.nAmb+p.eventos.length)out.append(el("button",{class:"btn pri",style:"margin-top:8px",onclick:async e=>{e.target.disabled=true;e.target.textContent="Cargando…";const ops=[...p.ops,...p.eventos.map(d=>({kind:"set",path:"eventos/"+uid("e"),data:d}))];const total=ops.length;
+   const tick=setInterval(()=>{e.target.textContent=`Cargando… ${total-OB.list.length}/${total}`},500);const ok=await enqueue(ops);clearInterval(tick);
+   e.target.textContent=ok?"Cargado":"Pendiente de envío";toast(ok?"Históricos cargados.":"Parte de la carga quedó pendiente; se enviará con conexión.",5000);plan=null}},"Cargar ahora"))};
+ const readRows=async()=>{out.textContent="Leyendo…";try{let rows;const f=file.files[0];
+  if(f&&/\.xlsx?$/i.test(f.name)){const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:"array",cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];rows=X.utils.sheet_to_json(ws,{header:1,defval:"",raw:true})}
+  else if(f)rows=parseCSV(await f.text());else rows=parseCSV(ta.value.trim());
+  if(!rows||rows.length<2){out.textContent="No se encontraron filas con encabezado.";return}await prev(rows)}catch(e){out.textContent="No se pudo leer el archivo. Si es Excel, prueba guardarlo como CSV."}};
+ file.addEventListener("change",readRows);
+ return el("div",null,el("p",{class:"small muted",text:"Sube un Excel o CSV (o pega filas copiadas de Excel). Cada fila es un día: fecha, finca, lote o estanque, muertos y, si los tienes, parámetros del agua. Para eventos agrega la columna «tipo» (tratamiento, necropsia, laboratorio, muestreo u observación). Los lotes deben existir antes de cargar. Antes de guardar se muestra un resumen y los errores."}),
+  el("div",{class:"row"},el("button",{class:"btn",onclick:()=>plantilla("diario")},"Plantilla diaria"),el("button",{class:"btn",onclick:()=>plantilla("eventos")},"Plantilla de eventos")),
+  el("div",{class:"stack",style:"margin-top:12px"},file,ta,el("button",{class:"btn",onclick:readRows},"Revisar datos pegados")),out)}
+function planImport(rows){const head=rows[0].map(h=>HMAP[norm(h).replace(/[^a-z0-9]/g,"")]||null);const M=S.M,hoy=M.hoy;
+ const errs=[],ops=new Map(),eventos=[];let nMort=0,nAmb=0,sobre=0,dup=0;const seen=new Set();const lotesBy=new Map([...S.lotes.values()].map(l=>[norm(l.codigo),l]));const who=(S.resp||S.me.name||"Carga histórica").trim();const t=new Date().toISOString();
+ rows.slice(1).forEach((r,i)=>{const fila=i+2;const g=k=>{const j=head.indexOf(k);return j<0?"":r[j]};const s=k=>String(g(k)??"").trim();
+  const fecha=parseFecha(g("fecha"));if(!fecha)return errs.push(`Fila ${fila}: fecha no reconocida (${s("fecha")||"vacía"})`);const d=dn(fecha);if(d>hoy)return errs.push(`Fila ${fila}: fecha futura`);
+  const f=FINCAS.find(x=>norm(x.nombre)===norm(s("finca"))||x.id===norm(s("finca")).replace(/\s+/g,"-"));if(!f)return errs.push(`Fila ${fila}: finca «${s("finca")}» no reconocida`);
+  let lote=s("lote")?lotesBy.get(norm(s("lote"))):null;
+  if(!lote&&s("estanque")){const u=M.ubs.find(u=>u.finca===f.id&&norm(u.ub.unidad)===norm(s("estanque"))&&u.start<=d&&(u.sal==null||d<=u.sal));if(u)lote=u.lote}
+  if(s("lote")&&!lote)return errs.push(`Fila ${fila}: el lote ${s("lote")} no existe`);
+  const u=lote?M.byKey.get(lote.id+"|"+f.id):null;if(lote&&!u)return errs.push(`Fila ${fila}: el lote ${lote.codigo} no está en ${f.nombre}`);
+  if(u&&(d<u.start||(u.sal!=null&&d>u.sal)))return errs.push(`Fila ${fila}: ${fecha} está fuera del periodo del lote ${lote.codigo} en ${f.nombre}`);
+  const tipoRaw=s("tipo");const tipo=tipoRaw?Object.keys(TIPOS).find(k=>norm(k)===norm(tipoRaw)||norm(TIPOS[k])===norm(tipoRaw)||norm(TIPOS[k]).startsWith(norm(tipoRaw))):null;
+  if(tipoRaw&&!["diario","mortalidad","agua","ambiente"].includes(norm(tipoRaw))){if(!tipo)return errs.push(`Fila ${fila}: tipo «${tipoRaw}» no reconocido`);if(!FW(tipo)&&!lote)return errs.push(`Fila ${fila}: falta el lote o estanque`);
+   const datos={};for(const c of CAMPOS[tipo]){const val=g(c.k);if(val===""||val==null)continue;datos[c.k]=c.t==="number"?num(val):c.t==="date"?(parseFecha(val)||String(val)):c.list?canon(val):String(val).trim()}
+   if(tipo==="tratamiento"&&!datos.retiroUnidad)datos.retiroUnidad="grados-día";
+   eventos.push({tipo,lote:lote?.id||"",finca:f.id,fecha,notas:s("notas"),datos,responsable:s("responsable")||who,por:S.me.id||"",creado:t,origen:"importado"});return}
+  if(s("estanque")&&!lote)return errs.push(`Fila ${fila}: no hay un lote en el estanque ${s("estanque")} de ${f.nombre} en esa fecha`);
+  const re=[];const mRaw=g("muertos");const hasM=String(mRaw??"").trim()!=="";let n=null;
+  if(hasM){n=num(mRaw);if(!lote)re.push("hay muertos pero falta el lote o estanque");else if(n==null||n<0||!Number.isInteger(n))re.push(`muertos «${mRaw}» debe ser un número entero`);else if(u&&n>vivosEn(u,d))re.push(`${n} muertos supera los peces del estanque`)}
+  const amb={};let any=false;for(const a of AGUA){const raw=g(a.k);if(String(raw??"").trim()==="")continue;const v=num(raw);if(v==null||v<a.min||v>a.max){re.push(`${a.n} = ${raw} no es un valor posible`);continue}amb[a.k]=v;any=true}
+  if(s("evento")){amb.evento=s("evento");any=true}
+  if(re.length)return errs.push(`Fila ${fila}: ${re.join("; ")}`);
+  if(!hasM&&!any)return errs.push(`Fila ${fila}: no tiene muertos ni parámetros de agua`);
+  const path=`diario/${f.id}-${fecha.slice(0,7)}`;const op=ops.get(path)||{kind:"merge",path,base:{finca:f.id,mes:fecha.slice(0,7)},data:{}};ops.set(path,op);
+  if(hasM){const k=lote.id+"|"+fecha;if(seen.has(k))dup++;else{seen.add(k);nMort++}if(u&&u.mort.has(d))sobre++;((op.data.mort||(op.data.mort={}))[fecha]||(op.data.mort[fecha]={}))[lote.id]={m:n,c:s("causa"),r:s("responsable")||who,p:S.me.id||"",t,imp:1}}
+  if(any){const mo=norm(s("momento")).startsWith("t")?"tarde":"manana";((op.data.amb||(op.data.amb={}))[fecha]||(op.data.amb[fecha]={}))[mo]={...amb,r:s("responsable")||who,p:S.me.id||"",t,imp:1};nAmb++}});
+ return{errs,ops:[...ops.values()].filter(o=>Object.keys(o.data).length),eventos,nMort,nAmb,sobre,dup}}
+async function bajar(nombre,lineas){try{const b=new Blob(["\ufeff"+lineas.join("\r\n")],{type:"text/csv;charset=utf-8"});const a=el("a",{href:URL.createObjectURL(b),download:nombre,style:"display:none"});document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000)}catch{toast("No se pudo descargar")}}
+const q=s=>{s=s==null?"":String(s);return/[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+const nq=v=>v==null||v===""?"":String(v).replace(".",",");
+function plantilla(t){if(t==="diario")bajar("plantilla-diaria.csv",["fecha;finca;lote;estanque;muertos;causa;momento;tAgua;oxigeno;ph;amoniaco;nitrito;turbidez;caudal;tAire;lluvia;evento;responsable","05/11/2026;San Miguel;L-2026-041;4;3;Sin causa aparente;mañana;13,5;7,8;7,2;;;;;;;;Juan","05/11/2026;Abriaquí;;;;;mañana;12,1;8,2;7,0;;;;;;5;Creciente leve;Ana"]);
+ else bajar("plantilla-eventos.csv",["fecha;tipo;finca;lote;producto;principio;dosis;via;inicio;fin;retiro;retiroUnidad;prescribe;diagnostico;resultado;agente;peso;n;texto;notas;responsable","01/11/2026;tratamiento;San Miguel;L-2026-041;Producto X;Florfenicol;10 mg/kg;Alimento medicado;01/11/2026;10/11/2026;150;grados-día;MV Pérez;;;;;;;;Juan","03/11/2026;necropsia;San Miguel;L-2026-041;;;;;;;;;;Flavobacteriosis (columnaris);;;;5;;Branquias pálidas;Juan"])}
+function exportar(t){const M=S.M;
+ if(t==="lotes")return bajar(`lotes-${hoyStr()}.csv`,["codigo;especie;etapa;origen;eclosion;estado;finca;estanque;ingreso;peces_ingreso;salida;muertes;mortalidad_pct;peces_actuales"].concat(M.ubs.map(u=>[u.lote.codigo,u.lote.especie,u.lote.etapa,u.lote.origen,u.lote.fechaNacimiento,u.lote.estado,fNom(u.finca),u.ub.unidad,ds(u.start),u.inicial,u.sal!=null?ds(u.sal):"",u.acum,nq(u.acumPct&&+u.acumPct.toFixed(3)),u.vivos].map(q).join(";"))));
+ if(t==="eventos"){const keys=[...new Set(Object.values(CAMPOS).flat().map(c=>c.k))];return bajar(`eventos-${hoyStr()}.csv`,[["fecha","tipo","finca","lote","responsable","notas",...keys].join(";")].concat(M.eventos.map(r=>[r.fecha,r.tipo,fNom(r.finca),S.lotes.get(r.lote)?.codigo||"",r.responsable,r.notas,...keys.map(k=>typeof r.datos?.[k]==="number"?nq(r.datos[k]):r.datos?.[k])].map(q).join(";"))))}
+ const L=["fecha;finca;lote;estanque;muertos;causa;momento;"+AGUA.map(a=>a.k).join(";")+";evento;responsable"];
+ for(const[k,m]of M.mort){const[lid,f]=k.split("|");const l=S.lotes.get(lid);const u=M.byKey.get(k);for(const[d,e]of[...m].sort((a,b)=>a[0]-b[0]))L.push([ds(d),fNom(f),l?.codigo||lid,u?.ub.unidad||"",e.m,e.c,"","","","","","","","","","","",e.r].map(q).join(";"))}
+ for(const f of FINCAS)for(const[d,moms]of[...M.envRaw.get(f.id)].sort((a,b)=>a[0]-b[0]))for(const[mo,o]of Object.entries(moms))L.push([ds(d),f.nombre,"","","","",MOMENTOS[mo]||"",...AGUA.map(a=>nq(o[a.k])),o.evento,o.r].map(q).join(";"));
+ bajar(`mortalidad-y-agua-${hoyStr()}.csv`,L)}
+
+/* ===== Arranque ===== */
+function route(){if(/access_token|error_description|type=recovery/.test(location.hash))return;const h=location.hash.slice(1);const prev=S.view;S.view=V[h]?h:"inicio";$("#sheet").classList.remove("open");if(prev==="lotes"&&S.view!=="lotes")S.editLote=null;if(S.ready)render();window.scrollTo(0,0)}
+window.addEventListener("hashchange",route);
+$("#mas").addEventListener("click",()=>$("#sheet").classList.add("open"));$("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet"||e.target.tagName==="A")$("#sheet").classList.remove("open")});
+$("#pend").addEventListener("click",async()=>{toast("Reintentando envío…");const ok=await flush();toast(ok?"Todo enviado.":"Aún sin conexión con el servidor; se seguirá intentando.")});
+let rz,lastW=window.innerWidth;window.addEventListener("resize",()=>{if(Math.abs(window.innerWidth-lastW)<40)return;lastW=window.innerWidth;clearTimeout(rz);rz=setTimeout(()=>{if(S.ready&&["lotes","comparar","temporadas"].includes(S.view)&&S.editLote==null)render()},250)});
+const QUIETAS=["diario","evento","ajustes","claude"];
+let pend;function changed(){clearTimeout(pend);pend=setTimeout(()=>{if(!S.ok.lotes||!S.ok.diario||!S.ok.eventos)return;const t0=performance.now();compute();S.lastCompute=performance.now()-t0;const first=!S.ready;S.ready=true;$("#status").style.display="none";
+ if(!first){if(QUIETAS.includes(S.view)||(S.view==="lotes"&&S.editLote!=null))return;const ae=document.activeElement;if(ae&&ae.closest&&ae.closest("#view")&&ae.matches("input,textarea,select"))return}render()},80)}
+/* ===== Conexión con Supabase ===== */
+// ⬇⬇⬇ PEGA AQUÍ LOS DATOS DE TU PROYECTO (Supabase > Project Settings > API) ⬇⬇⬇
+const CONFIG={url:"https://fzqrckirrydtrshvnaxc.supabase.co",anonKey:"sb_publishable_g37h8dqLz6VNJyb45zuX9Q_7oDlaac1"};
+// ⬆⬆⬆ Solo la clave pública (publishable o anon). Nunca pegues aquí una clave secreta. ⬆⬆⬆
+let sb=null;
+const dbErr=e=>{const m=String(e?.message||e||"");const c=String(e?.code||"");
+ return{code:c==="42501"||/row-level security|permission denied/i.test(m)?"not_granted":/jwt|token|auth/i.test(m)?"auth":/fetch|network|Failed|Load failed|timeout/i.test(m)?"unavailable":"upstream_error",message:m}};
+function makeDb(sb){const cols=new Map(),CK="sanidad:cache:",saveT={};
+ const snapOf=(c,fromCache)=>({docs:[...c.docs].map(([id,data])=>({id,data:()=>data,exists:true})),metadata:{fromCache}});
+ const saveCache=name=>{clearTimeout(saveT[name]);saveT[name]=setTimeout(()=>{try{localStorage.setItem(CK+name,JSON.stringify([...cols.get(name).docs]))}catch{}},2000)};
+ const emit=(name,fromCache=false)=>{const c=cols.get(name);if(!c)return;for(const f of c.subs)try{f(snapOf(c,fromCache))}catch(e){console.error(e)}if(!fromCache)saveCache(name)};
+ async function fetchAll(name){const out=[];for(let from=0;;from+=1000){const{data,error}=await sb.from("documentos").select("id,data").eq("coleccion",name).range(from,from+999);if(error)throw dbErr(error);out.push(...data);if(data.length<1000)break}return out}
+ async function load(name){const c=cols.get(name);try{const rows=await withTimeout(fetchAll(name),25000);c.docs=new Map(rows.map(r=>[r.id,r.data]));c.loaded=true;emit(name,false)}
+  catch(e){if(c.loaded)return;let cached=null;try{cached=JSON.parse(localStorage.getItem(CK+name)||"null")}catch{}
+   if(cached){c.docs=new Map(cached);c.loaded=true;emit(name,true);if(!S.avisoOffline){S.avisoOffline=true;toast("Sin conexión: se muestran los últimos datos guardados en este teléfono.",6000)}setTimeout(()=>load(name),30000)}
+   else for(const f of c.errs)f(dbErr(e))}}
+ function col(name){let c=cols.get(name);if(!c){c={docs:new Map(),subs:new Set(),errs:new Set(),loaded:false};cols.set(name,c);load(name)}return c}
+ sb.channel("documentos").on("postgres_changes",{event:"*",schema:"public",table:"documentos"},p=>{const r=p.eventType==="DELETE"?p.old:p.new;const c=cols.get(r?.coleccion);if(!c)return;
+  if(p.eventType==="DELETE")c.docs.delete(r.id);else c.docs.set(r.id,r.data);emit(r.coleccion)}).subscribe();
+ let oculto=0;const refresh=()=>{for(const n of cols.keys())load(n)};
+ window.addEventListener("online",refresh);document.addEventListener("visibilitychange",()=>{if(document.hidden)oculto=Date.now();else if(oculto&&Date.now()-oculto>60000)refresh()});
+ const deep=(a,b)=>{const o={...(a||{})};for(const k in b){const v=b[k];o[k]=v&&typeof v==="object"&&!Array.isArray(v)&&o[k]&&typeof o[k]==="object"&&!Array.isArray(o[k])?deep(o[k],v):v}return o};
+ function doc(path){const[name,id]=path.split("/");return{
+  async set(data){const{error}=await sb.from("documentos").upsert({coleccion:name,id,data});if(error)throw dbErr(error);const c=cols.get(name);if(c){c.docs.set(id,data);emit(name)}},
+  async update(patch){const{data,error}=await sb.rpc("merge_doc",{p_col:name,p_id:id,p_patch:patch});if(error)throw dbErr(error);if(data===false)throw{code:"invalid_argument",message:"no existe"};const c=cols.get(name);if(c&&c.docs.has(id)){c.docs.set(id,deep(c.docs.get(id),patch));emit(name)}},
+  async get(){const{data,error}=await sb.from("documentos").select("data").eq("coleccion",name).eq("id",id).maybeSingle();if(error)throw dbErr(error);return{exists:!!data,data:()=>data?.data}},
+  async delete(){const{error}=await sb.from("documentos").delete().eq("coleccion",name).eq("id",id);if(error)throw dbErr(error);const c=cols.get(name);if(c){c.docs.delete(id);emit(name)}},
+  onSnapshot(fn,onErr){const c=col(name);const w=s=>{const d=s.docs.find(x=>x.id===id);fn({exists:!!d,data:()=>d?.data()})};c.subs.add(w);if(onErr)c.errs.add(onErr);if(c.loaded)w(snapOf(c,false));return()=>c.subs.delete(w)}}}
+ return{doc,collection:name=>({onSnapshot(fn,onErr){const c=col(name);c.subs.add(fn);if(onErr)c.errs.add(onErr);if(c.loaded)fn(snapOf(c,false));return()=>c.subs.delete(fn)}}),refresh}}
+function makeAssets(sb){return{async upload(blob,{type}){const ext={"application/pdf":"pdf","image/png":"png","image/webp":"webp"}[type]||"jpg";const path=new Date().toISOString().slice(0,7)+"/"+uid("f")+"."+ext;
+ const{error}=await sb.storage.from("soportes").upload(path,blob,{contentType:type,upsert:false});
+ if(error){const m=String(error.message||"");throw{code:/size|large|exceed/i.test(m)?"too_large":/mime|type/i.test(m)?"unsupported_type":/row-level|policy|unauthorized|permission/i.test(m)?"not_granted":"upstream_error",message:m}}return{id:path,sizeBytes:blob.size}}}}
+const urlCache=new Map();
+async function signedUrl(id){const c=urlCache.get(id);if(c&&c.exp>Date.now())return c.url;const{data,error}=await sb.storage.from("soportes").createSignedUrl(id,3600);if(error)throw error;urlCache.set(id,{url:data.signedUrl,exp:Date.now()+3500e3});return data.signedUrl}
+
+/* ===== Ingreso con usuario y contraseña ===== */
+function showLogin(modo,msg){const box=$("#lbody");box.textContent="";$("#login").hidden=false;$("#status").style.display="none";
+ const m=el("p",{class:"msg"+(msg?" "+msg[0]:""),role:"alert",text:msg?msg[1]:""});const setMsg=(t,k="err")=>{m.className="msg "+k;m.textContent=t};
+ if(modo==="entrar"){const em=el("input",{type:"email",autocomplete:"username",required:true,value:LS.get("email","")}),pw=el("input",{type:"password",autocomplete:"current-password",required:true});
+  const b=el("button",{class:"btn pri big",type:"submit"},"Entrar");
+  const f=el("form",{class:"stack",onsubmit:async e=>{e.preventDefault();b.disabled=true;b.textContent="Entrando…";setMsg("","");
+   const{error}=await sb.auth.signInWithPassword({email:em.value.trim(),password:pw.value});b.disabled=false;b.textContent="Entrar";
+   if(error)setMsg(/invalid/i.test(error.message)?"Correo o contraseña incorrectos.":/fetch|network/i.test(error.message)?"Sin conexión. Revisa la señal e intenta de nuevo.":"No se pudo entrar: "+error.message);else LS.set("email",em.value.trim())}},
+   el("label",{class:"f"},"Correo",em),el("label",{class:"f"},"Contraseña",pw),b,m,el("button",{type:"button",class:"linkbtn",onclick:()=>showLogin("recuperar")},"Olvidé mi contraseña"));
+  box.append(f,el("p",{class:"small muted",style:"margin-top:14px",text:"Los usuarios los crea el administrador. Si no tienes uno, pídelo."}));setTimeout(()=>(em.value?pw:em).focus(),50)}
+ else if(modo==="recuperar"){const em=el("input",{type:"email",autocomplete:"username",required:true,value:LS.get("email","")});const b=el("button",{class:"btn pri big",type:"submit"},"Enviar enlace");
+  box.append(el("form",{class:"stack",onsubmit:async e=>{e.preventDefault();b.disabled=true;const{error}=await sb.auth.resetPasswordForEmail(em.value.trim(),{redirectTo:location.origin+location.pathname});b.disabled=false;
+   if(error)setMsg("No se pudo enviar: "+error.message);else setMsg("Si el correo está registrado, te llegará un enlace para crear una contraseña nueva. Revisa también el correo no deseado.","ok")}},
+   el("p",{class:"small",text:"Escribe tu correo y te enviaremos un enlace para crear una contraseña nueva."}),el("label",{class:"f"},"Correo",em),b,m,el("button",{type:"button",class:"linkbtn",onclick:()=>showLogin("entrar")},"Volver a entrar")))}
+ else if(modo==="nueva"){const p1=el("input",{type:"password",autocomplete:"new-password",minlength:8,required:true}),p2=el("input",{type:"password",autocomplete:"new-password",required:true});const b=el("button",{class:"btn pri big",type:"submit"},"Guardar contraseña");
+  box.append(el("form",{class:"stack",onsubmit:async e=>{e.preventDefault();if(p1.value.length<8)return setMsg("Usa al menos 8 caracteres.");if(p1.value!==p2.value)return setMsg("Las contraseñas no coinciden.");
+   b.disabled=true;const{error}=await sb.auth.updateUser({password:p1.value});b.disabled=false;if(error)return setMsg("No se pudo guardar: "+error.message);
+   S.recovering=false;history.replaceState(null,"",location.pathname+"#inicio");const{data}=await sb.auth.getSession();if(data.session)start(data.session)}},
+   el("p",{class:"small",text:"Crea tu contraseña nueva (mínimo 8 caracteres)."}),el("label",{class:"f"},"Contraseña nueva",p1),el("label",{class:"f"},"Repite la contraseña",p2),b,m))}}
+function cuentaCard(){const nom=el("input",{value:S.me.name||""}),p1=el("input",{type:"password",autocomplete:"new-password",placeholder:"Mínimo 8 caracteres"});
+ return card("Mi cuenta",el("p",{class:"small muted",style:"margin-top:-6px",text:`Entraste como ${S.me.email||""}${S.canWrite?"":" (solo lectura)"}.`}),
+  el("div",{class:"fgrid"},el("label",{class:"f"},"Nombre que aparece en los registros",nom),el("label",{class:"f"},"Cambiar contraseña",p1)),
+  el("div",{class:"row",style:"margin-top:12px"},el("button",{class:"btn danger",onclick:async()=>{if(OB.list.length&&!confirm(`Hay ${OB.list.length} registros sin enviar en este teléfono. Si cierras sesión se enviarán cuando vuelvas a entrar. ¿Cerrar sesión?`))return;await sb.auth.signOut();location.hash="";location.reload()}},"Cerrar sesión"),el("span",{class:"spacer"}),
+   el("button",{class:"btn pri",onclick:async()=>{const upd={};const n=nom.value.trim();if(n&&n!==S.me.name)upd.data={nombre:n};if(p1.value){if(p1.value.length<8)return toast("La contraseña debe tener al menos 8 caracteres");upd.password=p1.value}
+    if(!Object.keys(upd).length)return toast("No hay cambios");const{error}=await sb.auth.updateUser(upd);if(error)return toast("No se pudo guardar: "+error.message,6000);if(upd.data){S.me.name=n;if(!LS.get("resp","")){S.resp=n}}p1.value="";toast("Cuenta actualizada")}},"Guardar")))}
+
+/* ===== Arranque ===== */
+function start(session){if(S.started)return;S.started=true;$("#login").hidden=true;$("#status").style.display="block";$("#status").textContent="Cargando datos…";
+ if(/access_token|type=/.test(location.hash))history.replaceState(null,"",location.pathname+"#inicio");
+ const u=session.user;S.me={id:u.id,name:u.user_metadata?.nombre||(u.email||"").split("@")[0],email:u.email};if(!S.resp)S.resp=u.user_metadata?.nombre||"";
+ S.canWrite=u.app_metadata?.rol!=="lector";S.db=makeDb(sb);S.assets=S.canWrite?makeAssets(sb):null;route();flush();
+ const timer=setTimeout(()=>{if(!S.ready)$("#status").textContent="Los datos aún no responden. Revisa la conexión; la app seguirá intentando."},12000);
+ const fail=e=>{clearTimeout(timer);$("#status").style.display="block";$("#status").textContent=e.code==="not_granted"?"Tu usuario no tiene acceso a los datos. Pide al administrador que lo revise.":"No se pudieron cargar los datos. Revisa la conexión y recarga la página.";};
+ const snap=(col,fn)=>S.db.collection(col).onSnapshot(s=>{fn(s);clearTimeout(timer);changed()},fail);
+ snap("lotes",s=>{S.lotes=new Map(s.docs.map(d=>[d.id,{id:d.id,...d.data()}]));S.ok.lotes=true});
+ snap("diario",s=>{S.diario=new Map(s.docs.map(d=>[d.id,d.data()]));S.ok.diario=true});
+ snap("eventos",s=>{S.eventos=new Map(s.docs.map(d=>[d.id,{id:d.id,...d.data()}]));S.ok.eventos=true});
+ S.db.doc("config/umbrales").onSnapshot(s=>{S.cfg={...DEF,...(s.exists?s.data():{})};changed()},()=>{})}
+async function init(){renderPend();for(const[id,arr]of[["dl-diag",DIAGS],["dl-agente",AGENTES]]){const dl=$("#"+id);for(const x of arr)dl.append(el("option",{value:x}))}
+ if(!window.supabase||/^PEGA_/.test(CONFIG.url)){$("#status").textContent=window.supabase?"Falta configurar la conexión: abre index.html y pega la Project URL y la anon key de Supabase en CONFIG.":"No se pudo cargar la librería de Supabase. Revisa la conexión a internet.";return}
+ S.recovering=/type=recovery/.test(location.hash);
+ sb=supabase.createClient(CONFIG.url,CONFIG.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+ sb.auth.onAuthStateChange((ev,session)=>{if(ev==="PASSWORD_RECOVERY"){S.recovering=true;showLogin("nueva");return}if(ev==="SIGNED_OUT"&&S.started){location.reload();return}if(session&&!S.recovering)setTimeout(()=>start(session),0)});
+ const{data}=await sb.auth.getSession();if(S.recovering){if(!data.session)showLogin("nueva");return}if(data.session)start(data.session);else showLogin("entrar")}
+init();
+})();
+
+</script>
+</body>
+</html>
