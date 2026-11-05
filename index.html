@@ -961,8 +961,8 @@ function showLogin(modo,msg){const box=$("#lbody");box.textContent="";$("#login"
    el("p",{class:"small",text:"Escribe tu correo y te enviaremos un enlace para crear una contraseña nueva."}),el("label",{class:"f"},"Correo",em),b,m,el("button",{type:"button",class:"linkbtn",onclick:()=>showLogin("entrar")},"Volver a entrar")))}
  else if(modo==="nueva"){const p1=el("input",{type:"password",autocomplete:"new-password",minlength:8,required:true}),p2=el("input",{type:"password",autocomplete:"new-password",required:true});const b=el("button",{class:"btn pri big",type:"submit"},"Guardar contraseña");
   box.append(el("form",{class:"stack",onsubmit:async e=>{e.preventDefault();if(p1.value.length<8)return setMsg("Usa al menos 8 caracteres.");if(p1.value!==p2.value)return setMsg("Las contraseñas no coinciden.");
-   b.disabled=true;const{error}=await sb.auth.updateUser({password:p1.value});b.disabled=false;if(error)return setMsg("No se pudo guardar: "+error.message);
-   S.recovering=false;history.replaceState(null,"",location.pathname+"#inicio");const{data}=await sb.auth.getSession();if(data.session)start(data.session)}},
+   b.disabled=true;const{data:upd,error}=await sb.auth.updateUser({password:p1.value,data:{cambiar_clave:false}});b.disabled=false;if(error)return setMsg(/different|same/i.test(error.message)?"La contraseña nueva debe ser distinta de la temporal.":"No se pudo guardar: "+error.message);
+   S.recovering=false;history.replaceState(null,"",location.pathname+"#inicio");const{data}=await sb.auth.getSession();if(data.session){if(upd?.user)data.session.user=upd.user;start(data.session)}}},
    el("p",{class:"small",text:"Crea tu contraseña nueva (mínimo 8 caracteres)."}),el("label",{class:"f"},"Contraseña nueva",p1),el("label",{class:"f"},"Repite la contraseña",p2),b,m))}}
 function cuentaCard(){const nom=el("input",{value:S.me.name||""}),p1=el("input",{type:"password",autocomplete:"new-password",placeholder:"Mínimo 8 caracteres"});
  return card("Mi cuenta",el("p",{class:"small muted",style:"margin-top:-6px",text:`Entraste como ${S.me.email||""}${S.canWrite?"":" (solo lectura)"}.`}),
@@ -972,7 +972,7 @@ function cuentaCard(){const nom=el("input",{value:S.me.name||""}),p1=el("input",
     if(!Object.keys(upd).length)return toast("No hay cambios");const{error}=await sb.auth.updateUser(upd);if(error)return toast("No se pudo guardar: "+error.message,6000);if(upd.data){S.me.name=n;if(!LS.get("resp","")){S.resp=n}}p1.value="";toast("Cuenta actualizada")}},"Guardar")))}
 
 /* ===== Arranque ===== */
-function start(session){if(S.started)return;S.started=true;$("#login").hidden=true;$("#status").style.display="block";$("#status").textContent="Cargando datos…";
+function start(session){if(S.started)return;if(session.user?.user_metadata?.cambiar_clave){S.recovering=true;showLogin("nueva",["ok","Bienvenido. Por seguridad, crea tu propia contraseña antes de continuar."]);return}S.started=true;$("#login").hidden=true;$("#status").style.display="block";$("#status").textContent="Cargando datos…";
  if(/access_token|type=/.test(location.hash))history.replaceState(null,"",location.pathname+"#inicio");
  const u=session.user;S.me={id:u.id,name:u.user_metadata?.nombre||(u.email||"").split("@")[0],email:u.email};if(!S.resp)S.resp=u.user_metadata?.nombre||"";
  S.canWrite=u.app_metadata?.rol!=="lector";S.db=makeDb(sb);S.assets=S.canWrite?makeAssets(sb):null;route();flush();
