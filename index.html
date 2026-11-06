@@ -531,7 +531,7 @@ function go(view,opts={}){Object.assign(S,opts.state||{});if(location.hash==="#"
 function render(){if(!S.M)compute();const v=$("#view");v.textContent="";
  for(const a of document.querySelectorAll("#nav a,#mnav a"))a.getAttribute("href")==="#"+S.view?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current");
  if(!S.canWrite)v.append(el("div",{class:"banner",text:"Tienes acceso de solo lectura: puedes consultar, pero no registrar. Pide al administrador que revise tu usuario."}));
- (V[S.view]||V.inicio)(v)}
+ try{(V[S.view]||V.inicio)(v)}catch(e){console.error(e);v.textContent="";v.append(card("Algo falló al abrir esta pantalla",el("p",{text:"Recarga la página. Si se repite, avisa al administrador con una captura."})))}}
 
 V.inicio=v=>{const M=S.M,hoy=M.hoy,mes=new Date(hoy*DAY).getUTCMonth();
  if(!S.lotes.size){v.append(card("Bienvenido",el("p",{text:"Para empezar, carga el informe de Piscis: los lotes de cada finca se crearán automáticamente con su estanque, fecha de ingreso y número de peces. Después, los registros sanitarios toman un par de minutos."}),
@@ -625,7 +625,7 @@ V.diario=v=>{const M=S.M;if(!S.dia.fecha)S.dia.fecha=hoyStr();const st=S.dia;con
 V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.eventos.get(pre.id)||S.legacy.find(r=>r.id===pre.id):null;
  const st=ex?{id:ex.id,tipo:ex.tipo,lote:ex.lote||"",finca:ex.finca,fecha:ex.fecha,notas:ex.notas||"",datos:{...(ex.datos||{})},legacy:!!S.legacy.find(r=>r.id===ex.id),adjuntos:[...(ex.adjuntos||[])]}:
   {id:null,tipo:pre.tipo||LS.get("evtipo","necropsia"),lote:pre.lote||"",finca:pre.finca||S.dia.finca,fecha:hoyStr(),notas:"",datos:{},adjuntos:[]};
- if(st.tipo==="retiroDias")st.tipo="tratamiento";
+ if(!TIPOS[st.tipo])st.tipo=st.tipo==="retiroDias"?"tratamiento":"evaluacion";
  const seg=el("div",{class:"seg",role:"group","aria-label":"Tipo de evento"});const body=el("div");
  const draw=()=>{seg.textContent="";for(const[k,n]of Object.entries(TIPOS))seg.append(el("button",{"aria-pressed":st.tipo===k?"true":"false",disabled:!!st.id,onclick:()=>{if(k===st.tipo)return;if((st.tocado||st.adjuntos.length)&&!confirm("Tienes datos sin guardar en este formulario. ¿Cambiar de tipo y descartarlos?"))return;st.tipo=k;LS.set("evtipo",k);st.datos={};st.notas="";st.adjuntos=[];st.tocado=false;draw()}},n));
   body.textContent="";const d=dn(st.fecha);
