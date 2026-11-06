@@ -272,7 +272,7 @@ const AGUA=[
 const CAUSAS=["Sin causa aparente","Enfermedad (ver necropsia)","Baja de oxígeno","Temperatura alta","Turbidez o creciente","Manejo (clasificación, traslado, pesca)","Depredación (aves, nutria)","Agresión o canibalismo","Deformidad o descarte","Otra"];
 const DIAGS=["Flavobacteriosis (columnaris)","Enfermedad bacteriana de agua fría (F. psychrophilum)","Boca roja entérica (Yersinia ruckeri)","Aeromoniasis (Aeromonas spp.)","Lactococosis / estreptococosis","Necrosis pancreática infecciosa (IPN)","Ictioftiriasis (punto blanco)","Saprolegniosis (hongo)","Enfermedad branquial bacteriana","Parásitos branquiales o de piel","Hipoxia (falta de oxígeno)","Daño branquial por sedimentos","Problema nutricional","Trauma o manejo","Sin diagnóstico concluyente"];
 const AGENTES=["Flavobacterium columnare","Flavobacterium psychrophilum","Yersinia ruckeri","Aeromonas hydrophila","Aeromonas salmonicida","Lactococcus garvieae","Streptococcus iniae","Virus IPN","Ichthyophthirius multifiliis","Ichthyobodo (Costia)","Gyrodactylus spp.","Saprolegnia spp.","Sin aislamiento"];
-const TIPOS={evaluacion:"Evaluación o visita",tratamiento:"Tratamiento",suplementacion:"Suplementación",necropsia:"Necropsia de campo",laboratorio:"Laboratorio",muestreo:"Muestreo de peso",observacion:"Observación"};
+const TIPOS={evaluacion:"Evaluación o visita",tratamiento:"Tratamiento",suplementacion:"Suplementación",necropsia:"Necropsia de campo",laboratorio:"Laboratorio",observacion:"Observación"};
 const FW=t=>t==="observacion"||t==="evaluacion";
 const CAMPOS={
  evaluacion:[{k:"motivo",l:"Motivo",t:"select",opts:["Visita de rutina","Aviso por teléfono","Seguimiento de tratamiento","Evaluación antes de cosecha","Ingreso de lote"]},{k:"peces",l:"Peces observados",t:"number"},{k:"comportamiento",l:"Comportamiento y consumo",t:"textarea",ph:"Nado, apetito, boqueo, aglomeración en la entrada"},{k:"hallazgos",l:"Hallazgos",t:"textarea",req:1,ph:"Piel, aletas, branquias, ojos, instalaciones, agua"},{k:"recomendaciones",l:"Recomendaciones dejadas",t:"textarea"},{k:"seguimiento",l:"Próxima revisión",t:"date"}],
@@ -534,8 +534,8 @@ function render(){if(!S.M)compute();const v=$("#view");v.textContent="";
  (V[S.view]||V.inicio)(v)}
 
 V.inicio=v=>{const M=S.M,hoy=M.hoy,mes=new Date(hoy*DAY).getUTCMonth();
- if(!S.lotes.size){v.append(card("Bienvenido",el("p",{text:"Para empezar, crea los lotes que hay en cada finca con su estanque, fecha de ingreso y número de peces. Después, el registro diario solo toma un par de minutos."}),
-  S.canWrite?el("div",{class:"row"},el("button",{class:"btn pri",onclick:()=>go("lotes",{state:{editLote:""}})},"Crear el primer lote"),el("button",{class:"btn",onclick:()=>go("ajustes")},"Cargar históricos desde Excel")):null));return}
+ if(!S.lotes.size){v.append(card("Bienvenido",el("p",{text:"Para empezar, carga el informe de Piscis: los lotes de cada finca se crearán automáticamente con su estanque, fecha de ingreso y número de peces. Después, los registros sanitarios toman un par de minutos."}),
+  S.canWrite?el("div",{class:"row"},el("button",{class:"btn",onclick:()=>go("ajustes")},"Cargar históricos desde Excel")):null));return}
  v.append(el("div",{class:"banner info",text:`Temporada actual: ${temporada(mes).toLowerCase()} (${MESES[mes].toLowerCase()}). Riesgos típicos: ${RIESGO_TEMP[temporada(mes)]}.`}));
  v.append(el("div",{class:"fincas"},M.fincas.map(f=>{const pend=f.us.length-f.regHoy;const done=f.us.length&&!pend&&f.aguaHoy;
   return el("div",{class:"finca","data-n":f.nivel},el("div",{class:"nm",text:f.nombre}),
@@ -589,11 +589,11 @@ V.diario=v=>{const M=S.M;if(!S.dia.fecha)S.dia.fecha=hoyStr();const st=S.dia;con
   draftM[u.lote.id].inp=inp;draftM[u.lote.id].chk=chk;
   mortBox.append(el("div",{class:"estanque"},el("div",{class:"lbl"},el("b",{text:u.ub.unidad?"Estanque "+u.ub.unidad:"Lote "+u.lote.codigo}),el("div",{class:"small muted",text:`${u.ub.unidad?"Lote "+u.lote.codigo+" · ":""}${fmtN(vivos)} peces`})),inp,sel,e?.r?el("div",{class:"who",text:`Registrado por ${e.r}`}):null))}
  if(!us.length)mortBox.append(el("p",{class:"muted",text:`No hay lotes en ${fNom(st.finca)} en esta fecha. Revisa las fechas de ingreso y salida en Lotes.`}));
- const resp=el("input",{value:S.resp||S.me.name||"",placeholder:"Tu nombre",oninput:e=>{S.resp=e.target.value;LS.set("resp",S.resp)}});
+ const resp={value:S.me.name||S.me.email||""};
  v.append(gap(),el("section",{class:"panel"},el("div",{class:"row"},el("h3",{text:"Mortalidad por estanque"}),el("span",{class:"spacer"}),us.length?el("button",{class:"btn sm",onclick:()=>{for(const k in draftM)if(draftM[k].inp.value.trim()===""){draftM[k].inp.value="0";draftM[k].m="0";draftM[k].chk()}}},"Sin mortalidad en los vacíos"):null),
   el("p",{class:"small muted",style:"margin:4px 0 6px",text:"Número de peces muertos o retirados ese día. Un estanque sin dato se considera no registrado."}),mortBox,
-  el("label",{class:"f",style:"margin-top:12px;max-width:340px"},"Responsable",resp)));
- const save=async()=>{if(!S.canWrite)return;const who=(resp.value||"").trim();if(!who)return toast("Escribe tu nombre en Responsable");
+  el("p",{class:"small muted",style:"margin:12px 0 0",text:`Se guardará a nombre de ${resp.value||"tu usuario"}.`})));
+ const save=async()=>{if(!S.canWrite)return;const who=(resp.value||"").trim();
   const t=new Date().toISOString(),errs=[],warns=[],mortP={},ambP={};
   for(const u of us){const dr=draftM[u.lote.id],e=exM[u.lote.id];const raw=dr.inp.value.trim();
    if(raw===""){if(e&&e.m!=null)mortP[u.lote.id]=null;continue}
@@ -627,7 +627,7 @@ V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.ev
   {id:null,tipo:pre.tipo||LS.get("evtipo","necropsia"),lote:pre.lote||"",finca:pre.finca||S.dia.finca,fecha:hoyStr(),notas:"",datos:{},adjuntos:[]};
  if(st.tipo==="retiroDias")st.tipo="tratamiento";
  const seg=el("div",{class:"seg",role:"group","aria-label":"Tipo de evento"});const body=el("div");
- const draw=()=>{seg.textContent="";for(const[k,n]of Object.entries(TIPOS))seg.append(el("button",{"aria-pressed":st.tipo===k?"true":"false",disabled:!!st.id,onclick:()=>{st.tipo=k;LS.set("evtipo",k);st.datos={};draw()}},n));
+ const draw=()=>{seg.textContent="";for(const[k,n]of Object.entries(TIPOS))seg.append(el("button",{"aria-pressed":st.tipo===k?"true":"false",disabled:!!st.id,onclick:()=>{if(k===st.tipo)return;if((st.tocado||st.adjuntos.length)&&!confirm("Tienes datos sin guardar en este formulario. ¿Cambiar de tipo y descartarlos?"))return;st.tipo=k;LS.set("evtipo",k);st.datos={};st.notas="";st.adjuntos=[];st.tocado=false;draw()}},n));
   body.textContent="";const d=dn(st.fecha);
   const fs=el("select",{onchange:e=>{st.finca=e.target.value;draw()}},FINCAS.map(f=>el("option",{value:f.id,text:f.nombre})));fs.value=st.finca;
   const us=M.ubs.filter(u=>u.finca===st.finca&&d!=null&&u.start<=d&&(u.sal==null||d<=u.sal));
@@ -635,17 +635,17 @@ V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.ev
   const ls=el("select",{onchange:e=>st.lote=e.target.value},el("option",{value:"",text:FW(st.tipo)?"Toda la finca":us.length?"Elige lote":"Sin lotes en esa fecha"}),us.map(u=>el("option",{value:u.lote.id,text:`${u.ub.unidad?"Estanque "+u.ub.unidad+" · ":""}Lote ${u.lote.codigo}`})));
   if(st.lote&&!us.some(u=>u.lote.id===st.lote)&&S.lotes.get(st.lote))ls.append(el("option",{value:st.lote,text:"Lote "+S.lotes.get(st.lote).codigo+" (fuera de periodo)"}));ls.value=st.lote;
   if(!st.lote&&us.length===1&&!FW(st.tipo)){st.lote=us[0].lote.id;ls.value=st.lote}
-  const fields=CAMPOS[st.tipo].map(c=>{if(st.datos[c.k]==null)st.datos[c.k]=c.t==="select"?c.opts[0]:c.t==="date"&&(c.k==="inicio")?st.fecha:"";const val=st.datos[c.k];const on=e=>st.datos[c.k]=e.target.value;let i;
+  const fields=CAMPOS[st.tipo].map(c=>{if(st.datos[c.k]==null)st.datos[c.k]=c.t==="select"?c.opts[0]:c.t==="date"&&(c.k==="inicio")?st.fecha:"";const val=st.datos[c.k];const on=e=>{st.datos[c.k]=e.target.value;st.tocado=true};let i;
    if(c.t==="select"){i=el("select",{onchange:on},c.opts.map(o=>el("option",{value:o,text:o})));i.value=val}
    else if(c.t==="textarea"){i=el("textarea",{oninput:on,placeholder:c.ph});i.value=val}
    else i=el("input",{type:c.t==="date"?"date":"text",inputmode:c.t==="number"?"decimal":null,list:c.list,value:val,placeholder:c.ph,max:c.t==="date"&&c.k!=="fin"?hoyStr():null,oninput:on});
    return el("label",{class:"f"+(c.t==="textarea"?" wide":"")},c.l+(c.req?" *":""),c.hint?el("span",{class:"hint",text:c.hint}):null,i)});
-  const notas=el("textarea",{oninput:e=>st.notas=e.target.value});notas.value=st.notas;
+  const notas=el("textarea",{oninput:e=>{st.notas=e.target.value;st.tocado=true}});notas.value=st.notas;
   add(body,[el("div",{class:"fgrid",style:"margin-top:14px"},el("label",{class:"f"},"Finca *",fs),el("label",{class:"f"},FW(st.tipo)?"Lote (opcional)":"Lote *",ls),
    el("label",{class:"f"},"Fecha *",el("input",{type:"date",value:st.fecha,max:hoyStr(),onchange:e=>{st.fecha=e.target.value;draw()}})),fields,el("label",{class:"f wide"},"Notas",notas)),adjBox(st,draw),
    st.tipo==="tratamiento"?el("p",{class:"small muted",text:"Para trucha el retiro suele venir en grados-día (suma de la temperatura diaria del agua). La app calcula la fecha de liberación con las temperaturas registradas en la finca."}):null,
    el("div",{class:"row",style:"margin-top:14px"},st.id&&!st.legacy?el("button",{class:"btn danger",onclick:async()=>{if(!confirm("¿Eliminar este evento?"))return;const ok=await enqueue({kind:"del",path:"eventos/"+st.id});toast(ok?"Evento eliminado":"Se eliminará cuando haya señal");go("lotes")}},"Eliminar"):null,
-    el("span",{class:"spacer"}),st.id?el("button",{class:"btn",onclick:()=>history.back()},"Cancelar"):null,el("button",{class:"btn pri",onclick:save,disabled:!S.canWrite},st.id?"Guardar cambios":"Guardar evento"))])};
+    el("span",{class:"spacer"}),st.id?el("button",{class:"btn",onclick:()=>history.back()},"Cancelar"):null,el("button",{class:"btn pri",onclick:save,disabled:!S.canWrite},st.id?"Guardar cambios":"Guardar "+TIPOS[st.tipo].toLowerCase()))])};
  const save=async()=>{const d=dn(st.fecha),hoy=M.hoy,x=st.datos;
   if(d==null)return toast("Revisa la fecha");if(d>hoy)return toast("La fecha no puede ser futura");
   if(!FW(st.tipo)&&!st.lote)return toast("Elige el lote");
@@ -659,14 +659,14 @@ V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.ev
   if(st.subiendo)return toast("Espera a que terminen de subir los archivos");
   if(st.tipo==="tratamiento"&&!st.adjuntos.length&&!confirm("¿Guardar el tratamiento sin el soporte de la fórmula médica? Quedará pendiente en Calidad de datos y podrás adjuntarlo después desde Editar."))return;
   const datos={};for(const c of CAMPOS[st.tipo]){const val=x[c.k];if(val===""||val==null)continue;datos[c.k]=c.t==="number"?num(val):c.list?canon(val):String(val).trim()}
-  const who=(S.resp||S.me.name||"").trim();
+  const who=(S.me.name||S.me.email||"").trim();
   const docu={tipo:st.tipo,lote:st.lote||"",finca:st.finca,fecha:st.fecha,notas:(st.notas||"").trim(),datos,responsable:ex?.responsable||who,por:ex?.por||S.me.id||"",creado:ex?.creado||new Date().toISOString(),editado:new Date().toISOString(),editadoPor:who,adjuntos:st.adjuntos.map(a=>({id:a.id,nombre:a.nombre||"",tipo:a.tipo||"",kb:a.kb||0,subido:a.subido||"",por:a.por||""}))};
   if(st.legacy){toast("Los registros antiguos se corrigen en su versión anterior; crea uno nuevo si hace falta.");return}
   const id=st.id||uid("e");const ok=await enqueue({kind:"set",path:"eventos/"+id,data:docu});
   toast(ok?"Evento guardado.":"Guardado en este teléfono; se enviará cuando haya señal.");
-  if(st.id)go("lotes",{state:{loteSel:st.lote||S.loteSel}});else{st.datos={};st.notas="";st.adjuntos=[];draw()}};
+  if(st.id)go("lotes",{state:{loteSel:st.lote||S.loteSel}});else{st.datos={};st.notas="";st.adjuntos=[];st.tocado=false;draw()}};
  draw();
- v.append(card(st.id?"Editar evento":"Nuevo evento sanitario",seg,body));
+ v.append(card(st.id?"Editar evento":"Nuevo evento sanitario",st.id?null:el("p",{class:"small muted",style:"margin:-4px 0 12px",text:"Elige qué vas a registrar, completa el formulario y pulsa Guardar una sola vez al final. Las fotos o PDF se adjuntan antes de guardar."}),seg,body));
  if(!st.id){const rec=M.eventos.filter(r=>r.finca===st.finca).slice(-6).reverse();if(rec.length)v.append(gap(),card(`Últimos eventos en ${fNom(st.finca)}`,el("ul",{class:"tl"},rec.map(r=>tlItem(r,true)))))}
 };
 /* --- Soportes (fotos y PDF) --- */
@@ -711,12 +711,12 @@ V.lotes=v=>{const M=S.M;const lotes=[...S.lotes.values()].sort((a,b)=>(a.estado=
  const fill=()=>{list.textContent="";for(const l of lotes){const ubs=l.ubicaciones||[];if(q.value&&!norm(l.codigo+" "+ubs.map(u=>u.unidad+" "+fNom(u.finca)).join(" ")+" "+(l.origen||"")).includes(norm(q.value)))continue;
   list.append(el("button",{"aria-current":l.id===S.loteSel?"true":"false",onclick:()=>{S.loteSel=l.id;render()}},el("span",null,el("b",{text:l.codigo}),el("br"),el("span",{class:"small",text:ubs.map(u=>fNom(u.finca)+(u.unidad?" "+u.unidad:"")).join(", ")||"Sin finca"})),el("span",{class:"small",text:l.estado==="cerrado"?"Cerrado":""})))}};
  q.addEventListener("input",fill);fill();
- const side=el("aside",{class:"panel stack"},S.canWrite?el("button",{class:"btn pri",style:"width:100%",onclick:()=>{S.editLote="";render()}},"Nuevo lote"):null,q,list);
+ const side=el("aside",{class:"panel stack"},S.esAdmin?el("button",{class:"btn",style:"width:100%",onclick:()=>{S.editLote="";render()}},"Nuevo lote (excepción)"):el("p",{class:"small muted",style:"margin:0",text:"Los lotes se crean al cargar el informe de Piscis."}),q,list);
  const main=el("div",{class:"stack"});v.append(el("div",{class:"layout-lotes"},side,main));
- if(!S.loteSel){main.append(card(null,el("div",{class:"empty"},el("p",{text:"Aún no hay lotes. Crea el primero indicando la finca, el estanque, la fecha de ingreso y el número de peces."}),S.canWrite?el("button",{class:"btn pri",onclick:()=>{S.editLote="";render()}},"Crear lote"):null)));return}
+ if(!S.loteSel){main.append(card(null,el("div",{class:"empty"},el("p",{text:"Aún no hay lotes. Se crean automáticamente al cargar el informe de Piscis (Ajustes > Cargar históricos)."}),S.esAdmin?el("button",{class:"btn pri",onclick:()=>{S.editLote="";render()}},"Crear lote"):null)));return}
  const l=S.lotes.get(S.loteSel),us=M.ubs.filter(u=>u.lote.id===l.id);
  main.append(el("section",{class:"panel"},el("div",{class:"row"},el("h2",{text:"Lote "+l.codigo}),el("span",{class:"chip "+(l.estado==="cerrado"?"":"ok"),text:l.estado==="cerrado"?"Cerrado":"Activo"}),el("span",{class:"spacer"}),
-  S.canWrite?el("button",{class:"btn",onclick:()=>{S.editLote=l.id;render()}},"Editar"):null,S.canWrite?el("button",{class:"btn pri",onclick:()=>go("evento",{state:{evPre:{lote:l.id,finca:us[0]?.finca}}})},"Nuevo evento"):null,
+  S.esAdmin?el("button",{class:"btn",onclick:()=>{S.editLote=l.id;render()}},"Editar"):null,S.canWrite?el("button",{class:"btn pri",onclick:()=>go("evento",{state:{evPre:{lote:l.id,finca:us[0]?.finca}}})},"Nuevo evento"):null,
   el("button",{class:"btn",onclick:()=>go("claude",{state:{ai:{scope:"lote:"+l.id}}})},"Analizar")),
   el("p",{class:"muted",style:"margin:6px 0 12px",text:[l.especie,l.etapa,l.origen?"Origen: "+l.origen:null,l.fechaNacimiento?"Eclosión: "+fmtF(l.fechaNacimiento):null,l.pesoInicial?"Peso al ingreso: "+l.pesoInicial+" g":null].filter(Boolean).join(". ")}),
   l.notas?el("p",{class:"small",text:l.notas}):null,
@@ -1029,7 +1029,7 @@ function cuentaCard(){const nom=el("input",{value:S.me.name||""}),p1=el("input",
 function start(session){if(S.started)return;if(session.user?.user_metadata?.cambiar_clave){S.recovering=true;showLogin("nueva",["ok","Bienvenido. Por seguridad, crea tu propia contraseña antes de continuar."]);return}S.started=true;$("#login").hidden=true;$("#status").style.display="block";$("#status").textContent="Cargando datos…";
  if(/access_token|type=/.test(location.hash))history.replaceState(null,"",location.pathname+"#inicio");
  const u=session.user;S.me={id:u.id,name:u.user_metadata?.nombre||(u.email||"").split("@")[0],email:u.email};if(!S.resp)S.resp=u.user_metadata?.nombre||"";
- S.canWrite=u.app_metadata?.rol!=="lector";S.db=makeDb(sb);S.assets=S.canWrite?makeAssets(sb):null;route();flush();
+ S.canWrite=u.app_metadata?.rol!=="lector";S.rol=u.app_metadata?.rol||"registro";S.esAdmin=S.rol==="admin";S.db=makeDb(sb);S.assets=S.canWrite?makeAssets(sb):null;route();flush();
  const timer=setTimeout(()=>{if(!S.ready)$("#status").textContent="Los datos aún no responden. Revisa la conexión; la app seguirá intentando."},12000);
  const fail=e=>{clearTimeout(timer);$("#status").style.display="block";$("#status").textContent=e.code==="not_granted"?"Tu usuario no tiene acceso a los datos. Pide al administrador que lo revise.":"No se pudieron cargar los datos. Revisa la conexión y recarga la página.";};
  const snap=(col,fn)=>S.db.collection(col).onSnapshot(s=>{fn(s);clearTimeout(timer);changed()},fail);
