@@ -211,6 +211,9 @@ nav.desk a[aria-current="page"]{color:var(--brand);border-bottom-color:var(--acc
 .login-t{flex-direction:column;align-items:flex-start;gap:16px;font-size:1.3rem;color:var(--ink-2)}
 .login-t .logo{height:56px}
 nav.desk{flex:1 1 100%;justify-content:flex-start;margin-left:-11px}
+.layout-lotes>*,.grid2>*,.fincas>*{min-width:0}
+.layout-lotes aside .inp{width:100%}
+@media (max-width:760px){.seg.tipos{display:grid;grid-template-columns:1fr 1fr}.seg.tipos button{border-radius:8px;padding:9px 6px;line-height:1.2}.lotelist{max-height:32vh!important}}
 details.mas{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
 details.mas summary{color:var(--accent);font-weight:700;padding:8px 0;font-size:.95rem}
 .dayctl .btn{font-size:1.5rem;line-height:1;padding:4px 12px;font-weight:400}
@@ -279,7 +282,7 @@ const CAMPOS={
  suplementacion:[{k:"producto",l:"Producto",req:1},{k:"clase",l:"Tipo",t:"select",opts:["Vitaminas","Probiótico","Inmunoestimulante","Minerales o sales","Otro"]},{k:"motivo",l:"Motivo",ph:"Ej.: estrés por clasificación, post-tratamiento"},{k:"dosis",l:"Dosis"},{k:"via",l:"Vía",t:"select",opts:["Alimento","Baño o agua"]},{k:"inicio",l:"Inicio",t:"date",req:1},{k:"fin",l:"Fin",t:"date"},{k:"prescribe",l:"Quién lo indica"}],
  tratamiento:[{k:"producto",l:"Producto comercial",req:1},{k:"principio",l:"Principio activo"},{k:"loteProducto",l:"Lote del producto"},{k:"motivo",l:"Motivo o diagnóstico",list:"dl-diag"},{k:"dosis",l:"Dosis",ph:"Ej.: 75 mg/kg de pez/día"},{k:"via",l:"Vía",t:"select",opts:["Alimento medicado","Baño","Inyectable","Otra"]},{k:"inicio",l:"Inicio",t:"date",req:1},{k:"fin",l:"Fin",t:"date",req:1},{k:"retiro",l:"Tiempo de retiro",t:"number",req:1,hint:"Según etiqueta o fórmula"},{k:"retiroUnidad",l:"Unidad del retiro",t:"select",opts:["grados-día","días"]},{k:"prescribe",l:"Médico veterinario que formula",req:1}],
  necropsia:[{k:"n",l:"Peces examinados",t:"number",req:1},{k:"externos",l:"Signos externos",t:"textarea",ph:"Piel, aletas, branquias, ojos, comportamiento"},{k:"internos",l:"Signos internos",t:"textarea",ph:"Hígado, bazo, riñón, intestino, vejiga natatoria"},{k:"diagnostico",l:"Diagnóstico presuntivo",list:"dl-diag",req:1},{k:"muestras",l:"¿Se enviaron muestras?",t:"select",opts:["No","Sí"]}],
- laboratorio:[{k:"laboratorio",l:"Laboratorio"},{k:"muestra",l:"Tipo de muestra",ph:"Peces vivos, órganos, agua"},{k:"analisis",l:"Análisis",ph:"Bacteriología, PCR, histopatología"},{k:"resultado",l:"Resultado",t:"select",opts:["Pendiente","Positivo","Negativo","No concluyente"],req:1},{k:"agente",l:"Agente aislado",list:"dl-agente"},{k:"antibiograma",l:"Antibiograma o sensibilidad",t:"textarea"},{k:"fechaResultado",l:"Fecha del resultado",t:"date"}],
+ laboratorio:[{k:"laboratorio",l:"Laboratorio"},{k:"muestra",l:"Tipo de muestra",ph:"Peces vivos, órganos, agua"},{k:"analisis",l:"Análisis",ph:"Bacteriología, PCR, histopatología",req:1},{k:"resultado",l:"Resultado",t:"select",opts:["Pendiente","Positivo","Negativo","No concluyente"],req:1},{k:"agente",l:"Agente aislado",list:"dl-agente"},{k:"antibiograma",l:"Antibiograma o sensibilidad",t:"textarea"},{k:"fechaResultado",l:"Fecha del resultado",t:"date"}],
  muestreo:[{k:"n",l:"Peces muestreados",t:"number",req:1},{k:"peso",l:"Peso promedio (g)",t:"number",req:1},{k:"talla",l:"Talla promedio (cm)",t:"number"},{k:"cv",l:"Coeficiente de variación (%)",t:"number"}],
  observacion:[{k:"texto",l:"Observación",t:"textarea",req:1}]
 };
@@ -626,7 +629,7 @@ V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.ev
  const st=ex?{id:ex.id,tipo:ex.tipo,lote:ex.lote||"",finca:ex.finca,fecha:ex.fecha,notas:ex.notas||"",datos:{...(ex.datos||{})},legacy:!!S.legacy.find(r=>r.id===ex.id),adjuntos:[...(ex.adjuntos||[])]}:
   {id:null,tipo:pre.tipo||LS.get("evtipo","necropsia"),lote:pre.lote||"",finca:pre.finca||S.dia.finca,fecha:hoyStr(),notas:"",datos:{},adjuntos:[]};
  if(!TIPOS[st.tipo])st.tipo=st.tipo==="retiroDias"?"tratamiento":"evaluacion";
- const seg=el("div",{class:"seg",role:"group","aria-label":"Tipo de evento"});const body=el("div");
+ const seg=el("div",{class:"seg tipos",role:"group","aria-label":"Tipo de evento"});const body=el("div");
  const draw=()=>{seg.textContent="";for(const[k,n]of Object.entries(TIPOS))seg.append(el("button",{"aria-pressed":st.tipo===k?"true":"false",disabled:!!st.id,onclick:()=>{if(k===st.tipo)return;if((st.tocado||st.adjuntos.length)&&!confirm("Tienes datos sin guardar en este formulario. ¿Cambiar de tipo y descartarlos?"))return;st.tipo=k;LS.set("evtipo",k);st.datos={};st.notas="";st.adjuntos=[];st.tocado=false;draw()}},n));
   body.textContent="";const d=dn(st.fecha);
   const fs=el("select",{onchange:e=>{st.finca=e.target.value;draw()}},FINCAS.map(f=>el("option",{value:f.id,text:f.nombre})));fs.value=st.finca;
@@ -646,7 +649,7 @@ V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.ev
    st.tipo==="tratamiento"?el("p",{class:"small muted",text:"Para trucha el retiro suele venir en grados-día (suma de la temperatura diaria del agua). La app calcula la fecha de liberación con las temperaturas registradas en la finca."}):null,
    el("div",{class:"row",style:"margin-top:14px"},st.id&&!st.legacy?el("button",{class:"btn danger",onclick:async()=>{if(!confirm("¿Eliminar este evento?"))return;const ok=await enqueue({kind:"del",path:"eventos/"+st.id});toast(ok?"Evento eliminado":"Se eliminará cuando haya señal");go("lotes")}},"Eliminar"):null,
     el("span",{class:"spacer"}),st.id?el("button",{class:"btn",onclick:()=>history.back()},"Cancelar"):null,el("button",{class:"btn pri",onclick:save,disabled:!S.canWrite},st.id?"Guardar cambios":"Guardar "+TIPOS[st.tipo].toLowerCase()))])};
- const save=async()=>{const d=dn(st.fecha),hoy=M.hoy,x=st.datos;
+ const save=async()=>{if(st.guardando)return;const d=dn(st.fecha),hoy=M.hoy,x=st.datos;
   if(d==null)return toast("Revisa la fecha");if(d>hoy)return toast("La fecha no puede ser futura");
   if(!FW(st.tipo)&&!st.lote)return toast("Elige el lote");
   for(const c of CAMPOS[st.tipo])if(c.req&&!String(x[c.k]??"").trim())return toast("Completa: "+c.l);
@@ -659,10 +662,11 @@ V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.ev
   if(st.subiendo)return toast("Espera a que terminen de subir los archivos");
   if(st.tipo==="tratamiento"&&!st.adjuntos.length&&!confirm("¿Guardar el tratamiento sin el soporte de la fórmula médica? Quedará pendiente en Calidad de datos y podrás adjuntarlo después desde Editar."))return;
   const datos={};for(const c of CAMPOS[st.tipo]){const val=x[c.k];if(val===""||val==null)continue;datos[c.k]=c.t==="number"?num(val):c.list?canon(val):String(val).trim()}
+  if(!st.id&&S.M.eventos.some(r=>claveEv(r)===claveEv({tipo:st.tipo,lote:st.lote,finca:st.finca,fecha:st.fecha,datos}))&&!confirm("Ya existe un registro igual: mismo tipo, lote, fecha y contenido. ¿Guardarlo de nuevo?"))return;
   const who=(S.me.name||S.me.email||"").trim();
   const docu={tipo:st.tipo,lote:st.lote||"",finca:st.finca,fecha:st.fecha,notas:(st.notas||"").trim(),datos,responsable:ex?.responsable||who,por:ex?.por||S.me.id||"",creado:ex?.creado||new Date().toISOString(),editado:new Date().toISOString(),editadoPor:who,adjuntos:st.adjuntos.map(a=>({id:a.id,nombre:a.nombre||"",tipo:a.tipo||"",kb:a.kb||0,subido:a.subido||"",por:a.por||""}))};
   if(st.legacy){toast("Los registros antiguos se corrigen en su versión anterior; crea uno nuevo si hace falta.");return}
-  const id=st.id||uid("e");const ok=await enqueue({kind:"set",path:"eventos/"+id,data:docu});
+  st.guardando=true;const id=st.id||uid("e");let ok=false;try{ok=await enqueue({kind:"set",path:"eventos/"+id,data:docu})}finally{st.guardando=false}
   toast(ok?"Evento guardado.":"Guardado en este teléfono; se enviará cuando haya señal.");
   if(st.id)go("lotes",{state:{loteSel:st.lote||S.loteSel}});else{st.datos={};st.notas="";st.adjuntos=[];st.tocado=false;draw()}};
  draw();
@@ -720,8 +724,8 @@ V.lotes=v=>{const M=S.M;const lotes=[...S.lotes.values()].sort((a,b)=>(a.estado=
   el("button",{class:"btn",onclick:()=>go("claude",{state:{ai:{scope:"lote:"+l.id}}})},"Analizar")),
   el("p",{class:"muted",style:"margin:6px 0 12px",text:[l.especie,l.etapa,l.origen?"Origen: "+l.origen:null,l.fechaNacimiento?"Eclosión: "+fmtF(l.fechaNacimiento):null,l.pesoInicial?"Peso al ingreso: "+l.pesoInicial+" g":null].filter(Boolean).join(". ")}),
   l.notas?el("p",{class:"small",text:l.notas}):null,
-  el("div",{class:"scroll"},el("table",null,el("thead",null,el("tr",null,["Finca","Estanque","Ingreso","Salida","Ingresaron","Muertes","Mort. acum.","Mort. 7 d","Peces","Peso prom.","Biomasa"].map((h,i)=>el("th",{class:i>3?"n":null,text:h})))),
-   el("tbody",null,us.map(u=>el("tr",null,el("td",null,el("b",{text:fNom(u.finca)})),el("td",{text:u.ub.unidad||"—"}),el("td",{text:fmtF(u.start)}),el("td",{text:u.sal!=null?fmtF(u.sal):"—"}),el("td",{class:"n",text:fmtN(u.inicial)}),el("td",{class:"n",text:fmtN(u.acum)}),el("td",{class:"n",text:pct(u.acumPct)}),el("td",{class:"n",text:pct(u.w7.pct)}),el("td",{class:"n",text:fmtN(u.vivos)}),el("td",{class:"n",text:u.peso!=null?fmtN(u.peso)+" g":"—"}),el("td",{class:"n",text:u.biomasa!=null?fmtN(u.biomasa)+" kg":"—"}))))))));
+  el("div",{class:"scroll"},el("table",null,el("thead",null,el("tr",null,["Finca","Estanque","Ingreso","Salida","Ingresaron","Muertes","Mort. acum.","Mort. 7 días","Peces"].map((h,i)=>el("th",{class:i>3?"n":null,text:h})))),
+   el("tbody",null,us.map(u=>el("tr",null,el("td",null,el("b",{text:fNom(u.finca)})),el("td",{text:u.ub.unidad||"—"}),el("td",{text:fmtF(u.start)}),el("td",{text:u.sal!=null?fmtF(u.sal):"—"}),el("td",{class:"n",text:fmtN(u.inicial)}),el("td",{class:"n",text:fmtN(u.acum)}),el("td",{class:"n",text:pct(u.acumPct)}),el("td",{class:"n",text:pct(u.w7.pct)}),el("td",{class:"n",text:fmtN(u.vivos)}))))))));
  const varSel=el("select",{class:"inp","aria-label":"Parámetro del agua"},el("option",{value:"",text:"Sin parámetro de agua"}),AGUA.map(x=>el("option",{value:x.k,text:x.n})));varSel.value=S.varSel||"tAgua";
  const ch=el("div"),ch2=el("div");
  const draw=()=>{S.varSel=varSel.value;const series=us.map(u=>({name:fNom(u.finca),color:FCOLOR[u.finca],gap:3,points:u.dias.filter(x=>x.pct!=null).map(x=>({x:x.d,y:x.pct,extra:x.muertos+" peces"}))}));
@@ -902,7 +906,7 @@ function parseFecha(v){if(v instanceof Date&&!isNaN(v))return v.getFullYear()+"-
 let xlsxP=null;function loadXLSX(){if(window.XLSX)return Promise.resolve(window.XLSX);return xlsxP||(xlsxP=new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=()=>res(window.XLSX);s.onerror=()=>{xlsxP=null;rej(new Error("xlsx"))};document.head.append(s)}))}
 function importBox(){const out=el("div",{class:"small",style:"margin-top:10px"});const file=el("input",{type:"file",accept:".csv,.xlsx,.xls,.txt",class:"inp"});const ta=el("textarea",{class:"inp",style:"width:100%;min-height:110px",placeholder:"O pega aquí filas copiadas de Excel (con encabezado)"});let plan=null;
  const prev=async rows=>{plan=planImport(rows);out.textContent="";const p=plan;
-  out.append(el("p",null,el("b",null,`Listo para cargar: ${p.nMort} registros de mortalidad, ${p.nAmb} de agua y ${p.eventos.length} eventos.`),p.sobre?` ${p.sobre} reemplazarán datos ya registrados.`:"",p.dup?` ${p.dup} filas repetidas (se toma la última).`:""));
+  out.append(el("p",null,el("b",null,`Listo para cargar: ${p.nMort} registros de mortalidad, ${p.nAmb} de agua y ${p.eventos.length} eventos.`),p.sobre?` ${p.sobre} reemplazarán datos ya registrados.`:"",p.dup?` ${p.dup} filas repetidas (se toma la última).`:"",p.repetidos?` ${p.repetidos} eventos ya estaban registrados y no se duplicarán.`:""));
   if(p.errs.length)out.append(el("details",{open:p.errs.length<=10},el("summary",{text:`${p.errs.length} filas con problemas no se cargarán`}),el("ul",null,p.errs.slice(0,80).map(e=>el("li",{text:e})))));
   if(p.nMort+p.nAmb+p.eventos.length)out.append(el("button",{class:"btn pri",style:"margin-top:8px",onclick:async e=>{e.target.disabled=true;e.target.textContent="Cargando…";const ops=[...p.ops,...p.eventos.map(d=>({kind:"set",path:"eventos/"+uid("e"),data:d}))];const total=ops.length;
    const tick=setInterval(()=>{e.target.textContent=`Cargando… ${total-OB.list.length}/${total}`},500);const ok=await enqueue(ops);clearInterval(tick);
@@ -912,11 +916,12 @@ function importBox(){const out=el("div",{class:"small",style:"margin-top:10px"})
   else if(f)rows=parseCSV(await f.text());else rows=parseCSV(ta.value.trim());
   if(!rows||rows.length<2){out.textContent="No se encontraron filas con encabezado.";return}await prev(rows)}catch(e){out.textContent="No se pudo leer el archivo. Si es Excel, prueba guardarlo como CSV."}};
  file.addEventListener("change",readRows);
- return el("div",null,el("p",{class:"small muted",text:"Sube un Excel o CSV (o pega filas copiadas de Excel). Cada fila es un día: fecha, finca, lote o estanque, muertos y, si los tienes, parámetros del agua. Para eventos agrega la columna «tipo» (tratamiento, necropsia, laboratorio, muestreo u observación). Los lotes deben existir antes de cargar. Antes de guardar se muestra un resumen y los errores."}),
+ return el("div",null,el("p",{class:"small muted",text:"Sube un Excel o CSV (o pega filas copiadas de Excel). Cada fila es un día: fecha, finca, lote o estanque, muertos y, si los tienes, parámetros del agua. Para eventos agrega la columna «tipo» (evaluación, tratamiento, suplementación, necropsia, laboratorio u observación). Los lotes deben existir antes de cargar. Antes de guardar se muestra un resumen y los errores."}),
   el("div",{class:"row"},el("button",{class:"btn",onclick:()=>plantilla("diario")},"Plantilla diaria"),el("button",{class:"btn",onclick:()=>plantilla("eventos")},"Plantilla de eventos")),
   el("div",{class:"stack",style:"margin-top:12px"},file,ta,el("button",{class:"btn",onclick:readRows},"Revisar datos pegados")),out)}
+const claveEv=r=>{const x=r.datos||{};return[r.tipo,r.lote||"",r.finca,r.fecha,norm(x.producto||x.diagnostico||x.agente||x.analisis||x.hallazgos||x.texto||"")].join("|")};
 function planImport(rows){const head=rows[0].map(h=>HMAP[norm(h).replace(/[^a-z0-9]/g,"")]||null);const M=S.M,hoy=M.hoy;
- const errs=[],ops=new Map(),eventos=[];let nMort=0,nAmb=0,sobre=0,dup=0;const seen=new Set();const lotesBy=new Map([...S.lotes.values()].map(l=>[norm(l.codigo),l]));const who=(S.resp||S.me.name||"Carga histórica").trim();const t=new Date().toISOString();
+ const errs=[],ops=new Map(),eventos=[];let nMort=0,nAmb=0,sobre=0,dup=0,repetidos=0;const seen=new Set();const yaEv=new Set(M.eventos.map(claveEv));const lotesBy=new Map([...S.lotes.values()].map(l=>[norm(l.codigo),l]));const who=(S.resp||S.me.name||"Carga histórica").trim();const t=new Date().toISOString();
  rows.slice(1).forEach((r,i)=>{const fila=i+2;const g=k=>{const j=head.indexOf(k);return j<0?"":r[j]};const s=k=>String(g(k)??"").trim();
   const fecha=parseFecha(g("fecha"));if(!fecha)return errs.push(`Fila ${fila}: fecha no reconocida (${s("fecha")||"vacía"})`);const d=dn(fecha);if(d>hoy)return errs.push(`Fila ${fila}: fecha futura`);
   const f=FINCAS.find(x=>norm(x.nombre)===norm(s("finca"))||x.id===norm(s("finca")).replace(/\s+/g,"-"));if(!f)return errs.push(`Fila ${fila}: finca «${s("finca")}» no reconocida`);
@@ -929,6 +934,7 @@ function planImport(rows){const head=rows[0].map(h=>HMAP[norm(h).replace(/[^a-z0
   if(tipoRaw&&!["diario","mortalidad","agua","ambiente"].includes(norm(tipoRaw))){if(!tipo)return errs.push(`Fila ${fila}: tipo «${tipoRaw}» no reconocido`);if(!FW(tipo)&&!lote)return errs.push(`Fila ${fila}: falta el lote o estanque`);
    const datos={};for(const c of CAMPOS[tipo]){const val=g(c.k);if(val===""||val==null)continue;datos[c.k]=c.t==="number"?num(val):c.t==="date"?(parseFecha(val)||String(val)):c.list?canon(val):String(val).trim()}
    if(tipo==="tratamiento"&&!datos.retiroUnidad)datos.retiroUnidad="grados-día";
+   {const kk=claveEv({tipo,lote:lote?.id||"",finca:f.id,fecha,datos});if(yaEv.has(kk)){repetidos++;return}yaEv.add(kk)}
    eventos.push({tipo,lote:lote?.id||"",finca:f.id,fecha,notas:s("notas"),datos,responsable:s("responsable")||who,por:S.me.id||"",creado:t,origen:"importado"});return}
   if(s("estanque")&&!lote)return errs.push(`Fila ${fila}: no hay un lote en el estanque ${s("estanque")} de ${f.nombre} en esa fecha`);
   const re=[];const mRaw=g("muertos");const hasM=String(mRaw??"").trim()!=="";let n=null;
@@ -940,7 +946,7 @@ function planImport(rows){const head=rows[0].map(h=>HMAP[norm(h).replace(/[^a-z0
   const path=`diario/${f.id}-${fecha.slice(0,7)}`;const op=ops.get(path)||{kind:"merge",path,base:{finca:f.id,mes:fecha.slice(0,7)},data:{}};ops.set(path,op);
   if(hasM){const k=lote.id+"|"+fecha;if(seen.has(k))dup++;else{seen.add(k);nMort++}if(u&&u.mort.has(d))sobre++;((op.data.mort||(op.data.mort={}))[fecha]||(op.data.mort[fecha]={}))[lote.id]={m:n,c:s("causa"),r:s("responsable")||who,p:S.me.id||"",t,imp:1}}
   if(any){const mo=norm(s("momento")).startsWith("t")?"tarde":"manana";((op.data.amb||(op.data.amb={}))[fecha]||(op.data.amb[fecha]={}))[mo]={...amb,r:s("responsable")||who,p:S.me.id||"",t,imp:1};nAmb++}});
- return{errs,ops:[...ops.values()].filter(o=>Object.keys(o.data).length),eventos,nMort,nAmb,sobre,dup}}
+ return{errs,ops:[...ops.values()].filter(o=>Object.keys(o.data).length),eventos,nMort,nAmb,sobre,dup,repetidos}}
 async function bajar(nombre,lineas){try{const b=new Blob(["\ufeff"+lineas.join("\r\n")],{type:"text/csv;charset=utf-8"});const a=el("a",{href:URL.createObjectURL(b),download:nombre,style:"display:none"});document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000)}catch{toast("No se pudo descargar")}}
 const q=s=>{s=s==null?"":String(s);return/[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
 const nq=v=>v==null||v===""?"":String(v).replace(".",",");
@@ -1018,7 +1024,7 @@ function showLogin(modo,msg){const box=$("#lbody");box.textContent="";$("#login"
    b.disabled=true;const{data:upd,error}=await sb.auth.updateUser({password:p1.value,data:{cambiar_clave:false}});b.disabled=false;if(error)return setMsg(/different|same/i.test(error.message)?"La contraseña nueva debe ser distinta de la temporal.":"No se pudo guardar: "+error.message);
    S.recovering=false;history.replaceState(null,"",location.pathname+"#inicio");const{data}=await sb.auth.getSession();if(data.session){if(upd?.user)data.session.user=upd.user;start(data.session)}}},
    el("p",{class:"small",text:"Crea tu contraseña nueva: mínimo 8 caracteres, con mayúsculas, minúsculas y al menos un número. Un símbolo la hace más segura."}),el("label",{class:"f"},"Contraseña nueva",p1),el("label",{class:"f"},"Repite la contraseña",p2),b,m))}}
-function cuentaCard(){const nom=el("input",{value:S.me.name||""}),p1=el("input",{type:"password",autocomplete:"new-password",placeholder:"Mayúscula, minúscula y número"});
+function cuentaCard(){const nom=el("input",{value:S.me.name||""}),p1=el("input",{type:"password",autocomplete:"new-password",placeholder:"Nueva contraseña"});
  return card("Mi cuenta",el("p",{class:"small muted",style:"margin-top:-6px",text:`Entraste como ${S.me.email||""}${S.canWrite?"":" (solo lectura)"}.`}),
   el("div",{class:"fgrid"},el("label",{class:"f"},"Nombre que aparece en los registros",nom),el("label",{class:"f"},"Cambiar contraseña",p1)),
   el("div",{class:"row",style:"margin-top:12px"},el("button",{class:"btn danger",onclick:async()=>{if(OB.list.length&&!confirm(`Hay ${OB.list.length} registros sin enviar en este teléfono. Si cierras sesión se enviarán cuando vuelvas a entrar. ¿Cerrar sesión?`))return;await sb.auth.signOut();location.hash="";location.reload()}},"Cerrar sesión"),el("span",{class:"spacer"}),
