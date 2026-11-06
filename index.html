@@ -3,14 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#12454F">
+<meta name="theme-color" content="#FFFFFF">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Sanidad truchícola</title>
+<title>Belmira · Sanidad</title>
+<meta name="application-name" content="Belmira">
+<meta name="apple-mobile-web-app-title" content="Belmira">
+<link rel="icon" type="image/svg+xml" href="icono.svg">
+<link rel="apple-touch-icon" href="icono-app.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#ECF1F1;--surface:#FFFFFF;--surface-2:#DFE8E8;--ink:#13232A;--ink-2:#4A5D63;--line:#C7D4D5;
@@ -115,8 +116,8 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .lotelist button[aria-current="true"]{background:var(--brand);color:var(--brand-ink)}
 .tl{list-style:none;margin:0;padding:0}
 .tl li{border-left:3px solid var(--line);padding:8px 0 12px 14px}
-.tl li[data-t="tratamiento"]{border-left-color:var(--accent)}.tl li[data-t="necropsia"]{border-left-color:var(--trout)}
-.tl li[data-t="laboratorio"]{border-left-color:var(--s3)}.tl li[data-t="muestreo"]{border-left-color:var(--ok)}.tl li[data-t="evaluacion"]{border-left-color:var(--brand)}.tl li[data-t="suplementacion"]{border-left-color:var(--warn)}
+.tl li[data-t="tratamiento"]{border-left-color:var(--m-trat)}.tl li[data-t="necropsia"]{border-left-color:var(--m-nec)}
+.tl li[data-t="laboratorio"]{border-left-color:var(--m-lab)}.tl li[data-t="muestreo"]{border-left-color:var(--ok)}.tl li[data-t="evaluacion"]{border-left-color:var(--brand)}.tl li[data-t="suplementacion"]{border-left-color:var(--warn)}
 .tl .h{display:flex;gap:8px;flex-wrap:wrap;align-items:baseline}
 .tl dl{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:6px 0 0;font-size:.88rem}
 .tl dt{color:var(--ink-2)}.tl dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -170,18 +171,63 @@ details summary{cursor:pointer;font-weight:600;padding:4px 0}
 .msg{font-size:.9rem;min-height:1.2em;margin:0}
 .msg.err{color:var(--bad)}.msg.ok{color:var(--ok)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* ===== Identidad Truchas Belmira ===== */
+:root{--m-trat:#7A4F9E;--m-nec:#C0702A;--m-lab:#B3266E}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--m-trat:#B99AE0;--m-nec:#E6A564;--m-lab:#EE8AB8}}
+:root[data-theme="dark"]{--m-trat:#B99AE0;--m-nec:#E6A564;--m-lab:#EE8AB8}
+:root{--bg:#F4F6F3;--surface:#FFFFFF;--surface-2:#EEF2ED;--ink:#1E2B38;--ink-2:#5A6A70;--line:#DDE4DC;
+ --brand:#2D4E7F;--brand-ink:#FFFFFF;--accent:#0085A5;--trout:#6E8572;--ok:#2E7D4F;--warn:#9A6200;--bad:#B3261E;--info:#0085A5;
+ --ok-bg:#E2F0E6;--warn-bg:#F7EBD0;--bad-bg:#F8E1DE;--info-bg:#DCEFF4;--s1:#2D4E7F;--s2:#0085A5;--s3:#7A9180;--logo-ink:#064C81;
+ --font:Calibri,Carlito,"Segoe UI","Helvetica Neue",Arial,sans-serif;--display:var(--font)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1821;--surface:#15222D;--surface-2:#1C2B38;--ink:#E5ECEF;--ink-2:#A3B1B8;--line:#293A48;
+ --brand:#8DB0DE;--brand-ink:#0E1821;--accent:#4CC0DA;--trout:#A9BBAA;--ok:#6CC593;--warn:#E3B04B;--bad:#F07167;--info:#4CC0DA;
+ --ok-bg:#1B3427;--warn-bg:#382E15;--bad-bg:#3B1F1E;--info-bg:#15303A;--s1:#8DB0DE;--s2:#4CC0DA;--s3:#A9BBAA;--logo-ink:#FFFFFF}}
+:root[data-theme="dark"]{--bg:#0E1821;--surface:#15222D;--surface-2:#1C2B38;--ink:#E5ECEF;--ink-2:#A3B1B8;--line:#293A48;
+ --brand:#8DB0DE;--brand-ink:#0E1821;--accent:#4CC0DA;--trout:#A9BBAA;--ok:#6CC593;--warn:#E3B04B;--bad:#F07167;--info:#4CC0DA;
+ --ok-bg:#1B3427;--warn-bg:#382E15;--bad-bg:#3B1F1E;--info-bg:#15303A;--s1:#8DB0DE;--s2:#4CC0DA;--s3:#A9BBAA;--logo-ink:#FFFFFF}
+body{font-size:15.5px}
+h1,h2,h3{font-weight:700;letter-spacing:0}
+body::before{background:var(--surface)}
+.top{background:var(--surface);color:var(--ink);border-bottom:1px solid var(--line)}
+.top-in{align-items:center;padding-top:10px}
+.top h1{font-size:1.15rem;font-weight:700;color:var(--ink-2);padding-bottom:10px;gap:12px}
+.logo-wrap{display:block;flex:none;line-height:0}.logo-oscuro{display:none!important}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo-claro{display:none!important}:root:not([data-theme="light"]) .logo-oscuro{display:block!important}}
+:root[data-theme="dark"] .logo-claro{display:none!important}:root[data-theme="dark"] .logo-oscuro{display:block!important}.logo{display:block;height:34px;width:auto}
+.top h1 .app-t{padding-left:12px;border-left:1px solid var(--line);line-height:1.3}
+nav.desk{align-self:flex-end}
+nav.desk a{color:var(--ink-2);opacity:1;font-weight:600}
+nav.desk a:hover{color:var(--brand)}
+nav.desk a[aria-current="page"]{color:var(--brand);border-bottom-color:var(--accent)}
+.btn.pri:hover{filter:brightness(1.1)}
+.panel,.finca{box-shadow:0 1px 2px rgb(30 43 56 / .05)}
+.finca .nm{font-size:2rem;color:var(--brand)}
+.kpi b{font-size:1.55rem}
+.seg button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.seg.big button{font-size:1.2rem;font-weight:700}
+.login{background:linear-gradient(160deg,var(--bg) 0%,var(--surface-2) 100%)}
+.login-card{box-shadow:0 12px 40px rgb(30 43 56 / .10);border:1px solid var(--line);padding:34px 28px}
+.login-t{flex-direction:column;align-items:flex-start;gap:16px;font-size:1.3rem;color:var(--ink-2)}
+.login-t .logo{height:56px}
+nav.desk{flex:1 1 100%;justify-content:flex-start;margin-left:-11px}
+details.mas{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
+details.mas summary{color:var(--accent);font-weight:700;padding:8px 0;font-size:.95rem}
+.dayctl .btn{font-size:1.5rem;line-height:1;padding:4px 12px;font-weight:400}
+.top h1{padding-bottom:0}
+@media (max-width:760px){.logo{height:28px}.top h1{font-size:1rem;padding-bottom:8px}.top-in{padding:8px 14px 0}.seg.big button{font-size:1.02rem;padding:8px 6px;line-height:1.15}.fincas{gap:12px}.finca .nm{font-size:1.75rem}}
 </style>
+<script>try{const t=JSON.parse(localStorage.getItem("sanidad:tema"));if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <div id="login" class="login" hidden>
   <div class="login-card">
-    <h1 class="login-t"><span class="stripe" aria-hidden="true"></span>Sanidad truchícola</h1>
-    <p class="muted" style="margin:6px 0 22px">San Miguel, Yolombal y Abriaquí</p>
+    <h1 class="login-t"><span class="logo-wrap"><img class="logo logo-claro" src="logo.svg" alt="Truchas Belmira" width="628" height="203"><img class="logo logo-oscuro" src="logo-blanco.svg" alt="" aria-hidden="true" width="628" height="203"></span>Módulo de Sanidad</h1>
+    <p class="muted" style="margin:6px 0 22px">San Miguel · Yolombal · Abriaquí</p>
     <div id="lbody"></div>
   </div>
 </div>
 <header class="top"><div class="top-in">
-  <h1><span class="stripe" aria-hidden="true"></span>Sanidad truchícola <button id="pend" type="button"></button></h1>
+  <h1><span class="logo-wrap"><img class="logo logo-claro" src="logo.svg" alt="Truchas Belmira" width="628" height="203"><img class="logo logo-oscuro" src="logo-blanco.svg" alt="" aria-hidden="true" width="628" height="203"></span><span class="app-t">Sanidad</span> <button id="pend" type="button"></button></h1>
   <nav class="desk" id="nav">
     <a href="#inicio">Inicio</a><a href="#diario">Registro diario</a><a href="#evento">Eventos sanitarios</a><a href="#lotes">Lotes</a>
     <a href="#comparar">Lote entre fincas</a><a href="#temporadas">Temporadas</a><a href="#calidad">Calidad de datos</a><a href="#claude">Análisis</a><a href="#ajustes">Ajustes</a>
@@ -521,10 +567,13 @@ V.diario=v=>{const M=S.M;if(!S.dia.fecha)S.dia.fecha=hoyStr();const st=S.dia;con
  const draftA={};const segM=el("div",{class:"seg",role:"group","aria-label":"Momento"});const aguaBox=el("div");
  const drawAgua=()=>{segM.textContent="";for(const[k,n]of Object.entries(MOMENTOS))segM.append(el("button",{"aria-pressed":st.momento===k?"true":"false",onclick:()=>{st.momento=k;drawAgua()}},n+(exA[k]?" ✓":"")));
   aguaBox.textContent="";const ex=exA[st.momento]||{};const cur=draftA[st.momento]||(draftA[st.momento]=Object.fromEntries([...AGUA.map(a=>[a.k,ex[a.k]??""]),["evento",ex.evento||""]]));
-  add(aguaBox,[el("div",{class:"fgrid",style:"margin-top:12px"},AGUA.map(a=>{const i=el("input",{type:"text",inputmode:"decimal",value:cur[a.k]===""?"":String(cur[a.k]).replace(".",","),placeholder:a.u||"",autocomplete:"off"});
+  const campos=AGUA.map(a=>{const i=el("input",{type:"text",inputmode:"decimal",value:cur[a.k]===""?"":String(cur[a.k]).replace(".",","),placeholder:a.u||"",autocomplete:"off"});
    const chk=()=>{const n=num(i.value);i.dataset.r=i.value.trim()===""?"":n==null||n<a.min||n>a.max?"bad":(rango(a.k,n)||"")};chk();
-   i.addEventListener("input",()=>{cur[a.k]=i.value;chk()});return el("label",{class:"f"},`${a.n}${a.u?" ("+a.u+")":""}`,i)}),
-   el("label",{class:"f wide"},"Evento del día",el("input",{value:cur.evento,placeholder:"Ej.: creciente, corte de energía, bocatoma tapada",oninput:e=>cur.evento=e.target.value}))),
+   i.addEventListener("input",()=>{cur[a.k]=i.value;chk()});return el("label",{class:"f"},`${a.n}${a.u?" ("+a.u+")":""}`,i)});
+  const masAbierto=AGUA.slice(3).some(a=>String(cur[a.k]??"")!=="")||!!cur.evento;
+  add(aguaBox,[el("div",{class:"fgrid",style:"margin-top:12px"},campos.slice(0,3)),
+   el("details",{class:"mas",open:masAbierto},el("summary",null,"Más parámetros y eventos"),el("div",{class:"fgrid",style:"margin-top:10px"},campos.slice(3),
+   el("label",{class:"f wide"},"Evento del día",el("input",{value:cur.evento,placeholder:"Ej.: creciente, corte de luz",oninput:e=>cur.evento=e.target.value})))),
    ex.r?el("p",{class:"small muted",text:`Registrado por ${ex.r}.`}):null])};drawAgua();
  v.append(gap(),el("section",{class:"panel"},el("div",{class:"row"},el("h3",{text:"Agua y clima"}),el("span",{class:"spacer"}),segM),el("p",{class:"small muted",style:"margin:4px 0 0",text:"Mide el oxígeno a primera hora: es el momento más bajo del día. Los campos se colorean si salen del rango para trucha."}),aguaBox));
  // Mortalidad
@@ -675,13 +724,13 @@ V.lotes=v=>{const M=S.M;const lotes=[...S.lotes.values()].sort((a,b)=>(a.estado=
  const varSel=el("select",{class:"inp","aria-label":"Parámetro del agua"},el("option",{value:"",text:"Sin parámetro de agua"}),AGUA.map(x=>el("option",{value:x.k,text:x.n})));varSel.value=S.varSel||"tAgua";
  const ch=el("div"),ch2=el("div");
  const draw=()=>{S.varSel=varSel.value;const series=us.map(u=>({name:fNom(u.finca),color:FCOLOR[u.finca],gap:3,points:u.dias.filter(x=>x.pct!=null).map(x=>({x:x.d,y:x.pct,extra:x.muertos+" peces"}))}));
-  const mk=[];for(const u of us)for(const r of u.evs)if(["tratamiento","necropsia","laboratorio"].includes(r.tipo)){const x=r.datos||{};mk.push({x:dn(r.tipo==="tratamiento"?(x.inicio||r.fecha):r.fecha),color:r.tipo==="tratamiento"?"var(--accent)":r.tipo==="necropsia"?"var(--trout)":"var(--s3)",label:`${TIPOS[r.tipo]} (${fNom(r.finca)}): ${x.producto||x.diagnostico||x.agente||x.resultado||""}`})}
+  const mk=[];for(const u of us)for(const r of u.evs)if(["tratamiento","necropsia","laboratorio"].includes(r.tipo)){const x=r.datos||{};mk.push({x:dn(r.tipo==="tratamiento"?(x.inicio||r.fecha):r.fecha),color:r.tipo==="tratamiento"?"var(--m-trat)":r.tipo==="necropsia"?"var(--m-nec)":"var(--m-lab)",label:`${TIPOS[r.tipo]} (${fNom(r.finca)}): ${x.producto||x.diagnostico||x.agente||x.resultado||""}`})}
   lineChart(ch,{series,markers:mk,yFmt:v=>fmtN(v,2)+" %",yLabel:"Mortalidad diaria"});
   ch2.textContent="";if(varSel.value){const vv=AGUA.find(x=>x.k===varSel.value);const s2=us.map(u=>({name:fNom(u.finca),color:FCOLOR[u.finca],gap:3,points:u.dias.map(x=>{const e=M.envDay(u.finca,x.d);return e&&e[vv.k]!=null?{x:x.d,y:e[vv.k]}:null}).filter(Boolean)}));
    const c=S.cfg;const bands=vv.k==="tAgua"?[{from:c.tAguaMax,to:c.tAguaCrit,color:"var(--warn)"},{from:c.tAguaCrit,to:99,color:"var(--bad)"}]:vv.k==="oxigeno"?[{from:c.oxCrit,to:c.oxMin,color:"var(--warn)"},{from:0,to:c.oxCrit,color:"var(--bad)"}]:[];
    ch2.append(el("h3",{style:"margin:16px 0 6px;font-size:1.1rem",text:`${vv.n}${vv.u?" ("+vv.u+")":""}`}));const h=el("div");ch2.append(h);lineChart(h,{series:s2,height:170,yFmt:v=>fmtN(v,1),bands})}};
  main.append(el("section",{class:"panel"},el("div",{class:"row",style:"margin-bottom:10px"},el("h3",{text:"Mortalidad diaria y agua"}),el("span",{class:"spacer"}),varSel),ch,
-  legend([...us.map(u=>({name:fNom(u.finca),color:FCOLOR[u.finca]})),{name:"Tratamiento",color:"var(--accent)"},{name:"Necropsia",color:"var(--trout)"},{name:"Laboratorio",color:"var(--s3)"}]),ch2));
+  legend([...us.map(u=>({name:fNom(u.finca),color:FCOLOR[u.finca]})),{name:"Tratamiento",color:"var(--m-trat)"},{name:"Necropsia",color:"var(--m-nec)"},{name:"Laboratorio",color:"var(--m-lab)"}]),ch2));
  requestAnimationFrame(draw);varSel.addEventListener("change",draw);
  const cs=el("div",{class:"stack"});
  for(const u of us){const rows=[0,1,2,3].map(g=>corrUb(M,u,g));
@@ -826,7 +875,10 @@ Datos (JSON):
 ${JSON.stringify(data)}`}
 
 /* --- Ajustes, históricos y exportación --- */
-V.ajustes=v=>{const c={...S.cfg};
+function aparienciaCard(){const cur=LS.get("tema","auto");const opts=[["auto","Automático"],["light","Claro"],["dark","Oscuro"]];
+ const seg=el("div",{class:"seg",role:"group","aria-label":"Apariencia"},opts.map(([k,n])=>el("button",{"aria-pressed":cur===k?"true":"false",onclick:()=>{LS.set("tema",k);if(k==="auto")delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=k;render()}},n)));
+ return card("Apariencia",el("p",{class:"small muted",style:"margin-top:-6px",text:"Automático sigue la configuración del celular o computador; muchos teléfonos pasan solos a modo oscuro en la noche. Claro u Oscuro lo dejan fijo en este equipo."}),seg)}
+V.ajustes=v=>{const c={...S.cfg};v.append(aparienciaCard(),gap());
  v.append(cuentaCard(),gap());
  v.append(card("Cargar históricos",importBox()));
  v.append(gap(),card("Umbrales para trucha",el("p",{class:"small muted",text:"Valores sugeridos para trucha arcoíris en engorde. Ajústalos con tu médico veterinario según etapa, altitud y estándares de la empresa."}),
