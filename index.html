@@ -286,8 +286,10 @@ const CAMPOS={
  muestreo:[{k:"n",l:"Peces muestreados",t:"number",req:1},{k:"peso",l:"Peso promedio (g)",t:"number",req:1},{k:"talla",l:"Talla promedio (cm)",t:"number"},{k:"cv",l:"Coeficiente de variación (%)",t:"number"}],
  observacion:[{k:"texto",l:"Observación",t:"textarea",req:1}]
 };
-const DEF={mortDiariaMax:0.1,mortSemanalMax:0.5,saltoMort:2,tAguaMax:17,tAguaCrit:19,oxMin:6,oxCrit:5,phMin:6.5,phMax:8.5,amonMax:0.5,nitMax:0.1,turbMax:25,diasSinRegistro:2,ratioFincas:1.5};
-const CFGL={mortDiariaMax:["Mortalidad diaria máxima","%"],mortSemanalMax:["Mortalidad semanal máxima","%"],saltoMort:["Pedir confirmación si un día supera","% del estanque"],tAguaMax:["Temp. del agua: atención desde","°C"],tAguaCrit:["Temp. del agua: crítica desde","°C"],oxMin:["Oxígeno: atención por debajo de","mg/L"],oxCrit:["Oxígeno: crítico por debajo de","mg/L"],phMin:["pH mínimo",""],phMax:["pH máximo",""],amonMax:["Amoníaco total máximo","mg/L"],nitMax:["Nitritos máximo","mg/L"],turbMax:["Turbidez máxima","NTU"],diasSinRegistro:["Avisar si no hay mortalidad registrada en","días"],ratioFincas:["Diferencia entre fincas para alertar","veces"]};
+const DEF={mortDiariaMax:0.1,mortSemanalMax:0.5,saltoMort:2,tAguaMax:17,tAguaCrit:19,oxMin:6,oxCrit:5,phMin:6.5,phMax:8.5,amonMax:0.5,nitMax:0.1,turbMax:25,diasSinRegistro:2,ratioFincas:1.5,factorDia:3,factorSem:1.5,consumoMin:75,consumoCaida:20,
+ etapas:[{n:"Incubación",hasta:0.01,ref:0.6},{n:"Larva",hasta:0.07,ref:0.8},{n:"Canaleta",hasta:0.46,ref:0.27},{n:"Alevín I",hasta:4.1,ref:0.33},{n:"Alevín II",hasta:14.7,ref:0.2},{n:"Alevín III",hasta:33.5,ref:0.13},{n:"Levante",hasta:110,ref:0.067},{n:"Engorde",hasta:99999,ref:0.04}],
+ dens:[{p:"Inc",max:0},{p:"",desde:0,hasta:0.46,max:25},{p:"",desde:0.46,hasta:4.1,max:39},{p:"",desde:4.1,hasta:14.7,max:32},{p:"",desde:14.7,hasta:33.5,max:39},{p:"",desde:33.5,hasta:110,max:53},{p:"",desde:110,hasta:99999,max:56}]};
+const CFGL={factorDia:["Alerta si la mortalidad de un día supera la esperada para su etapa","veces"],factorSem:["Atención si el promedio semanal supera la esperada","veces"],consumoMin:["Consumo: revisar si baja de","% de lo presupuestado"],consumoCaida:["…y además cae frente a la semana anterior en","puntos"],mortDiariaMax:["Mortalidad diaria máxima (lotes sin peso)","%"],mortSemanalMax:["Mortalidad semanal máxima (lotes sin peso)","%"],saltoMort:["Pedir confirmación si un día supera","% del estanque"],tAguaMax:["Temp. del agua: atención desde","°C"],tAguaCrit:["Temp. del agua: crítica desde","°C"],oxMin:["Oxígeno: atención por debajo de","mg/L"],oxCrit:["Oxígeno: crítico por debajo de","mg/L"],phMin:["pH mínimo",""],phMax:["pH máximo",""],amonMax:["Amoníaco total máximo","mg/L"],nitMax:["Nitritos máximo","mg/L"],turbMax:["Turbidez máxima","NTU"],diasSinRegistro:["Avisar si no hay mortalidad registrada en","días"],ratioFincas:["Diferencia entre fincas para alertar","veces"]};
 
 /* ===== Utilidades ===== */
 const DAY=864e5;
@@ -321,8 +323,8 @@ function rango(k,v){const c=S.cfg;if(v==null)return null;
  if(k==="turbidez")return v>c.turbMax?"warn":"ok";return null}
 
 /* ===== Estado ===== */
-const S={db:null,user:null,me:{id:null,name:""},canWrite:true,lotes:new Map(),diario:new Map(),eventos:new Map(),legacy:[],cfg:{...DEF},
- ok:{lotes:false,diario:false,eventos:false},ready:false,view:"inicio",loteSel:null,cmpLote:null,editLote:null,evPre:null,
+const S={db:null,user:null,me:{id:null,name:""},canWrite:true,lotes:new Map(),lotesManual:new Map(),piscis:new Map(),diario:new Map(),eventos:new Map(),legacy:[],cfg:{...DEF},
+ ok:{lotes:false,diario:false,eventos:false,piscis:false},ready:false,view:"inicio",loteSel:null,cmpLote:null,editLote:null,evPre:null,
  dia:{finca:LS.get("finca","san-miguel"),fecha:null,momento:"manana"},M:null,ai:null,resp:LS.get("resp","")};
 
 /* ===== Cola de envío (funciona con mala señal) ===== */
@@ -343,6 +345,66 @@ async function flush(){if(!S.db)return false;if(OB.busy)return false;OB.busy=tru
 window.addEventListener("online",()=>flush());
 
 /* ===== Modelo ===== */
+/* ===== Informe diario de Piscis (canal + lote) ===== */
+const PCOL=["Lote","CnlDescr","Edad_dias","Inventario_ini_uds","Inventario_fin_uds","Inventario_fin_peso","Siembras_uds","Entradas_uds","Salidas_uds","Ajustes_uds","Mortalidad_uds","Proceso_uds","Alimentacion_Ejec_peso","Alimentacion_Presup_peso","Alimentacion_presup_tipo","Muestreo_PesoProm","Volum"];
+const PI=Object.fromEntries(PCOL.map((c,i)=>[c,i]));
+const hkey=h=>norm(h).replace(/[^a-z0-9]/g,"");
+const esPiscisDiario=h=>{const k=new Set((h||[]).map(hkey));return k.has("fecha")&&k.has("canal")&&k.has("lote")&&k.has("mortalidaduds")&&k.has("inventarioiniuds")};
+const esPiscisCardex=h=>{const k=new Set((h||[]).map(hkey));return k.has("biomasainicialuds")&&k.has("mortalidaduds")&&!k.has("lote")};
+const codigoLimpio=c=>String(c||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+const PROV={JG:"Juan García",SU:"Suranala",TB:"Truchas Belmira",LP:"Lagos y Peces",EP:"proveedor EP"};
+const origenDe=c=>{const s=codigoLimpio(c);let m=s.match(/^AT([A-Z]{2})\d/);if(m)return"Proveedor: "+(PROV[m[1]]||m[1]);if(/^SF/.test(s))return"Comprado en San Félix";return"Piscis"};
+const grupoLote=code=>{const s=codigoLimpio(code);if(/^AT/.test(s))return s;let m=s.match(/(\d{8})([A-Z]*)$/);if(m)return m[1]+m[2];m=s.match(/^[A-Z]+?(\d{2})(\d{2})(\d{2})([A-Z]*)$/);if(m)return"20"+m[3]+m[2]+m[1]+m[4];return s};
+const FINCAS_CERRADAS=[{p:/^SL/i,n:"San Lorenzo"},{p:/^A\d/i,n:"Arco Azul"}];
+function fincaDeFila(desc,canal,lote){const dn_=norm(desc||"");if(dn_){const f=FINCAS.find(x=>norm(x.nombre)===dn_||x.id===dn_.replace(/\s+/g,"-"))||(/andina|trout/.test(dn_)?FINCAS.find(x=>x.id==="abriaqui"):null);if(f)return{f};const cz=FINCAS_CERRADAS.find(x=>norm(x.n)===dn_);return cz?{cerrada:cz.n}:{}}
+ const c=String(canal||"").trim(),l=String(lote||"").trim();for(const z of FINCAS_CERRADAS)if(z.p.test(c))return{cerrada:z.n};
+ if(/^TANQUE/i.test(c)||/^AT/i.test(l))return{f:FINCAS.find(x=>x.id==="abriaqui")};if(/^S/i.test(c))return{f:FINCAS.find(x=>x.id==="san-miguel")};if(/^Y/i.test(c))return{f:FINCAS.find(x=>x.id==="yolombal")};return{}}
+function etapaDe(peso){const E=S.cfg.etapas||DEF.etapas;if(peso==null)return null;for(const e of E)if(peso<num(e.hasta))return e;return E[E.length-1]}
+function densMaxDe(nombre,peso){const R=S.cfg.dens||DEF.dens;const n=String(nombre||"").toLowerCase();
+ for(const r of R){const p=String(r.p||"").toLowerCase();if(p&&!n.startsWith(p))continue;const de=num(r.desde),ha=num(r.hasta);if(peso!=null&&((de!=null&&peso<de)||(ha!=null&&peso>=ha)))continue;if(!p&&peso==null)continue;return num(r.max)}return null}
+function construirPiscis(hoy){
+ const porFinca=new Map(),ult={},catDoc=S.piscis.get("_canales")?.c||{};
+ for(const doc of S.piscis.values()){const f=doc.finca;if(!f)continue;let m=porFinca.get(f);if(!m)porFinca.set(f,m=new Map());
+  for(const[fecha,lots]of Object.entries(doc.d||{})){const d=dn(fecha);if(d==null||!lots)continue;const prev=m.get(d)||{};
+   for(const[lote,cans]of Object.entries(lots)){if(!cans||typeof cans!=="object")continue;for(const[c,r]of Object.entries(cans)){if(!Array.isArray(r))continue;const g=i=>num(r[i])||0;const fin=g(0),mu=g(2),sie=g(3),ent=g(4),sal=g(5),aju=g(6),pro=g(7);const ct=catDoc[f+"|"+c]||{};
+    prev[c]=[lote,ct.n||c,null,fin-sie-ent+sal+mu+pro-aju,fin,g(1),sie,ent,sal,aju,mu,pro,g(8),g(9),r[10]||"",null,ct.v??null]}}
+   m.set(d,prev);if(!(ult[f]>=d))ult[f]=d}}
+ const codigos=new Map(),cat=new Map();for(const[f,m]of porFinca)for(const[d,cans]of m)for(const[cc,a]of Object.entries(cans)){const g=grupoLote(a[0]);const k=f+"|"+g;let st=codigos.get(k);if(!st)codigos.set(k,st=new Set());st.add(codigoLimpio(a[0]));
+  const ck=f+"|"+cc;const o=cat.get(ck)||{};if(a[1]&&a[1]!==cc&&(!o.dn||d>=o.dn)){o.nombre=a[1];o.dn=d}if(num(a[16])&&(!o.dv||d>=o.dv)){o.vol=num(a[16]);o.dv=d}cat.set(ck,o)}
+ const idDe=(f,code)=>{const g=grupoLote(code);return"p:"+((codigos.get(f+"|"+g)?.size||0)>1?codigoLimpio(code):g)};
+ const nomC=(f,cc,a)=>cat.get(f+"|"+cc)?.nombre||(a[1]&&a[1]!==cc?a[1]:cc),volC=(f,cc,a)=>num(a[16])||cat.get(f+"|"+cc)?.vol||null;
+ const lotes=new Map(),ubs=[],canalesHoy=[];
+ for(const[f,m]of porFinca){const dias=[...m.keys()].sort((a,b)=>a-b);const acc=new Map();
+  for(const d of dias){const cans=m.get(d);for(const[c,a]of Object.entries(cans)){const lid=idDe(f,a[0]);let u=acc.get(lid);
+   if(!u){u={lid,finca:f,codigo:String(a[0]),porDia:new Map(),canales:new Map()};acc.set(lid,u)}
+   const n=i=>num(a[i])||0;let x=u.porDia.get(d);if(!x)u.porDia.set(d,x={ini:0,fin:0,kg:0,mu:0,alE:0,alP:0,mov:0,canales:[],edad:null,tipo:""});
+   x.ini+=n(3);x.fin+=n(4);x.kg+=n(5);x.mu+=n(10);x.alE+=n(12);x.alP+=n(13);x.mov+=n(6)+n(7)+n(8)+n(11)+Math.abs(n(9));x.canales.push(nomC(f,c,a));if(a[2]!=null)x.edad=num(a[2]);if(a[14])x.tipo=a[14];
+   let cn=u.canales.get(c);if(!cn)u.canales.set(c,cn={code:c,nombre:nomC(f,c,a),vol:volC(f,c,a),dias:new Map()});
+   cn.dias.set(d,{ini:n(3),fin:n(4),kg:n(5),mu:n(10),alE:n(12),alP:n(13),mov:n(6)+n(7)+n(8)+n(11)+Math.abs(n(9)),peso:n(4)?n(5)/n(4)*1000:null})}}
+  // canales del último informe (densidad)
+  const dU=ult[f],cansU=m.get(dU)||{};
+  for(const[c,a]of Object.entries(cansU)){const fin=num(a[4])||0,kg=num(a[5])||0,vol=volC(f,c,a);if(!fin||!vol)continue;const peso=kg/fin*1000;const dens=kg/vol;const nm=nomC(f,c,a);const max=densMaxDe(nm,peso);
+   let crec=null;const lid=idDe(f,a[0]);const cn=acc.get(lid)?.canales.get(c);if(cn){const pts=[];for(let d=dU-7;d<=dU;d++){const y=cn.dias.get(d),z=cn.dias.get(d-1);if(y&&z&&!y.mov)pts.push(y.kg-z.kg)}if(pts.length>=3)crec=pts.reduce((p,q)=>p+q,0)/pts.length}
+   canalesHoy.push({finca:f,code:c,nombre:nm,loteId:lid,codigo:String(a[0]),d:dU,fin,kg,vol,peso,dens,max,pct:max?dens/max*100:null,crec,alE:num(a[12])||0,alP:num(a[13])||0,diasHastaMax:max&&crec>0&&dens<max?Math.ceil((max*vol-kg)/crec):null})}
+  for(const u of acc.values()){const ds_=[...u.porDia.keys()].sort((a,b)=>a-b);const start=ds_[0],end=ds_[ds_.length-1];const last=u.porDia.get(end);
+   const activo=end===ult[f]&&last.fin>0;let L=lotes.get(u.lid);
+   if(!L){L={id:u.lid,codigo:u.codigo,codigos:{},especie:"Trucha arcoíris",etapa:"",origen:origenDe(u.codigo),estado:"cerrado",fuente:"piscis",ubicaciones:[],creado:ds(start),notas:""};lotes.set(u.lid,L)}
+   L.codigos[f]=u.codigo;if(activo)L.estado="activo";
+   const ub={finca:f,unidad:last.canales.join(", "),fechaIngreso:ds(start),inicial:0,fechaSalida:activo?"":ds(end)};L.ubicaciones.push(ub);
+   const mort=new Map(),dias=[];let prevFin=null,acum=0,maxInv=0;
+   for(let d=start;d<=end;d++){const x=u.porDia.get(d);if(x){dias.push({d,vivos:x.ini,muertos:x.mu,reg:true,pct:x.ini>0?x.mu/x.ini*100:null,kg:x.kg,fin:x.fin,alE:x.alE,alP:x.alP,peso:x.fin?x.kg/x.fin*1000:null});mort.set(d,{m:x.mu,c:"",r:"Piscis",d,lote:u.lid,finca:f,piscis:1});acum+=x.mu;prevFin=x.fin;maxInv=Math.max(maxInv,x.ini,x.fin)}
+    else dias.push({d,vivos:prevFin||0,muertos:0,reg:false,pct:null})}
+   ub.inicial=maxInv;
+   const peso=last.fin?last.kg/last.fin*1000:null;
+   ubs.push({key:u.lid+"|"+f,lote:L,ub,finca:f,start,end,sal:activo?null:end,inicial:maxInv,activo,mort,evs:[],dias,acum,vivos:last.fin,acumPct:maxInv?acum/maxInv*100:null,ult:end,refDia:ult[f],
+    peso,pesoFecha:ds(end),biomasa:last.kg,edad:last.edad,piscis:true,canales:u.canales,tipoAlim:last.tipo})}}
+ for(const L of lotes.values()){const fs=Object.keys(L.codigos);L.codigo=fs.length>1?[...new Set(Object.values(L.codigos))].join(" / "):Object.values(L.codigos)[0]}
+ return{lotes,ubs,ult,canalesHoy}}
+function limitesMort(u){const e=u.peso!=null?etapaDe(u.peso):null;const c=S.cfg;
+ if(e){const ref=num(e.ref)||0.05;u.etapa=e.n;u.refMort=ref;u.limDia=ref*(num(c.factorDia)||3);u.limSem=ref*7*(num(c.factorSem)||1.5)}
+ else{u.etapa=null;u.refMort=null;u.limDia=c.mortDiariaMax;u.limSem=c.mortSemanalMax}}
+function consumo(u){if(!u.piscis)return null;const sum=a=>{let e=0,p=0;for(const x of a){if(!x.reg)continue;e+=x.alE||0;p+=x.alP||0}return{e,p,pct:p>=0.5?e/p*100:null}};const n=u.dias.length;const ult=sum(u.dias.slice(Math.max(0,n-3))),prev=sum(u.dias.slice(Math.max(0,n-10),Math.max(0,n-3)));return ult.pct==null?null:{...ult,prev:prev.pct,caida:prev.pct!=null?prev.pct-ult.pct:null}}
+
 function compute(){
  const hoy=dn(hoyStr());
  const mort=new Map(),envRaw=new Map(FINCAS.map(f=>[f.id,new Map()]));
@@ -362,18 +424,19 @@ function compute(){
  const envDay=(f,d)=>env.get(f)?.get(d)||null;
  const eventos=evs.filter(r=>dn(r.fecha)!=null).sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);
  const ubs=[];
- for(const l of S.lotes.values())for(const u of(l.ubicaciones||[])){const start=dn(u.fechaIngreso);if(!u.finca||start==null)continue;const sal=dn(u.fechaSalida);
+ for(const l of S.lotesManual.values())for(const u of(l.ubicaciones||[])){const start=dn(u.fechaIngreso);if(!u.finca||start==null)continue;const sal=dn(u.fechaSalida);
   ubs.push({key:l.id+"|"+u.finca,lote:l,ub:u,finca:u.finca,start,sal,end:Math.min(sal!=null?sal:hoy,hoy),inicial:+u.inicial||0,activo:l.estado!=="cerrado"&&(sal==null||sal>=hoy)&&start<=hoy,
    mort:mort.get(l.id+"|"+u.finca)||new Map(),evs:[]})}
+ const P_=construirPiscis(hoy);for(const u of P_.ubs)ubs.push(u);S.lotes=new Map([...S.lotesManual,...P_.lotes]);
  const byKey=new Map(ubs.map(u=>[u.key,u]));
  for(const r of eventos){const u=byKey.get(r.lote+"|"+r.finca);if(u)u.evs.push(r)}
- for(const u of ubs){let vivos=u.inicial,acum=0;u.dias=[];
+ for(const u of ubs){if(!u.piscis){let vivos=u.inicial,acum=0;u.dias=[];
   for(let d=u.start;d<=u.end;d++){const e=u.mort.get(d);const mu=e?e.m:0;u.dias.push({d,vivos,muertos:mu,reg:!!e,pct:vivos>0&&e?mu/vivos*100:null});vivos-=mu;acum+=mu}
   u.acum=acum;u.vivos=Math.max(vivos,0);u.acumPct=u.inicial?acum/u.inicial*100:null;
   u.ult=-Infinity;for(const d of u.mort.keys())if(d>u.ult)u.ult=d;
-  u.w7=ventana(u,hoy-6,hoy);u.p7=ventana(u,hoy-13,hoy-7);
   const ms=u.evs.filter(r=>r.tipo==="muestreo"&&num(r.datos?.peso)!=null);u.peso=ms.length?num(ms[ms.length-1].datos.peso):null;u.pesoFecha=ms.length?ms[ms.length-1].fecha:null;
-  u.biomasa=u.peso!=null?u.vivos*u.peso/1000:null;u.trats=u.evs.filter(r=>r.tipo==="tratamiento")}
+  u.biomasa=u.peso!=null?u.vivos*u.peso/1000:null}
+  const ref=u.refDia??hoy;u.w7=ventana(u,ref-6,ref);u.p7=ventana(u,ref-13,ref-7);limitesMort(u);u.consumo=consumo(u);u.trats=u.evs.filter(r=>r.tipo==="tratamiento")}
  // Estacionalidad
  const est={};for(const f of FINCAS)est[f.id]={moy:Array.from({length:12},()=>({mu:0,ad:0,byYear:{}})),ym:new Map(),env:new Map(),diag:new Map()};
  for(const u of ubs){const E=est[u.finca];if(!E)continue;for(const x of u.dias){if(x.vivos<=0)continue;const dt=new Date(x.d*DAY),y=dt.getUTCFullYear(),mo=dt.getUTCMonth();
@@ -383,13 +446,13 @@ function compute(){
  for(const r of eventos){const E=est[r.finca];if(!E)continue;const x=r.datos||{};let dg=null;
   if(r.tipo==="necropsia")dg=x.diagnostico;if(r.tipo==="laboratorio"&&norm(x.resultado)==="positivo")dg=x.agente||x.analisis||"Positivo";
   if(dg){const mo=+r.fecha.slice(5,7)-1;const m=E.diag.get(mo)||new Map();const k=canon(dg);m.set(k,(m.get(k)||0)+1);E.diag.set(mo,m)}}
- S.M={hoy,ubs,byKey,mort,env,envRaw,envDay,eventos,est};
+ S.M={hoy,ubs,byKey,mort,env,envRaw,envDay,eventos,est,pisUlt:P_.ult,canalesHoy:P_.canalesHoy};
  S.M.alertas=alertas(S.M);
  S.M.fincas=FINCAS.map(f=>{const us=ubs.filter(u=>u.finca===f.id&&u.activo);const al=S.M.alertas.filter(a=>a.finca===f.id||(!a.finca&&us.some(u=>u.lote.id===a.lote)));
   let mu=0,v0=0;for(const u of us){mu+=u.w7.muertos;v0+=u.w7.vivos0||0}
-  const regHoy=us.filter(u=>u.mort.has(hoy)).length;const aguaHoy=!!envRaw.get(f.id).get(hoy);
+  const pU=P_.ult[f.id];const regHoy=us.filter(u=>u.mort.has(hoy)||(u.piscis&&pU>=hoy-1)).length;const aguaHoy=!!envRaw.get(f.id).get(hoy);
   const nivel=!us.length&&!al.length?"sin":al.some(a=>a.nivel==="alta")?"alta":al.some(a=>a.nivel==="media")?"media":"ok";
-  return{...f,us,al,vivos:us.reduce((a,u)=>a+u.vivos,0),biomasa:us.every(u=>u.biomasa!=null)&&us.length?us.reduce((a,u)=>a+u.biomasa,0):null,m7:v0?mu/v0*100:null,mu7:mu,nivel,lotes:new Set(us.map(u=>u.lote.id)).size,regHoy,aguaHoy}});
+  return{...f,us,al,vivos:us.reduce((a,u)=>a+u.vivos,0),biomasa:us.every(u=>u.biomasa!=null)&&us.length?us.reduce((a,u)=>a+u.biomasa,0):null,m7:v0?mu/v0*100:null,mu7:mu,nivel,lotes:new Set(us.map(u=>u.lote.id)).size,regHoy,aguaHoy,pisUlt:pU}});
 }
 const canon=s=>{const n=norm(s);const hit=[...DIAGS,...AGENTES].find(x=>norm(x)===n);return hit||String(s).trim()};
 function ventana(u,desde,hasta){let m=0,v0=null,regs=0;const i0=Math.max(0,desde-u.start),i1=Math.min(u.dias.length-1,hasta-u.start);for(let i=i0;i<=i1;i++){const x=u.dias[i];if(v0==null)v0=x.vivos;m+=x.muertos;if(x.reg)regs++}return{muertos:m,vivos0:v0,pct:v0?m/v0*100:null,regs,dias:Math.max(0,i1-i0+1)}}
@@ -408,11 +471,11 @@ function cmpLote(M,loteId){const us=M.ubs.filter(u=>u.lote.id===loteId&&u.dias.l
 function alertas(M){
  const A=[],c=S.cfg,hoy=M.hoy;const P=(nivel,finca,lote,titulo,detalle,sug)=>A.push({nivel,finca,lote,titulo,detalle,sug});
  for(const u of M.ubs){if(!u.activo)continue;const L=`Lote ${u.lote.codigo}${u.ub.unidad?" ("+u.ub.unidad+")":""}`;
-  let pico=null;for(let d=hoy-2;d<=hoy;d++){const x=u.dias[d-u.start];if(x&&x.pct!=null&&(!pico||x.pct>pico.pct))pico=x}
-  if(pico&&pico.pct>c.mortDiariaMax)P("alta",u.finca,u.lote.id,`${L}: mortalidad diaria alta`,`${pct(pico.pct)} el ${fmtF(pico.d)} (${pico.muertos} peces). Umbral ${pct(c.mortDiariaMax)}.`,"Sacar y examinar peces moribundos (necropsia de campo), medir oxígeno y temperatura en el estanque, revisar branquias y comportamiento al comer. Si se repite, enviar peces vivos al laboratorio.");
-  if(u.w7.pct!=null&&u.w7.regs&&u.w7.pct>c.mortSemanalMax)P(u.w7.pct>2*c.mortSemanalMax?"alta":"media",u.finca,u.lote.id,`${L}: mortalidad semanal sobre el umbral`,`${pct(u.w7.pct)} en 7 días (${u.w7.muertos} peces). Umbral ${pct(c.mortSemanalMax)}.`,"Buscar una causa dominante en necropsias y causas registradas, y si coincide con cambios de alimento, clasificación, traslado o clima.");
+  const H=u.refDia??hoy;let pico=null;for(let d=H-2;d<=H;d++){const x=u.dias[d-u.start];if(x&&x.pct!=null&&(!pico||x.pct>pico.pct))pico=x}
+  if(pico&&pico.pct>u.limDia&&pico.muertos>=5)P("alta",u.finca,u.lote.id,`${L}: mortalidad diaria alta`,`${pct(pico.pct)} el ${fmtF(pico.d)} (${pico.muertos} peces). Umbral ${pct(u.limDia)}${u.etapa?" para "+u.etapa.toLowerCase():""}.`,"Sacar y examinar peces moribundos (necropsia de campo), medir oxígeno y temperatura en el estanque, revisar branquias y comportamiento al comer. Si se repite, enviar peces vivos al laboratorio.");
+  if(u.w7.pct!=null&&u.w7.regs&&u.w7.pct>u.limSem)P(u.w7.pct>2*u.limSem?"alta":"media",u.finca,u.lote.id,`${L}: mortalidad semanal sobre el umbral`,`${pct(u.w7.pct)} en 7 días (${u.w7.muertos} peces). Umbral ${pct(u.limSem)}${u.etapa?" para "+u.etapa.toLowerCase():""}.`,"Buscar una causa dominante en necropsias y causas registradas, y si coincide con cambios de alimento, clasificación, traslado o clima.");
   if(u.w7.pct!=null&&u.p7.pct&&u.w7.muertos>=5&&u.w7.pct/u.p7.pct>=1.5)P("media",u.finca,u.lote.id,`${L}: mortalidad en aumento`,`${pct(u.w7.pct)} esta semana frente a ${pct(u.p7.pct)} la anterior.`,"Comparar con los parámetros de agua de la semana y con los otros estanques de la finca para separar un problema del lote de uno de la finca.");
-  if(u.ult===-Infinity||hoy-u.ult>=c.diasSinRegistro)P("info",u.finca,u.lote.id,`${L}: sin mortalidad registrada`,u.ult===-Infinity?"Este estanque no tiene registros de mortalidad.":`Último registro: ${fmtF(u.ult)}.`,"Cargar el informe diario de Piscis de esta finca en Ajustes > Cargar históricos.");
+  if(!u.piscis&&(u.ult===-Infinity||hoy-u.ult>=c.diasSinRegistro))P("info",u.finca,u.lote.id,`${L}: sin mortalidad registrada`,u.ult===-Infinity?"Este estanque no tiene registros de mortalidad.":`Último registro: ${fmtF(u.ult)}.`,"Cargar el informe diario de Piscis de esta finca en Ajustes > Cargar históricos.");
   for(const t of u.trats){const x=t.datos||{};const ini=dn(x.inicio)??dn(t.fecha),fin=dn(x.fin)??ini,ret=num(x.retiro??x.retiroDias);
    if(ret!=null&&fin!=null){const lb=liberacion(M,u.finca,fin,ret,x.retiroUnidad||(x.retiroDias!=null?"días":"grados-día"));
     if(lb.d>=hoy)P("info",u.finca,u.lote.id,`${L}: en periodo de retiro`,`${x.producto||"Tratamiento"}: liberación ${lb.est?"estimada ":""}el ${fmtF(lb.d)}${x.retiroUnidad==="grados-día"?` (${fmtN(ret)} grados-día)`:""}.`,"No cosechar ni despachar antes de esa fecha."+(lb.est?" La fecha se ajustará cuando se registre la temperatura diaria del agua.":""));
@@ -442,13 +505,20 @@ function alertas(M){
  for(const lid of new Set(M.ubs.filter(u=>u.activo).map(u=>u.lote.id))){const C=cmpLote(M,lid);if(!C||C.W<7)continue;const cod=S.lotes.get(lid)?.codigo;
   for(const p of C.pares){if(p.t&&p.t.p<.05&&p.ratio&&p.ratio>=c.ratioFincas){const hi=p.a.pct>p.b.pct?p.a:p.b,lo=hi===p.a?p.b:p.a;
    P("media",hi.u.finca,lid,`Lote ${cod}: se comporta distinto según la finca`,`Primeros ${C.W} días: ${fNom(hi.u.finca)} ${pct(hi.pct)} frente a ${fNom(lo.u.finca)} ${pct(lo.pct)} (${fmtN(p.ratio,1)} veces; p=${fmtN(p.t.p,3)}).`,`Con el mismo origen, la diferencia apunta a ${fNom(hi.u.finca)}: comparar temperatura y oxígeno, densidad, caudal por estanque, alimento y manejo.`)}}
-  const act=C.rows.filter(r=>r.u.activo);if(act.length>=2&&act.every(r=>r.u.w7.pct!=null&&r.u.w7.pct>c.mortSemanalMax))P("alta",null,lid,`Lote ${cod}: mortalidad alta en todas sus fincas`,act.map(r=>`${fNom(r.u.finca)} ${pct(r.u.w7.pct)}`).join(", ")+" en 7 días.","Si el lote falla en todas las fincas a la vez, revisar el origen: calidad de ovas o alevinos, transporte, aclimatación o una enfermedad de transmisión vertical (por ejemplo IPN o F. psychrophilum).")}
- for(const f of FINCAS){const malos=M.ubs.filter(u=>u.finca===f.id&&u.activo&&u.w7.pct!=null&&u.w7.pct>c.mortSemanalMax);
+  const act=C.rows.filter(r=>r.u.activo);if(act.length>=2&&act.every(r=>r.u.w7.pct!=null&&r.u.w7.pct>r.u.limSem))P("alta",null,lid,`Lote ${cod}: mortalidad alta en todas sus fincas`,act.map(r=>`${fNom(r.u.finca)} ${pct(r.u.w7.pct)}`).join(", ")+" en 7 días.","Si el lote falla en todas las fincas a la vez, revisar el origen: calidad de ovas o alevinos, transporte, aclimatación o una enfermedad de transmisión vertical (por ejemplo IPN o F. psychrophilum).")}
+ for(const f of FINCAS){const malos=M.ubs.filter(u=>u.finca===f.id&&u.activo&&u.w7.pct!=null&&u.w7.pct>u.limSem);
   if(malos.length>=2)P("alta",f.id,null,`${fNom(f.id)}: varios estanques con mortalidad alta`,`${malos.length} estanques sobre el umbral semanal.`,"Un problema compartido sugiere una causa de la finca: agua de entrada, alimento, un agente que circula entre estanques o equipos compartidos.")}
  const mesAct=new Date(hoy*DAY).getUTCMonth(),yAct=new Date(hoy*DAY).getUTCFullYear();
  for(const f of FINCAS){const E=M.est[f.id];let mu=0,ad=0;for(const m of E.moy)for(const y in m.byYear)if(+y<yAct){mu+=m.byYear[y].mu;ad+=m.byYear[y].ad}
   if(!ad)continue;const base=mu/ad;let mm=0,ma=0;for(const y in E.moy[mesAct].byYear)if(+y<yAct){mm+=E.moy[mesAct].byYear[y].mu;ma+=E.moy[mesAct].byYear[y].ad}
   if(ma&&base&&mm/ma>=1.5*base)P("info",f.id,null,`${fNom(f.id)}: ${MESES[mesAct].toLowerCase()} suele ser un mes difícil`,`En años anteriores la mortalidad de este mes fue ${fmtN(mm/ma/base,1)} veces el promedio de la finca.`,`Anticipar riesgos de temporada de ${temporada(mesAct).toLowerCase()}: ${RIESGO_TEMP[temporada(mesAct)]}.`)}
+ for(const ch of(M.canalesHoy||[])){if(!ch.max)continue;const L=`Canal ${ch.nombre} (lote ${ch.codigo})`;
+  if(ch.dens>=ch.max)P("alta",ch.finca,ch.loteId,`${L}: densidad sobre el máximo`,`${fmtN(ch.dens,1)} kg/m³ con peces de ${fmtN(ch.peso,1)} g; máximo ${fmtN(ch.max)} kg/m³ (${fmtN(ch.pct)} %).`,"Planear el traslado o desdoble del canal; mientras tanto vigilar oxígeno, branquias y comportamiento.");
+  else if(ch.pct>=90)P("media",ch.finca,ch.loteId,`${L}: densidad cerca del máximo`,`${fmtN(ch.dens,1)} de ${fmtN(ch.max)} kg/m³ (${fmtN(ch.pct)} %).`+(ch.diasHastaMax!=null?` Al ritmo actual lo superará en unos ${ch.diasHastaMax} días.`:""),"Programar el traslado antes de superar el máximo.");
+  else if(ch.diasHastaMax!=null&&ch.diasHastaMax<=7)P("info",ch.finca,ch.loteId,`${L}: superará la densidad máxima en unos ${ch.diasHastaMax} días`,`Hoy ${fmtN(ch.dens,1)} de ${fmtN(ch.max)} kg/m³.`,"Programar el traslado esta semana.")}
+ const cMin=num(c.consumoMin)||75;
+ for(const u of M.ubs){if(!u.activo||!u.consumo)continue;const k=u.consumo;const caida=num(c.consumoCaida)||20;if(k.caida!=null&&k.caida>=caida&&k.pct<cMin)P(k.caida>=caida*1.5?"alta":"media",u.finca,u.lote.id,`Lote ${u.lote.codigo}: el consumo de alimento cayó`,`${fNom(u.finca)}: ${fmtN(k.pct)} % de lo presupuestado en los últimos 3 informes, frente a ${fmtN(k.prev)} % la semana anterior.`,"Un lote que come menos puede estar enfermando: revisar comportamiento, branquias y agua. Si está con alimento medicado, la dosis real es menor a la formulada.")}
+ for(const f of FINCAS){const pU=M.pisUlt?.[f.id];if(pU!=null&&hoy-pU>2)P("info",f.id,null,`${fNom(f.id)}: informe de Piscis atrasado`,`El último informe cargado es del ${fmtF(pU)}.`,"Cargar los informes diarios pendientes en Ajustes > Cargar informes.")}
  const ord={alta:0,media:1,info:2};return A.sort((a,b)=>ord[a.nivel]-ord[b.nivel]);
 }
 
@@ -543,7 +613,7 @@ V.inicio=v=>{const M=S.M,hoy=M.hoy,mes=new Date(hoy*DAY).getUTCMonth();
  v.append(el("div",{class:"fincas"},M.fincas.map(f=>{const pend=f.us.length-f.regHoy;const done=f.us.length&&!pend&&f.aguaHoy;
   return el("div",{class:"finca","data-n":f.nivel},el("div",{class:"nm",text:f.nombre}),
    el("div",{class:"st",text:f.nivel==="sin"?"Sin lotes activos":chipN[f.nivel]+(f.al.filter(a=>a.nivel!=="info").length?`: ${f.al.filter(a=>a.nivel!=="info").length} por revisar`:"")}),
-   el("div",{class:"kpis"},el("div",{class:"kpi"},el("b",{text:fmtN(f.us.length)}),el("span",{text:"estanques con lote"})),el("div",{class:"kpi"},el("b",{text:fmtN(f.vivos)}),el("span",{text:"peces"+(f.biomasa!=null?` · ${fmtN(f.biomasa/1000,1)} t`:"")})),
+   el("div",{class:"kpis"},el("div",{class:"kpi"},el("b",{text:fmtN((S.M.canalesHoy||[]).filter(c=>c.finca===f.id).length||f.us.length)}),el("span",{text:`canales con peces · ${fmtN(f.lotes)} lotes`})),el("div",{class:"kpi"},el("b",{text:fmtN(f.vivos)}),el("span",{text:"peces"+(f.biomasa!=null?` · ${fmtN(f.biomasa/1000,1)} t`:"")})),
     el("div",{class:"kpi"},el("b",{text:pct(f.m7)}),el("span",{text:"mortalidad 7 días"})),el("div",{class:"kpi"},el("b",{text:fmtN(f.mu7)}),el("span",{text:"muertes 7 días"}))),
    spark(f.us),
    f.us.length?el("div",{class:"hoy"+(done?" done":"")},el("span",{class:"spacer",text:done?"Registro de hoy completo.":[pend?`falta el informe de Piscis de hoy (${pend} de ${f.us.length} estanques)`:null,!f.aguaHoy?"falta el agua de hoy":null].filter(Boolean).join("; ").replace(/^./,m=>m.toUpperCase())+"."}),
@@ -624,7 +694,7 @@ V.diario=v=>{const M=S.M;if(!S.dia.fecha)S.dia.fecha=hoyStr();const st=S.dia;con
 
 /* --- Eventos sanitarios --- */
 V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.eventos.get(pre.id)||S.legacy.find(r=>r.id===pre.id):null;
- const st=ex?{id:ex.id,tipo:ex.tipo,lote:ex.lote||"",finca:ex.finca,fecha:ex.fecha,notas:ex.notas||"",datos:{...(ex.datos||{})},legacy:!!S.legacy.find(r=>r.id===ex.id),adjuntos:[...(ex.adjuntos||[])]}:
+ const st=ex?{id:ex.id,tipo:ex.tipo,lote:ex.lote||"",finca:ex.finca,fecha:ex.fecha,notas:ex.notas||"",datos:{...(ex.datos||{})},legacy:!!S.legacy.find(r=>r.id===ex.id),adjuntos:[...(ex.adjuntos||[])],canal:ex.canal||""}:
   {id:null,tipo:pre.tipo||LS.get("evtipo","necropsia"),lote:pre.lote||"",finca:pre.finca||S.dia.finca,fecha:hoyStr(),notas:"",datos:{},adjuntos:[]};
  if(!TIPOS[st.tipo])st.tipo=st.tipo==="retiroDias"?"tratamiento":"evaluacion";
  const seg=el("div",{class:"seg tipos",role:"group","aria-label":"Tipo de evento"});const body=el("div");
@@ -633,7 +703,7 @@ V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.ev
   const fs=el("select",{onchange:e=>{st.finca=e.target.value;draw()}},FINCAS.map(f=>el("option",{value:f.id,text:f.nombre})));fs.value=st.finca;
   const us=M.ubs.filter(u=>u.finca===st.finca&&d!=null&&u.start<=d&&(u.sal==null||d<=u.sal));
   if(st.lote&&!us.some(u=>u.lote.id===st.lote)&&!st.id)st.lote="";
-  const ls=el("select",{onchange:e=>st.lote=e.target.value},el("option",{value:"",text:FW(st.tipo)?"Toda la finca":us.length?"Elige lote":"Sin lotes en esa fecha"}),us.map(u=>el("option",{value:u.lote.id,text:`${u.ub.unidad?"Estanque "+u.ub.unidad+" · ":""}Lote ${u.lote.codigo}`})));
+  const ls=el("select",{onchange:e=>{st.lote=e.target.value;st.canal="";draw()}},el("option",{value:"",text:FW(st.tipo)?"Toda la finca":us.length?"Elige lote":"Sin lotes en esa fecha"}),us.map(u=>el("option",{value:u.lote.id,text:`${u.ub.unidad?"Estanque "+u.ub.unidad+" · ":""}Lote ${u.lote.codigo}`})));
   if(st.lote&&!us.some(u=>u.lote.id===st.lote)&&S.lotes.get(st.lote))ls.append(el("option",{value:st.lote,text:"Lote "+S.lotes.get(st.lote).codigo+" (fuera de periodo)"}));ls.value=st.lote;
   if(!st.lote&&us.length===1&&!FW(st.tipo)){st.lote=us[0].lote.id;ls.value=st.lote}
   const fields=CAMPOS[st.tipo].map(c=>{if(st.datos[c.k]==null)st.datos[c.k]=c.t==="select"?c.opts[0]:c.t==="date"&&(c.k==="inicio")?st.fecha:"";const val=st.datos[c.k];const on=e=>{st.datos[c.k]=e.target.value;st.tocado=true};let i;
@@ -642,7 +712,7 @@ V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.ev
    else i=el("input",{type:c.t==="date"?"date":"text",inputmode:c.t==="number"?"decimal":null,list:c.list,value:val,placeholder:c.ph,max:c.t==="date"&&c.k!=="fin"?hoyStr():null,oninput:on});
    return el("label",{class:"f"+(c.t==="textarea"?" wide":"")},c.l+(c.req?" *":""),c.hint?el("span",{class:"hint",text:c.hint}):null,i)});
   const notas=el("textarea",{oninput:e=>{st.notas=e.target.value;st.tocado=true}});notas.value=st.notas;
-  add(body,[el("div",{class:"fgrid",style:"margin-top:14px"},el("label",{class:"f"},"Finca *",fs),el("label",{class:"f"},FW(st.tipo)?"Lote (opcional)":"Lote *",ls),
+  add(body,[el("div",{class:"fgrid",style:"margin-top:14px"},el("label",{class:"f"},"Finca *",fs),el("label",{class:"f"},FW(st.tipo)?"Lote (opcional)":"Lote *",ls),(()=>{const u=M.byKey.get(st.lote+"|"+st.finca);if(!u||!u.canales)return null;const cs=[...u.canales.values()].filter(c=>c.dias.has(d));if(cs.length<2&&!st.canal)return null;const cs_=el("select",{onchange:e=>st.canal=e.target.value},el("option",{value:"",text:"Todo el lote"}),cs.map(c=>el("option",{value:c.nombre,text:"Canal "+c.nombre})));cs_.value=st.canal||"";return el("label",{class:"f"},"Canal (opcional)",cs_)})(),
    el("label",{class:"f"},"Fecha *",el("input",{type:"date",value:st.fecha,max:hoyStr(),onchange:e=>{st.fecha=e.target.value;draw()}})),fields,el("label",{class:"f wide"},"Notas",notas)),adjBox(st,draw),
    st.tipo==="tratamiento"?el("p",{class:"small muted",text:"Para trucha el retiro suele venir en grados-día (suma de la temperatura diaria del agua). La app calcula la fecha de liberación con las temperaturas registradas en la finca."}):null,
    el("div",{class:"row",style:"margin-top:14px"},st.id&&!st.legacy?el("button",{class:"btn danger",onclick:async()=>{if(!confirm("¿Eliminar este evento?"))return;const ok=await enqueue({kind:"del",path:"eventos/"+st.id});toast(ok?"Evento eliminado":"Se eliminará cuando haya señal");go("lotes")}},"Eliminar"):null,
@@ -662,7 +732,7 @@ V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.ev
   const datos={};for(const c of CAMPOS[st.tipo]){const val=x[c.k];if(val===""||val==null)continue;datos[c.k]=c.t==="number"?num(val):c.list?canon(val):String(val).trim()}
   if(!st.id&&S.M.eventos.some(r=>claveEv(r)===claveEv({tipo:st.tipo,lote:st.lote,finca:st.finca,fecha:st.fecha,datos}))&&!confirm("Ya existe un registro igual: mismo tipo, lote, fecha y contenido. ¿Guardarlo de nuevo?"))return;
   const who=(S.me.name||S.me.email||"").trim();
-  const docu={tipo:st.tipo,lote:st.lote||"",finca:st.finca,fecha:st.fecha,notas:(st.notas||"").trim(),datos,responsable:ex?.responsable||who,por:ex?.por||S.me.id||"",creado:ex?.creado||new Date().toISOString(),editado:new Date().toISOString(),editadoPor:who,adjuntos:st.adjuntos.map(a=>({id:a.id,nombre:a.nombre||"",tipo:a.tipo||"",kb:a.kb||0,subido:a.subido||"",por:a.por||""}))};
+  const docu={tipo:st.tipo,lote:st.lote||"",canal:st.lote?(st.canal||""):"",finca:st.finca,fecha:st.fecha,notas:(st.notas||"").trim(),datos,responsable:ex?.responsable||who,por:ex?.por||S.me.id||"",creado:ex?.creado||new Date().toISOString(),editado:new Date().toISOString(),editadoPor:who,adjuntos:st.adjuntos.map(a=>({id:a.id,nombre:a.nombre||"",tipo:a.tipo||"",kb:a.kb||0,subido:a.subido||"",por:a.por||""}))};
   if(st.legacy){toast("Los registros antiguos se corrigen en su versión anterior; crea uno nuevo si hace falta.");return}
   st.guardando=true;const id=st.id||uid("e");let ok=false;try{ok=await enqueue({kind:"set",path:"eventos/"+id,data:docu})}finally{st.guardando=false}
   toast(ok?"Evento guardado.":"Guardado en este teléfono; se enviará cuando haya señal.");
@@ -701,7 +771,7 @@ async function subir(files,st,redraw){if(!S.assets)return;for(const f of files.s
   finally{st.subiendo--;redraw()}}}
 function tlItem(r,showLote){const x=r.datos||{};const L=S.lotes.get(r.lote);const det=(CAMPOS[r.tipo]||[]).filter(c=>x[c.k]!==""&&x[c.k]!=null);
  const extra=r.legacy?Object.entries(x).filter(([k])=>!(CAMPOS[r.tipo]||[]).some(c=>c.k===k)):[];
- return el("li",{"data-t":r.tipo},el("div",{class:"h"},el("b",{text:TIPOS[r.tipo]||r.tipo}),el("span",{class:"small muted",text:`${fmtF(r.fecha)} · ${fNom(r.finca)}${L&&showLote?" · Lote "+L.codigo:""}${r.responsable?" · "+r.responsable:""}`}),
+ return el("li",{"data-t":r.tipo},el("div",{class:"h"},el("b",{text:TIPOS[r.tipo]||r.tipo}),el("span",{class:"small muted",text:`${fmtF(r.fecha)} · ${fNom(r.finca)}${L&&showLote?" · Lote "+L.codigo:""}${r.canal?" · Canal "+r.canal:""}${r.responsable?" · "+r.responsable:""}`}),
   r.tipo==="laboratorio"&&x.resultado?el("span",{class:"chip "+(norm(x.resultado)==="positivo"?"alta":norm(x.resultado)==="negativo"?"ok":"info"),text:x.resultado}):null,el("span",{class:"spacer"}),
   S.canWrite&&!r.legacy?el("button",{class:"btn sm",onclick:()=>go("evento",{state:{evPre:{id:r.id}}})},"Editar"):null),
   det.length||r.notas||extra.length?el("dl",null,det.map(c=>[el("dt",{text:c.l}),el("dd",{text:c.t==="date"?fmtF(x[c.k]):c.t==="number"?fmtN(num(x[c.k]),2).replace(/,00$/,""):String(x[c.k])})]),extra.map(([k,v])=>[el("dt",{text:k}),el("dd",{text:String(v)})]),r.notas?[el("dt",{text:"Notas"}),el("dd",{text:r.notas})]:null):null,(r.adjuntos||[]).length?adjView(r.adjuntos):r.tipo==="tratamiento"&&!r.legacy?el("div",{class:"small",style:"margin-top:6px;color:var(--warn);font-weight:600",text:"Falta adjuntar el soporte de la fórmula médica."}):null)}
@@ -718,12 +788,13 @@ V.lotes=v=>{const M=S.M;const lotes=[...S.lotes.values()].sort((a,b)=>(a.estado=
  if(!S.loteSel){main.append(card(null,el("div",{class:"empty"},el("p",{text:"Aún no hay lotes. Se crean automáticamente al cargar el informe de Piscis (Ajustes > Cargar históricos)."}),S.esAdmin?el("button",{class:"btn pri",onclick:()=>{S.editLote="";render()}},"Crear lote"):null)));return}
  const l=S.lotes.get(S.loteSel),us=M.ubs.filter(u=>u.lote.id===l.id);
  main.append(el("section",{class:"panel"},el("div",{class:"row"},el("h2",{text:"Lote "+l.codigo}),el("span",{class:"chip "+(l.estado==="cerrado"?"":"ok"),text:l.estado==="cerrado"?"Cerrado":"Activo"}),el("span",{class:"spacer"}),
-  S.esAdmin?el("button",{class:"btn",onclick:()=>{S.editLote=l.id;render()}},"Editar"):null,S.canWrite?el("button",{class:"btn pri",onclick:()=>go("evento",{state:{evPre:{lote:l.id,finca:us[0]?.finca}}})},"Nuevo evento"):null,
+  S.esAdmin&&l.fuente!=="piscis"?el("button",{class:"btn",onclick:()=>{S.editLote=l.id;render()}},"Editar"):null,S.canWrite?el("button",{class:"btn pri",onclick:()=>go("evento",{state:{evPre:{lote:l.id,finca:us[0]?.finca}}})},"Nuevo evento"):null,
   el("button",{class:"btn",onclick:()=>go("claude",{state:{ai:{scope:"lote:"+l.id}}})},"Analizar")),
   el("p",{class:"muted",style:"margin:6px 0 12px",text:[l.especie,l.etapa,l.origen?"Origen: "+l.origen:null,l.fechaNacimiento?"Eclosión: "+fmtF(l.fechaNacimiento):null,l.pesoInicial?"Peso al ingreso: "+l.pesoInicial+" g":null].filter(Boolean).join(". ")}),
   l.notas?el("p",{class:"small",text:l.notas}):null,
   el("div",{class:"scroll"},el("table",null,el("thead",null,el("tr",null,["Finca","Estanque","Ingreso","Salida","Ingresaron","Muertes","Mort. acum.","Mort. 7 días","Peces"].map((h,i)=>el("th",{class:i>3?"n":null,text:h})))),
    el("tbody",null,us.map(u=>el("tr",null,el("td",null,el("b",{text:fNom(u.finca)})),el("td",{text:u.ub.unidad||"—"}),el("td",{text:fmtF(u.start)}),el("td",{text:u.sal!=null?fmtF(u.sal):"—"}),el("td",{class:"n",text:fmtN(u.inicial)}),el("td",{class:"n",text:fmtN(u.acum)}),el("td",{class:"n",text:pct(u.acumPct)}),el("td",{class:"n",text:pct(u.w7.pct)}),el("td",{class:"n",text:fmtN(u.vivos)}))))))));
+ {const cc=canalCard(us);if(cc)main.append(cc)}
  const varSel=el("select",{class:"inp","aria-label":"Parámetro del agua"},el("option",{value:"",text:"Sin parámetro de agua"}),AGUA.map(x=>el("option",{value:x.k,text:x.n})));varSel.value=S.varSel||"tAgua";
  const ch=el("div"),ch2=el("div");
  const draw=()=>{S.varSel=varSel.value;const series=us.map(u=>({name:fNom(u.finca),color:FCOLOR[u.finca],gap:3,points:u.dias.filter(x=>x.pct!=null).map(x=>({x:x.d,y:x.pct,extra:x.muertos+" peces"}))}));
@@ -848,7 +919,7 @@ function buildPrompt(scope,extra){const M=S.M;const[kind,id]=scope.split(":");co
  const ubs=M.ubs.filter(inScope).map(u=>{const best=[];for(let g=0;g<4;g++)for(const c of corrUb(M,u,g))if(c.r!=null&&c.n>=8&&Math.abs(c.r)>=.3)best.push({parametro:c.v.n,diasAntes:g,r:+c.r.toFixed(2),dias:c.n});
   const causas={};for(const e of u.mort.values())if(e.c&&e.m&&M.hoy-e.d<=30)causas[e.c]=(causas[e.c]||0)+e.m;
   return{lote:u.lote.codigo,etapa:u.lote.etapa,origen:u.lote.origen,finca:fNom(u.finca),estanque:u.ub.unidad,activo:u.activo,ingreso:ds(u.start),salida:u.sal!=null?ds(u.sal):null,diasEnFinca:u.dias.length,pecesIngreso:u.inicial,peces:u.vivos,pesoProm_g:u.peso,biomasa_kg:u.biomasa&&Math.round(u.biomasa),
-   mortAcumPct:r3(u.acumPct),mort7dPct:r3(u.w7.pct),mortSemanaPreviaPct:r3(u.p7.pct),diasRegistradosUlt14:ventana(u,M.hoy-13,M.hoy).regs,causasUlt30d:causas,correlaciones:best.sort((a,b)=>Math.abs(b.r)-Math.abs(a.r)).slice(0,5),tratamientos:u.trats.slice(-5).map(t=>({fecha:t.fecha,...t.datos}))}});
+   mortAcumPct:r3(u.acumPct),etapa:u.etapa,mortDiariaEsperadaPct:u.refMort,consumo3dPct:u.consumo?Math.round(u.consumo.pct):null,mort7dPct:r3(u.w7.pct),mortSemanaPreviaPct:r3(u.p7.pct),diasRegistradosUlt14:ventana(u,M.hoy-13,M.hoy).regs,causasUlt30d:causas,correlaciones:best.sort((a,b)=>Math.abs(b.r)-Math.abs(a.r)).slice(0,5),tratamientos:u.trats.slice(-5).map(t=>({fecha:t.fecha,...t.datos}))}});
  const lotIds=new Set(M.ubs.filter(inScope).map(u=>u.lote.id));
  const comparaciones=[...lotIds].map(i=>{const C=cmpLote(M,i);return C&&{lote:S.lotes.get(i).codigo,diasComparados:C.W,fincas:C.rows.map(r=>({finca:fNom(r.u.finca),mortPct:r3(r.pct),muertes:r.mu,peces:r.n})),pruebas:C.pares.map(p=>({entre:fNom(p.a.u.finca)+" y "+fNom(p.b.u.finca),p:p.t&&+p.t.p.toFixed(4)}))}}).filter(Boolean);
  const fsc=kind==="finca"?[id]:kind==="lote"?[...new Set(M.ubs.filter(inScope).map(u=>u.finca))]:FINCAS.map(f=>f.id);
@@ -860,6 +931,7 @@ function buildPrompt(scope,extra){const M=S.M;const[kind,id]=scope.split(":");co
   calidadDatos:{puntaje:aud.score,completitud:aud.comp.map(c=>({finca:c.f.nombre,mortalidadPct:c.mortPct&&Math.round(c.mortPct),aguaPct:c.envPct&&Math.round(c.envPct)})),inconsistencias:aud.issues.filter(i=>i.sev==="bad").length},
   estadoFincas:M.fincas.filter(f=>fsc.includes(f.id)).map(f=>({finca:f.nombre,estado:chipN[f.nivel],estanques:f.us.length,peces:f.vivos,mort7dPct:r3(f.m7)})),
   alertas:M.alertas.filter(a=>(!a.finca||fsc.includes(a.finca))&&(kind!=="lote"||a.lote===id)).slice(0,30).map(a=>({nivel:a.nivel,finca:a.finca?fNom(a.finca):null,titulo:a.titulo,detalle:a.detalle})),
+  densidadCanales:(M.canalesHoy||[]).filter(ch=>fsc.includes(ch.finca)).map(ch=>({finca:fNom(ch.finca),canal:ch.nombre,lote:ch.codigo,pesoG:+ch.peso.toFixed(1),densidad:+ch.dens.toFixed(1),maxima:ch.max||null,consumoPct:ch.alP?Math.round(ch.alE/ch.alP*100):null})),
   lotes:ubs.slice(0,40),comparacionesLoteEntreFincas:comparaciones,hallazgosRecientes:hall,agua:amb,estacionalidad:est};
  return `Actúas como asesor en sanidad acuícola para un productor de trucha arcoíris (Oncorhynchus mykiss) en Antioquia, Colombia, con tres fincas de montaña: San Miguel, Yolombal y Abriaquí. Analiza su bitácora sanitaria y responde en español de Colombia, claro y práctico.
 
@@ -885,8 +957,10 @@ V.ajustes=v=>{const c={...S.cfg};v.append(aparienciaCard(),gap());
  v.append(cuentaCard(),gap());
  v.append(card("Cargar históricos",importBox()));
  v.append(gap(),card("Umbrales para trucha",el("p",{class:"small muted",text:"Valores sugeridos para trucha arcoíris en engorde. Ajústalos con tu médico veterinario según etapa, altitud y estándares de la empresa."}),
-  el("div",{class:"fgrid"},Object.keys(DEF).map(k=>el("label",{class:"f"},CFGL[k][0]+(CFGL[k][1]?` (${CFGL[k][1]})`:""),el("input",{type:"text",inputmode:"decimal",value:String(c[k]).replace(".",","),disabled:!S.canWrite,oninput:e=>c[k]=num(e.target.value)})))),
+  el("div",{class:"fgrid"},Object.keys(DEF).filter(k=>!Array.isArray(DEF[k])).map(k=>el("label",{class:"f"},CFGL[k][0]+(CFGL[k][1]?` (${CFGL[k][1]})`:""),el("input",{type:"text",inputmode:"decimal",value:String(c[k]).replace(".",","),disabled:!S.canWrite,oninput:e=>c[k]=num(e.target.value)})))),
   S.canWrite?el("div",{class:"row",style:"margin-top:14px"},el("button",{class:"btn",onclick:()=>{S.cfg={...S.cfg};render();toast("Para restaurar, guarda después de revisar los valores");Object.assign(c,DEF)}},"Valores sugeridos"),el("span",{class:"spacer"}),el("button",{class:"btn pri",onclick:async()=>{for(const k in DEF)if(c[k]==null)return toast("Completa: "+CFGL[k][0]);if(c.tAguaCrit<=c.tAguaMax||c.oxCrit>=c.oxMin||c.phMin>=c.phMax)return toast("Revisa que los niveles críticos sean más extremos que los de atención");try{await withTimeout(S.db.doc("config/umbrales").set(c),20000);toast("Umbrales guardados")}catch(e){toast("No se pudo guardar")}}},"Guardar umbrales")):null));
+ v.append(gap(),tablaEditable("Densidad máxima por canal","Se aplica la primera fila que coincida: por el inicio del nombre del canal (SD, SE, X, Y, Z, Can…) y, si se indica, por el peso promedio de los peces. Las filas sin canal sirven para cualquier canal según el peso. 0 = sin límite.","dens",[{k:"p",l:"Canal empieza por"},{k:"desde",l:"Peso desde (g)",num:1},{k:"hasta",l:"Peso hasta (g)",num:1},{k:"max",l:"Máxima (kg/m³)",num:1}]),
+  gap(),tablaEditable("Mortalidad esperada por etapa","Mortalidad diaria normal para cada etapa, según el programa de producción. La etapa se define por el peso promedio. Las alertas comparan la mortalidad real contra este valor.","etapas",[{k:"n",l:"Etapa"},{k:"hasta",l:"Hasta peso (g)",num:1},{k:"ref",l:"Mortalidad diaria esperada (%)",num:1}]));
  v.append(gap(),card("Exportar y respaldar",el("p",{class:"small muted",text:"Descarga la información en CSV (abre en Excel), con el mismo formato que acepta la carga de históricos."}),el("div",{class:"row"},el("button",{class:"btn",onclick:()=>exportar("diario")},"Mortalidad y agua"),el("button",{class:"btn",onclick:()=>exportar("eventos")},"Eventos sanitarios"),el("button",{class:"btn",onclick:()=>exportar("lotes")},"Lotes"))));
  v.append(gap(),card("Usar como app en el celular",el("p",{class:"small",text:"Abre esta página en el navegador del celular, entra con tu usuario y usa «Agregar a la pantalla de inicio» (Chrome: menú ⋮; Safari: compartir). Queda como un ícono. Si no hay señal en la finca, los registros se guardan en el teléfono y se envían solos cuando vuelve la conexión; el aviso naranja arriba muestra cuántos faltan por enviar."})));
 };
@@ -902,21 +976,62 @@ function parseFecha(v){if(v instanceof Date&&!isNaN(v))return v.getFullYear()+"-
  if(typeof v==="number"&&v>20000&&v<80000)return ds(Math.round(v)-25569);const s=String(v??"").trim();let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return`${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`;
  m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);if(m){const y=m[3].length===2?"20"+m[3]:m[3];return`${y}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`}return null}
 let xlsxP=null;function loadXLSX(){if(window.XLSX)return Promise.resolve(window.XLSX);return xlsxP||(xlsxP=new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=()=>res(window.XLSX);s.onerror=()=>{xlsxP=null;rej(new Error("xlsx"))};document.head.append(s)}))}
-function importBox(){const out=el("div",{class:"small",style:"margin-top:10px"});const file=el("input",{type:"file",accept:".csv,.xlsx,.xls,.txt",class:"inp"});const ta=el("textarea",{class:"inp",style:"width:100%;min-height:110px",placeholder:"O pega aquí filas copiadas de Excel (con encabezado)"});let plan=null;
- const prev=async rows=>{plan=planImport(rows);out.textContent="";const p=plan;
-  out.append(el("p",null,el("b",null,`Listo para cargar: ${p.nMort} registros de mortalidad, ${p.nAmb} de agua y ${p.eventos.length} eventos.`),p.sobre?` ${p.sobre} reemplazarán datos ya registrados.`:"",p.dup?` ${p.dup} filas repetidas (se toma la última).`:"",p.repetidos?` ${p.repetidos} eventos ya estaban registrados y no se duplicarán.`:""));
-  if(p.errs.length)out.append(el("details",{open:p.errs.length<=10},el("summary",{text:`${p.errs.length} filas con problemas no se cargarán`}),el("ul",null,p.errs.slice(0,80).map(e=>el("li",{text:e})))));
-  if(p.nMort+p.nAmb+p.eventos.length)out.append(el("button",{class:"btn pri",style:"margin-top:8px",onclick:async e=>{e.target.disabled=true;e.target.textContent="Cargando…";const ops=[...p.ops,...p.eventos.map(d=>({kind:"set",path:"eventos/"+uid("e"),data:d}))];const total=ops.length;
-   const tick=setInterval(()=>{e.target.textContent=`Cargando… ${total-OB.list.length}/${total}`},500);const ok=await enqueue(ops);clearInterval(tick);
-   e.target.textContent=ok?"Cargado":"Pendiente de envío";toast(ok?"Históricos cargados.":"Parte de la carga quedó pendiente; se enviará con conexión.",5000);plan=null}},"Cargar ahora"))};
- const readRows=async()=>{out.textContent="Leyendo…";try{let rows;const f=file.files[0];
-  if(f&&/\.xlsx?$/i.test(f.name)){const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:"array",cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];rows=X.utils.sheet_to_json(ws,{header:1,defval:"",raw:true})}
-  else if(f)rows=parseCSV(await f.text());else rows=parseCSV(ta.value.trim());
-  if(!rows||rows.length<2){out.textContent="No se encontraron filas con encabezado.";return}await prev(rows)}catch(e){out.textContent="No se pudo leer el archivo. Si es Excel, prueba guardarlo como CSV."}};
- file.addEventListener("change",readRows);
- return el("div",null,el("p",{class:"small muted",text:"Sube un Excel o CSV (o pega filas copiadas de Excel). Cada fila es un día: fecha, finca, lote o estanque, muertos y, si los tienes, parámetros del agua. Para eventos agrega la columna «tipo» (evaluación, tratamiento, suplementación, necropsia, laboratorio u observación). Los lotes deben existir antes de cargar. Antes de guardar se muestra un resumen y los errores."}),
-  el("div",{class:"row"},el("button",{class:"btn",onclick:()=>plantilla("diario")},"Plantilla diaria"),el("button",{class:"btn",onclick:()=>plantilla("eventos")},"Plantilla de eventos")),
-  el("div",{class:"stack",style:"margin-top:12px"},file,ta,el("button",{class:"btn",onclick:readRows},"Revisar datos pegados")),out)}
+function importBox(){const out=el("div",{class:"small",style:"margin-top:10px"});const file=el("input",{type:"file",accept:".csv,.xlsx,.xls,.txt",multiple:true,class:"inp"});const ta=el("textarea",{class:"inp",style:"width:100%;min-height:90px",placeholder:"O pega aquí filas copiadas de Excel (con encabezado)"});
+ const mostrar=hojas=>{out.textContent="";const pis=planPiscis(hojas.filter(h=>h.tipo==="diario"));const otros=hojas.filter(h=>h.tipo==="otro");const gen=otros.length?planImport(otros[0].rows):null;const cardex=hojas.filter(h=>h.tipo==="cardex");
+  if(pis.filas)out.append(el("p",null,el("b",null,`Informe diario de Piscis: ${fmtN(pis.filas)} filas de ${pis.dias} día(s), del ${pis.desde} al ${pis.hasta}, con ${pis.canales} canales y ${pis.lotes} lotes.`),pis.nuevos?` Lotes nuevos que se crearán: ${pis.listaNuevos.slice(0,12).join(", ")}${pis.nuevos>12?"…":""}.`:"",pis.sobre?` ${pis.sobre} día(s) ya cargados se actualizarán, sin duplicarse.`:"",Object.keys(pis.cerradas).length?` No se cargan ${Object.entries(pis.cerradas).map(([n,k])=>`${fmtN(k)} filas de ${n}`).join(" y ")} (fincas cerradas).`:""));
+  if(cardex.length)out.append(el("p",{class:"muted",text:`${cardex.map(h=>h.nombre).join(", ")}: informe por canal o por lote. No se carga, porque el informe diario ya trae esa información con canal y lote.`}));
+  if(gen)out.append(el("p",null,el("b",null,`Otros datos: ${gen.nMort} de mortalidad, ${gen.nAmb} de agua y ${gen.eventos.length} eventos.`)));
+  const errs=[...pis.errs,...(gen?gen.errs:[])];
+  if(errs.length)out.append(el("details",{open:errs.length<=10},el("summary",{text:`${errs.length} filas con problemas no se cargarán`}),el("ul",null,errs.slice(0,80).map(e=>el("li",{text:e})))));
+  const ops=[...pis.ops,...(gen?[...gen.ops,...gen.eventos.map(d=>({kind:"set",path:"eventos/"+uid("e"),data:d}))]:[])];
+  if(!ops.length){if(!pis.filas&&!gen&&!cardex.length)out.append(el("p",{text:"No reconocí el formato. Verifica que la primera fila tenga los encabezados."}));return}
+  if(!S.canWrite)return;
+  const b=el("button",{class:"btn pri",style:"margin-top:8px",onclick:async()=>{b.disabled=true;let hechos=0,fallas=0;
+   for(const op of ops){let ok=false;for(let i=0;i<3&&!ok;i++){try{await withTimeout(execOp(op),60000);ok=true}catch(e){if(["not_granted","invalid_argument"].includes(e?.code))break;await new Promise(r=>setTimeout(r,1500))}}ok?hechos++:fallas++;b.textContent=`Cargando… ${hechos+fallas} de ${ops.length}`}
+   b.textContent=fallas?`Cargado con ${fallas} errores`:"Cargado";toast(fallas?`Se cargaron ${hechos} de ${ops.length} bloques. Revisa la conexión y vuelve a cargar el archivo: no se duplicará.`:"Información cargada.",6000);try{S.db.refresh&&S.db.refresh()}catch{}}},"Cargar ahora");out.append(b)};
+ const leer=async()=>{out.textContent="Leyendo…";try{const hojas=[];
+   for(const f of file.files){if(/\.xlsx?$/i.test(f.name)){const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:"array",cellDates:true});for(const n of wb.SheetNames){const rows=X.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:"",raw:true}).filter(r=>r.some(x=>String(x).trim()!==""));if(rows.length>=2)hojas.push({nombre:f.name+" › "+n,rows})}}
+    else{const rows=parseCSV(await f.text());if(rows.length>=2)hojas.push({nombre:f.name,rows})}}
+   if(!file.files.length&&ta.value.trim()){const rows=parseCSV(ta.value.trim());if(rows.length>=2)hojas.push({nombre:"Datos pegados",rows})}
+   if(!hojas.length){out.textContent="No se encontraron filas con encabezado.";return}
+   for(const h of hojas)h.tipo=esPiscisDiario(h.rows[0])?"diario":esPiscisCardex(h.rows[0])?"cardex":"otro";
+   mostrar(hojas)}catch(e){console.error(e);out.textContent="No se pudo leer el archivo. Si es Excel, prueba guardarlo como CSV."}};
+ file.addEventListener("change",leer);
+ return el("div",null,el("p",{class:"small muted",text:"Sube el informe diario de Piscis en Excel o CSV: uno o varios archivos a la vez, o un libro con varias hojas. La app reconoce el formato, crea los lotes y canales nuevos y no duplica días ya cargados. También acepta agua y eventos con las plantillas. Antes de guardar se muestra un resumen."}),
+  el("div",{class:"row"},el("button",{class:"btn",onclick:()=>plantilla("diario")},"Plantilla de agua"),el("button",{class:"btn",onclick:()=>plantilla("eventos")},"Plantilla de eventos")),
+  el("div",{class:"stack",style:"margin-top:12px"},file,ta,el("button",{class:"btn",onclick:leer},"Revisar")),out)}
+function planPiscis(hojas){const R={filas:0,errs:[],ops:[],cerradas:{},dias:0,canales:0,lotes:0,nuevos:0,listaNuevos:[],sobre:0,desde:"",hasta:""};if(!hojas.length)return R;
+ const ops=new Map(),dias=new Set(),canales=new Set(),lotesSet=new Set(),ya=new Set(),catOp={kind:"merge",path:"piscis/_canales",base:{},data:{c:{}}};const exist=new Set();for(const L of S.lotes.values())for(const c of Object.values(L.codigos||{}))exist.add(norm(c));
+ for(const h of hojas){const head=h.rows[0].map(hkey);const ix=k=>head.indexOf(hkey(k));const iF=ix("Fecha"),iC=ix("Canal"),iD=ix("DescrCl");const idx=PCOL.map(ix);
+  h.rows.slice(1).forEach((r,i)=>{const fila=`${h.nombre}, fila ${i+2}`;const fecha=parseFecha(r[iF]);if(!fecha)return R.errs.push(`${fila}: fecha no reconocida`);
+   const canal=String(r[iC]??"").trim();const fz=fincaDeFila(iD>=0?r[iD]:"",canal,r[idx[0]]);if(fz.cerrada){R.cerradas[fz.cerrada]=(R.cerradas[fz.cerrada]||0)+1;return}const f=fz.f;if(!f)return R.errs.push(`${fila}: no se reconoce la finca (${iD>=0?r[iD]:canal})`);
+   const arr=idx.map((j,k)=>{const v=j<0?"":r[j];if(k<=1||k===14)return String(v??"").trim();const n=num(v);return n==null?null:[5,12,13,15,16].includes(k)?Math.round(n*100)/100:Math.round(n)});
+   if(!canal||!arr[0])return R.errs.push(`${fila}: falta canal o lote`);
+   if(arr[3]==null&&arr[4]==null)return R.errs.push(`${fila}: sin inventario`);
+   if(!arr[1])arr[1]=canal;
+   const mes=fecha.slice(0,7),path=`piscis/${f.id}-${mes}`;const op=ops.get(path)||{kind:"merge",path,base:{finca:f.id,mes},data:{d:{}}};ops.set(path,op);
+   const row=[arr[4]??0,arr[5]??0,arr[10]??0,arr[6]??0,arr[7]??0,arr[8]??0,arr[9]??0,arr[11]??0,arr[12]??0,arr[13]??0,arr[14]||""];while(row.length>3&&(row[row.length-1]===0||row[row.length-1]===""||row[row.length-1]==null))row.pop();
+   const dd=op.data.d[fecha]||(op.data.d[fecha]={});(dd[arr[0]]||(dd[arr[0]]={}))[canal]=row;
+   if((arr[1]&&arr[1]!==canal)||arr[16]){const ck=f.id+"|"+canal;const o=catOp.data.c[ck]||(catOp.data.c[ck]={});if(arr[1]&&arr[1]!==canal)o.n=arr[1];if(arr[16])o.v=arr[16]}
+   R.filas++;dias.add(fecha);canales.add(f.id+"|"+canal);lotesSet.add(f.id+"|"+arr[0]);
+   if(!exist.has(norm(arr[0]))&&!R.listaNuevos.includes(arr[0]))R.listaNuevos.push(arr[0]);
+   if(S.piscis.get(`${f.id}-${mes}`)?.d?.[fecha]&&!ya.has(f.id+fecha)){ya.add(f.id+fecha);R.sobre++}
+   if(!R.desde||fecha<R.desde)R.desde=fecha;if(!R.hasta||fecha>R.hasta)R.hasta=fecha})}
+ R.ops=[...ops.values()];if(Object.keys(catOp.data.c).length)R.ops.unshift(catOp);R.dias=dias.size;R.canales=canales.size;R.lotes=lotesSet.size;R.nuevos=R.listaNuevos.length;R.desde=R.desde&&fmtF(R.desde);R.hasta=R.hasta&&fmtF(R.hasta);return R}
+function canalCard(us){const rows=[];for(const u of us){if(!u.canales||!u.activo)continue;for(const cn of u.canales.values()){const x=cn.dias.get(u.end);if(!x)continue;const dens=cn.vol?x.kg/cn.vol:null;const max=densMaxDe(cn.nombre,x.peso);
+  rows.push({f:u.finca,cn,x,dens,max,pct:max&&dens!=null?dens/max*100:null,cons:x.alP>=0.05?x.alE/x.alP*100:null})}}
+ if(!rows.length)return null;const fecha=Math.max(...us.filter(u=>u.activo&&u.piscis).map(u=>u.end));
+ return card(`Canales del lote hoy (informe del ${fmtF(fecha)})`,el("div",{class:"scroll"},el("table",null,el("thead",null,el("tr",null,["Finca","Canal","Peces","Peso prom.","Biomasa","Volumen","Densidad","Máxima","Uso","Consumo","Muertes"].map((h,i)=>el("th",{class:i>1?"n":null,text:h})))),
+  el("tbody",null,rows.sort((a,b)=>(b.pct||0)-(a.pct||0)).map(r=>el("tr",null,el("td",{text:fNom(r.f)}),el("td",null,el("b",{text:r.cn.nombre})),el("td",{class:"n",text:fmtN(r.x.fin)}),el("td",{class:"n",text:r.x.peso!=null?fmtN(r.x.peso,1)+" g":"—"}),el("td",{class:"n",text:fmtN(r.x.kg,1)+" kg"}),el("td",{class:"n",text:r.cn.vol?fmtN(r.cn.vol,1)+" m³":"—"}),el("td",{class:"n",text:r.dens!=null?fmtN(r.dens,1)+" kg/m³":"—"}),el("td",{class:"n",text:r.max?fmtN(r.max)+" kg/m³":"—"}),
+   el("td",{class:"n"},r.pct!=null?el("span",{class:"chip "+(r.pct>=100?"alta":r.pct>=90?"media":"ok"),text:fmtN(r.pct)+" %"}):"—"),el("td",{class:"n",text:r.cons!=null?fmtN(r.cons)+" %":"—"}),el("td",{class:"n",text:fmtN(r.x.mu)})))))),
+  el("p",{class:"small muted",style:"margin-top:8px",text:"Densidad = biomasa ÷ volumen del canal. Máxima según la etapa o el tipo de canal (Ajustes). Consumo = alimento ejecutado ÷ presupuestado."}))}
+function tablaEditable(titulo,ayuda,clave,cols){const filas=JSON.parse(JSON.stringify(S.cfg[clave]||DEF[clave]));const box=el("div");
+ const draw=()=>{box.textContent="";box.append(el("div",{class:"scroll"},el("table",null,el("thead",null,el("tr",null,cols.map(c=>el("th",{text:c.l})),el("th",{text:""}))),
+  el("tbody",null,filas.map((f,i)=>el("tr",null,cols.map(c=>el("td",null,el("input",{class:"inp",style:"width:100%;min-width:72px",value:f[c.k]==null?"":String(f[c.k]).replace(".",","),disabled:!S.canWrite,inputmode:c.num?"decimal":null,oninput:e=>f[c.k]=c.num?(e.target.value.trim()===""?null:num(e.target.value)):e.target.value}))),
+   el("td",null,S.canWrite?el("button",{class:"btn sm danger",onclick:()=>{filas.splice(i,1);draw()}},"Quitar"):null)))))),
+  S.canWrite?el("div",{class:"row",style:"margin-top:10px"},el("button",{class:"btn sm",onclick:()=>{filas.push({});draw()}},"Agregar fila"),el("button",{class:"btn sm",onclick:()=>{filas.splice(0,filas.length,...JSON.parse(JSON.stringify(DEF[clave])));draw()}},"Valores sugeridos"),el("span",{class:"spacer"}),
+   el("button",{class:"btn pri",onclick:async()=>{try{await withTimeout(S.db.doc("config/umbrales").set({...S.cfg,[clave]:filas}),20000);toast("Guardado")}catch(e){toast("No se pudo guardar")}}},"Guardar")):null)};draw();
+ return card(titulo,el("p",{class:"small muted",style:"margin-top:-6px",text:ayuda}),box)}
 const claveEv=r=>{const x=r.datos||{};return[r.tipo,r.lote||"",r.finca,r.fecha,norm(x.producto||x.diagnostico||x.agente||x.analisis||x.hallazgos||x.texto||"")].join("|")};
 function planImport(rows){const head=rows[0].map(h=>HMAP[norm(h).replace(/[^a-z0-9]/g,"")]||null);const M=S.M,hoy=M.hoy;
  const errs=[],ops=new Map(),eventos=[];let nMort=0,nAmb=0,sobre=0,dup=0,repetidos=0;const seen=new Set();const yaEv=new Set(M.eventos.map(claveEv));const lotesBy=new Map([...S.lotes.values()].map(l=>[norm(l.codigo),l]));const who=(S.resp||S.me.name||"Carga histórica").trim();const t=new Date().toISOString();
@@ -965,7 +1080,7 @@ $("#mas").addEventListener("click",()=>$("#sheet").classList.add("open"));$("#sh
 $("#pend").addEventListener("click",async()=>{toast("Reintentando envío…");const ok=await flush();toast(ok?"Todo enviado.":"Aún sin conexión con el servidor; se seguirá intentando.")});
 let rz,lastW=window.innerWidth;window.addEventListener("resize",()=>{if(Math.abs(window.innerWidth-lastW)<40)return;lastW=window.innerWidth;clearTimeout(rz);rz=setTimeout(()=>{if(S.ready&&["lotes","comparar","temporadas"].includes(S.view)&&S.editLote==null)render()},250)});
 const QUIETAS=["diario","evento","ajustes","claude"];
-let pend;function changed(){clearTimeout(pend);pend=setTimeout(()=>{if(!S.ok.lotes||!S.ok.diario||!S.ok.eventos)return;const t0=performance.now();compute();S.lastCompute=performance.now()-t0;const first=!S.ready;S.ready=true;$("#status").style.display="none";
+let pend;function changed(){clearTimeout(pend);pend=setTimeout(()=>{if(!S.ok.lotes||!S.ok.diario||!S.ok.eventos||!S.ok.piscis)return;const t0=performance.now();compute();S.lastCompute=performance.now()-t0;const first=!S.ready;S.ready=true;$("#status").style.display="none";
  if(!first){if(QUIETAS.includes(S.view)||(S.view==="lotes"&&S.editLote!=null))return;const ae=document.activeElement;if(ae&&ae.closest&&ae.closest("#view")&&ae.matches("input,textarea,select"))return}render()},80)}
 /* ===== Conexión con Supabase ===== */
 // ⬇⬇⬇ PEGA AQUÍ LOS DATOS DE TU PROYECTO (Supabase > Project Settings > API) ⬇⬇⬇
@@ -1037,7 +1152,8 @@ function start(session){if(S.started)return;if(session.user?.user_metadata?.camb
  const timer=setTimeout(()=>{if(!S.ready)$("#status").textContent="Los datos aún no responden. Revisa la conexión; la app seguirá intentando."},12000);
  const fail=e=>{clearTimeout(timer);$("#status").style.display="block";$("#status").textContent=e.code==="not_granted"?"Tu usuario no tiene acceso a los datos. Pide al administrador que lo revise.":"No se pudieron cargar los datos. Revisa la conexión y recarga la página.";};
  const snap=(col,fn)=>S.db.collection(col).onSnapshot(s=>{fn(s);clearTimeout(timer);changed()},fail);
- snap("lotes",s=>{S.lotes=new Map(s.docs.map(d=>[d.id,{id:d.id,...d.data()}]));S.ok.lotes=true});
+ snap("piscis",s=>{S.piscis=new Map(s.docs.map(d=>[d.id,d.data()]));S.ok.piscis=true});
+ snap("lotes",s=>{S.lotesManual=new Map(s.docs.map(d=>[d.id,{id:d.id,...d.data()}]));S.ok.lotes=true});
  snap("diario",s=>{S.diario=new Map(s.docs.map(d=>[d.id,d.data()]));S.ok.diario=true});
  snap("eventos",s=>{S.eventos=new Map(s.docs.map(d=>[d.id,{id:d.id,...d.data()}]));S.ok.eventos=true});
  S.db.doc("config/umbrales").onSnapshot(s=>{S.cfg={...DEF,...(s.exists?s.data():{})};changed()},()=>{})}
