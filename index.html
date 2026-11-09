@@ -400,6 +400,7 @@ function construirPiscis(hoy){
     peso,pesoFecha:ds(end),biomasa:last.kg,edad:last.edad,piscis:true,canales:u.canales,tipoAlim:last.tipo})}}
  for(const L of lotes.values()){const fs=Object.keys(L.codigos);L.codigo=fs.length>1?[...new Set(Object.values(L.codigos))].join(" / "):Object.values(L.codigos)[0]}
  return{lotes,ubs,ult,canalesHoy}}
+function canalesMort(u,H){if(!u.canales)return[];const out=[];for(const cn of u.canales.values()){let mu=0,v0=null;for(let d=H-6;d<=H;d++){const x=cn.dias.get(d);if(!x)continue;if(v0==null)v0=x.ini;mu+=x.mu}if(v0)out.push({nombre:cn.nombre,mu,v0,pct:mu/v0*100})}return out.sort((a,b)=>b.pct-a.pct)}
 function limitesMort(u){const e=u.peso!=null?etapaDe(u.peso):null;const c=S.cfg;
  if(e){const ref=num(e.ref)||0.05;u.etapa=e.n;u.refMort=ref;u.limDia=ref*(num(c.factorDia)||3);u.limSem=ref*7*(num(c.factorSem)||1.5)}
  else{u.etapa=null;u.refMort=null;u.limDia=c.mortDiariaMax;u.limSem=c.mortSemanalMax}}
@@ -470,11 +471,19 @@ function cmpLote(M,loteId){const us=M.ubs.filter(u=>u.lote.id===loteId&&u.dias.l
 /* ===== Alertas ===== */
 function alertas(M){
  const A=[],c=S.cfg,hoy=M.hoy;const P=(nivel,finca,lote,titulo,detalle,sug)=>A.push({nivel,finca,lote,titulo,detalle,sug});
- for(const u of M.ubs){if(!u.activo)continue;const L=`Lote ${u.lote.codigo}${u.ub.unidad?" ("+u.ub.unidad+")":""}`;
+ for(const u of M.ubs){if(!u.activo)continue;const L=`Lote ${u.lote.codigo}${!u.piscis&&u.ub.unidad?" ("+u.ub.unidad+")":""}`;
   const H=u.refDia??hoy;let pico=null;for(let d=H-2;d<=H;d++){const x=u.dias[d-u.start];if(x&&x.pct!=null&&(!pico||x.pct>pico.pct))pico=x}
-  if(pico&&pico.pct>u.limDia&&pico.muertos>=5)P("alta",u.finca,u.lote.id,`${L}: mortalidad diaria alta`,`${pct(pico.pct)} el ${fmtF(pico.d)} (${pico.muertos} peces). Umbral ${pct(u.limDia)}${u.etapa?" para "+u.etapa.toLowerCase():""}.`,"Sacar y examinar peces moribundos (necropsia de campo), medir oxígeno y temperatura en el estanque, revisar branquias y comportamiento al comer. Si se repite, enviar peces vivos al laboratorio.");
-  if(u.w7.pct!=null&&u.w7.regs&&u.w7.pct>u.limSem)P(u.w7.pct>2*u.limSem?"alta":"media",u.finca,u.lote.id,`${L}: mortalidad semanal sobre el umbral`,`${pct(u.w7.pct)} en 7 días (${u.w7.muertos} peces). Umbral ${pct(u.limSem)}${u.etapa?" para "+u.etapa.toLowerCase():""}.`,"Buscar una causa dominante en necropsias y causas registradas, y si coincide con cambios de alimento, clasificación, traslado o clima.");
-  if(u.w7.pct!=null&&u.p7.pct&&u.w7.muertos>=5&&u.w7.pct/u.p7.pct>=1.5)P("media",u.finca,u.lote.id,`${L}: mortalidad en aumento`,`${pct(u.w7.pct)} esta semana frente a ${pct(u.p7.pct)} la anterior.`,"Comparar con los parámetros de agua de la semana y con los otros estanques de la finca para separar un problema del lote de uno de la finca.");
+  const altoDia=pico&&pico.pct>u.limDia&&pico.muertos>=5,altoSem=u.w7.pct!=null&&u.w7.regs&&u.w7.pct>u.limSem,sube=u.w7.pct!=null&&u.p7.pct&&u.w7.muertos>=5&&u.w7.pct/u.p7.pct>=1.5;
+  if(altoDia||altoSem||sube){const et=u.etapa?" para "+u.etapa.toLowerCase():"";const partes=[];
+   if(u.w7.pct!=null)partes.push(`${pct(u.w7.pct)} en 7 días (${fmtN(u.w7.muertos)} peces; esperado hasta ${pct(u.limSem)}${et})`);
+   if(altoDia)partes.push(`pico de ${pct(pico.pct)} el ${fmtF(pico.d)}`);
+   if(sube)partes.push(`subiendo frente a ${pct(u.p7.pct)} la semana anterior`);
+   const det=canalesMort(u,H);let foco="",concentrada=false;
+   if(det.length>1){const malos=det.filter(c=>c.pct>u.limSem),bien=det.filter(c=>c.pct<=u.limSem);
+    if(malos.length&&bien.length){concentrada=true;foco=` Se concentra en ${malos.slice(0,4).map(c=>`${c.nombre} (${pct(c.pct,1)})`).join(", ")}; ${bien.slice(0,3).map(c=>c.nombre).join(", ")}${bien.length>3?" y otros":""} ${bien.length===1?"está":"están"} dentro de lo esperado.`}
+    else if(malos.length)foco=` En todos sus canales, más en ${malos.slice(0,4).map(c=>`${c.nombre} (${pct(c.pct,1)})`).join(", ")}.`}
+   const nivel=altoDia||(altoSem&&u.w7.pct>2*u.limSem)?"alta":"media";
+   P(nivel,u.finca,u.lote.id,`${L}: mortalidad ${altoDia||altoSem?"alta":"en aumento"}`,partes.join("; ")+"."+foco,(concentrada?"Al concentrarse en algunos canales, revisar primero lo propio de esos canales (oxígeno, caudal, densidad, manejo o traslado reciente) y hacer necropsia de sus peces. ":"Si afecta a todo el lote, pensar en una causa común: origen, alimento, agua de la finca o un agente que circula. ")+"Registrar la necropsia y, si persiste, enviar peces vivos al laboratorio.")}
   if(!u.piscis&&(u.ult===-Infinity||hoy-u.ult>=c.diasSinRegistro))P("info",u.finca,u.lote.id,`${L}: sin mortalidad registrada`,u.ult===-Infinity?"Este estanque no tiene registros de mortalidad.":`Último registro: ${fmtF(u.ult)}.`,"Cargar el informe diario de Piscis de esta finca en Ajustes > Cargar históricos.");
   for(const t of u.trats){const x=t.datos||{};const ini=dn(x.inicio)??dn(t.fecha),fin=dn(x.fin)??ini,ret=num(x.retiro??x.retiroDias);
    if(ret!=null&&fin!=null){const lb=liberacion(M,u.finca,fin,ret,x.retiroUnidad||(x.retiroDias!=null?"días":"grados-día"));
