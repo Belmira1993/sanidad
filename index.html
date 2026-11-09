@@ -214,6 +214,9 @@ nav.desk{flex:1 1 100%;justify-content:flex-start;margin-left:-11px}
 .layout-lotes>*,.grid2>*,.fincas>*{min-width:0}
 .layout-lotes aside .inp{width:100%}
 @media (max-width:760px){.seg.tipos{display:grid;grid-template-columns:1fr 1fr}.seg.tipos button{border-radius:8px;padding:9px 6px;line-height:1.2}.lotelist{max-height:32vh!important}}
+.finca{cursor:pointer}.finca[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:2px}
+.grupo-al{margin:16px 0 2px;font-size:1.1rem;color:var(--brand);border-bottom:1px solid var(--line);padding-bottom:4px}
+details.avisos summary{color:var(--ink-2);font-weight:600;padding:8px 0}
 details.mas{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
 details.mas summary{color:var(--accent);font-weight:700;padding:8px 0;font-size:.95rem}
 .dayctl .btn{font-size:1.5rem;line-height:1;padding:4px 12px;font-weight:400}
@@ -620,19 +623,27 @@ V.inicio=v=>{const M=S.M,hoy=M.hoy,mes=new Date(hoy*DAY).getUTCMonth();
   S.canWrite?el("div",{class:"row"},el("button",{class:"btn",onclick:()=>go("ajustes")},"Cargar históricos desde Excel")):null));return}
  v.append(el("div",{class:"banner info",text:`Temporada actual: ${temporada(mes).toLowerCase()} (${MESES[mes].toLowerCase()}). Riesgos típicos: ${RIESGO_TEMP[temporada(mes)]}.`}));
  v.append(el("div",{class:"fincas"},M.fincas.map(f=>{const pend=f.us.length-f.regHoy;const done=f.us.length&&!pend&&f.aguaHoy;
-  return el("div",{class:"finca","data-n":f.nivel},el("div",{class:"nm",text:f.nombre}),
+  return el("div",{class:"finca","data-n":f.nivel,"aria-pressed":S.fincaFiltro===f.id?"true":"false",title:"Ver solo las alertas de esta finca",onclick:e=>{if(e.target.closest("button"))return;S.fincaFiltro=S.fincaFiltro===f.id?"":f.id;render()}},el("div",{class:"nm",text:f.nombre}),
    el("div",{class:"st",text:f.nivel==="sin"?"Sin lotes activos":chipN[f.nivel]+(f.al.filter(a=>a.nivel!=="info").length?`: ${f.al.filter(a=>a.nivel!=="info").length} por revisar`:"")}),
    el("div",{class:"kpis"},el("div",{class:"kpi"},el("b",{text:fmtN((S.M.canalesHoy||[]).filter(c=>c.finca===f.id).length||f.us.length)}),el("span",{text:`canales con peces · ${fmtN(f.lotes)} lotes`})),el("div",{class:"kpi"},el("b",{text:fmtN(f.vivos)}),el("span",{text:"peces"+(f.biomasa!=null?` · ${fmtN(f.biomasa/1000,1)} t`:"")})),
     el("div",{class:"kpi"},el("b",{text:pct(f.m7)}),el("span",{text:"mortalidad 7 días"})),el("div",{class:"kpi"},el("b",{text:fmtN(f.mu7)}),el("span",{text:"muertes 7 días"}))),
    spark(f.us),
    f.us.length?el("div",{class:"hoy"+(done?" done":"")},el("span",{class:"spacer",text:done?"Registro de hoy completo.":[pend?`falta el informe de Piscis de hoy (${pend} de ${f.us.length} estanques)`:null,!f.aguaHoy?"falta el agua de hoy":null].filter(Boolean).join("; ").replace(/^./,m=>m.toUpperCase())+"."}),
     S.canWrite?el("button",{class:"btn sm"+(done?"":" pri"),onclick:()=>{S.dia.finca=f.id;S.dia.fecha=hoyStr();go(done||!f.aguaHoy?"diario":"ajustes")}},done?"Ver agua de hoy":f.aguaHoy?"Cargar informe":"Registrar agua"):null):null)})));
- const lst=el("div");const als=M.alertas;
+ const lst=el("div");const als=M.alertas;const fil=S.fincaFiltro||"";
+ const grupoDe=a=>a.finca||(M.ubs.find(u=>u.lote.id===a.lote)?.finca)||"general";
+ const nImp=g=>als.filter(a=>(!g||grupoDe(a)===g)&&a.nivel!=="info").length;
+ const segF=el("div",{class:"seg",style:"margin-bottom:6px"},el("button",{"aria-pressed":!fil?"true":"false",onclick:()=>{S.fincaFiltro="";render()}},`Todas (${nImp("")})`),FINCAS.map(f=>el("button",{"aria-pressed":fil===f.id?"true":"false",onclick:()=>{S.fincaFiltro=f.id;render()}},`${f.nombre} (${nImp(f.id)})`)));
+ const item=a=>el("div",{class:"alert"},el("span",{class:"chip "+a.nivel,text:chipN[a.nivel]}),el("div",null,el("div",{class:"t",text:a.titulo}),el("div",{class:"small",text:a.detalle})),
+  el("div",{class:"s"},el("b",null,"Qué revisar: "),a.sug,a.lote&&S.lotes.has(a.lote)?el("button",{class:"btn sm",style:"margin-left:8px",onclick:()=>go("lotes",{state:{loteSel:a.lote,editLote:null}})},"Ver lote"):null));
  if(!als.length)lst.append(el("p",{class:"muted",text:"Sin alertas con los datos registrados."}));
- for(const a of als.slice(0,60))lst.append(el("div",{class:"alert"},el("span",{class:"chip "+a.nivel,text:chipN[a.nivel]}),el("div",null,el("div",{class:"t",text:a.titulo}),el("div",{class:"small",text:(a.finca?fNom(a.finca)+". ":"")+a.detalle})),
-  el("div",{class:"s"},el("b",null,"Qué revisar: "),a.sug,a.lote&&S.lotes.has(a.lote)?el("button",{class:"btn sm",style:"margin-left:8px",onclick:()=>go("lotes",{state:{loteSel:a.lote,editLote:null}})},"Ver lote"):null)));
+ for(const g of[...FINCAS.map(f=>f.id),"general"].filter(g=>!fil||g===fil)){const ga=als.filter(a=>grupoDe(a)===g);if(!ga.length)continue;const imp=ga.filter(a=>a.nivel!=="info"),inf=ga.filter(a=>a.nivel==="info");
+  lst.append(el("h4",{class:"grupo-al",text:g==="general"?"General":fNom(g)}));
+  for(const a of imp)lst.append(item(a));
+  if(!imp.length)lst.append(el("p",{class:"small muted",text:"Sin alertas importantes."}));
+  if(inf.length)lst.append(el("details",{class:"avisos"},el("summary",{text:`${inf.length} aviso${inf.length>1?"s":""} menor${inf.length>1?"es":""}`}),inf.map(item)))}
  const aud=auditar(M);const multi=[...new Set(M.ubs.map(u=>u.lote.id))].filter(id=>M.ubs.filter(u=>u.lote.id===id).length>1);
- v.append(el("div",{class:"grid2"},card("Alertas y sugerencias",lst),el("div",{class:"stack"},
+ v.append(el("div",{class:"grid2"},card("Alertas y sugerencias",segF,lst),el("div",{class:"stack"},
   card("Calidad de los datos",el("div",{class:"row"},el("div",{class:"score",text:aud.score==null?"—":aud.score}),el("div",{class:"spacer"},el("div",{text:aud.score==null?"Sin datos suficientes":"de 100 puntos"}),el("div",{class:"small muted",text:`${aud.issues.filter(i=>i.sev==="bad").length} inconsistencias, ${aud.issues.filter(i=>i.sev==="warn").length} advertencias`})),el("button",{class:"btn",onclick:()=>go("calidad")},"Ver auditoría"))),
   card("Lotes repartidos en varias fincas",multi.length?el("table",null,el("tbody",null,multi.map(id=>{const C=cmpLote(M,id);const l=S.lotes.get(id);
    return el("tr",null,el("td",null,el("b",{text:l.codigo})),el("td",{text:[...new Set((l.ubicaciones||[]).map(u=>fNom(u.finca)))].join(", ")}),el("td",null,C&&C.pares.some(p=>p.t&&p.t.p<.05)?el("span",{class:"chip media",text:"Difiere"}):el("span",{class:"chip ok",text:C?"Similar":"Pocos datos"})),el("td",null,el("button",{class:"btn sm",onclick:()=>go("comparar",{state:{cmpLote:id}})},"Comparar")))}))):el("p",{class:"muted",text:"Ningún lote está en más de una finca todavía."})))))};
