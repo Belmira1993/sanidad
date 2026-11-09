@@ -290,6 +290,7 @@ const CAMPOS={
  observacion:[{k:"texto",l:"Observación",t:"textarea",req:1}]
 };
 const DEF={mortDiariaMax:0.1,mortSemanalMax:0.5,saltoMort:2,tAguaMax:17,tAguaCrit:19,oxMin:6,oxCrit:5,phMin:6.5,phMax:8.5,amonMax:0.5,nitMax:0.1,turbMax:25,diasSinRegistro:2,ratioFincas:1.5,factorDia:3,factorSem:1.5,consumoMin:75,consumoCaida:20,
+ fuentes:[{f:"San Miguel",n:"Incubación",p:"Inc"},{f:"San Miguel",n:"Canaletas",p:"Can"},{f:"San Miguel",n:"Alevinaje X, Y, Z",p:"X, Y, Z"},{f:"San Miguel",n:"Levante y engorde D, E",p:"SD, SE"},{f:"Yolombal",n:"Fuente A y D",p:"YA, YD"},{f:"Yolombal",n:"Fuente lagos y J",p:"YJ, YL"},{f:"Abriaquí",n:"Fuente única",p:""}],
  etapas:[{n:"Incubación",hasta:0.01,ref:0.6},{n:"Larva",hasta:0.07,ref:0.8},{n:"Canaleta",hasta:0.46,ref:0.27},{n:"Alevín I",hasta:4.1,ref:0.33},{n:"Alevín II",hasta:14.7,ref:0.2},{n:"Alevín III",hasta:33.5,ref:0.13},{n:"Levante",hasta:110,ref:0.067},{n:"Engorde",hasta:99999,ref:0.04}],
  dens:[{p:"Inc",max:0},{p:"",desde:0,hasta:0.46,max:25},{p:"",desde:0.46,hasta:4.1,max:39},{p:"",desde:4.1,hasta:14.7,max:32},{p:"",desde:14.7,hasta:33.5,max:39},{p:"",desde:33.5,hasta:110,max:53},{p:"",desde:110,hasta:99999,max:56}]};
 const CFGL={factorDia:["Alerta si la mortalidad de un día supera la esperada para su etapa","veces"],factorSem:["Atención si el promedio semanal supera la esperada","veces"],consumoMin:["Consumo: revisar si baja de","% de lo presupuestado"],consumoCaida:["…y además cae frente a la semana anterior en","puntos"],mortDiariaMax:["Mortalidad diaria máxima (lotes sin peso)","%"],mortSemanalMax:["Mortalidad semanal máxima (lotes sin peso)","%"],saltoMort:["Pedir confirmación si un día supera","% del estanque"],tAguaMax:["Temp. del agua: atención desde","°C"],tAguaCrit:["Temp. del agua: crítica desde","°C"],oxMin:["Oxígeno: atención por debajo de","mg/L"],oxCrit:["Oxígeno: crítico por debajo de","mg/L"],phMin:["pH mínimo",""],phMax:["pH máximo",""],amonMax:["Amoníaco total máximo","mg/L"],nitMax:["Nitritos máximo","mg/L"],turbMax:["Turbidez máxima","NTU"],diasSinRegistro:["Avisar si no hay mortalidad registrada en","días"],ratioFincas:["Diferencia entre fincas para alertar","veces"]};
@@ -399,11 +400,15 @@ function construirPiscis(hoy){
     else dias.push({d,vivos:prevFin||0,muertos:0,reg:false,pct:null})}
    ub.inicial=maxInv;
    const peso=last.fin?last.kg/last.fin*1000:null;
-   ubs.push({key:u.lid+"|"+f,lote:L,ub,finca:f,start,end,sal:activo?null:end,inicial:maxInv,activo,mort,evs:[],dias,acum,vivos:last.fin,acumPct:maxInv?acum/maxInv*100:null,ult:end,refDia:ult[f],
+   ubs.push({key:u.lid+"|"+f,lote:L,ub,finca:f,fuente:fuenteMayor(f,last.canales),start,end,sal:activo?null:end,inicial:maxInv,activo,mort,evs:[],dias,acum,vivos:last.fin,acumPct:maxInv?acum/maxInv*100:null,ult:end,refDia:ult[f],
     peso,pesoFecha:ds(end),biomasa:last.kg,edad:last.edad,piscis:true,canales:u.canales,tipoAlim:last.tipo})}}
  for(const L of lotes.values()){const fs=Object.keys(L.codigos);L.codigo=fs.length>1?[...new Set(Object.values(L.codigos))].join(" / "):Object.values(L.codigos)[0]}
  return{lotes,ubs,ult,canalesHoy}}
 function canalesMort(u,H){if(!u.canales)return[];const out=[];for(const cn of u.canales.values()){let mu=0,v0=null;for(let d=H-6;d<=H;d++){const x=cn.dias.get(d);if(!x)continue;if(v0==null)v0=x.ini;mu+=x.mu}if(v0)out.push({nombre:cn.nombre,mu,v0,pct:mu/v0*100})}return out.sort((a,b)=>b.pct-a.pct)}
+function fuentesDe(fid){const rows=(S.cfg.fuentes||DEF.fuentes).filter(r=>norm(r.f)===norm(fNom(fid))&&String(r.n||"").trim());if(!rows.length)return[{id:"general",n:"General",p:[""]}];
+ return rows.map(r=>({id:norm(r.n).replace(/[^a-z0-9]+/g,"-"),n:String(r.n).trim(),p:String(r.p||"").split(",").map(x=>x.trim().toLowerCase())}))}
+function fuenteDe(fid,nombre){const F=fuentesDe(fid);const n=String(nombre||"").toLowerCase();let best=null,bl=-1;for(const x of F)for(const p of x.p){if(p&&n.startsWith(p)&&p.length>bl){best=x;bl=p.length}}if(best)return best.id;const cat=F.find(x=>x.p.includes(""));return(cat||F[0]).id}
+function fuenteMayor(fid,nombres){const c={};for(const nm of nombres||[]){const k=fuenteDe(fid,nm);c[k]=(c[k]||0)+1}return Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0]||fuentesDe(fid)[0].id}
 function limitesMort(u){const e=u.peso!=null?etapaDe(u.peso):null;const c=S.cfg;
  if(e){const ref=num(e.ref)||0.05;u.etapa=e.n;u.refMort=ref;u.limDia=ref*(num(c.factorDia)||3);u.limSem=ref*7*(num(c.factorSem)||1.5)}
  else{u.etapa=null;u.refMort=null;u.limDia=c.mortDiariaMax;u.limSem=c.mortSemanalMax}}
@@ -421,11 +426,16 @@ function compute(){
   if(r.tipo==="mortalidad")putMort(r.lote,r.finca,d,{m:(num(x.muertos)||0)+(num(x.descarte)||0),c:x.causa||"",r:r.responsable||"",d,lote:r.lote,finca:r.finca,legacy:1});
   else if(r.tipo==="ambiente"){const m=envRaw.get(r.finca);if(m){const o=m.get(d)||{};o["v_"+r.id]={...x,tAire:x.tAire??x.tMax};m.set(d,o)}}
   else evs.push({...r,legacy:1})}
- const env=new Map();
- for(const f of FINCAS){const out=new Map();for(const[d,moms]of envRaw.get(f.id)){const r={};for(const a of AGUA){const vals=Object.values(moms).map(o=>num(o[a.k])).filter(v=>v!=null);if(!vals.length)continue;
+ const env=new Map(),envF=new Map();
+ const aggEnv=objs=>{const r={};for(const a of AGUA){const vals=objs.map(o=>num(o[a.k])).filter(v=>v!=null);if(!vals.length)continue;
   r[a.k]=a.agg==="max"?Math.max(...vals):a.agg==="min"?Math.min(...vals):a.agg==="sum"?vals.reduce((p,q)=>p+q,0):vals.reduce((p,q)=>p+q,0)/vals.length}
-  const evt=Object.values(moms).map(o=>o.evento).filter(Boolean);if(evt.length)r.evento=evt.join("; ");out.set(d,r)}env.set(f.id,out)}
- const envDay=(f,d)=>env.get(f)?.get(d)||null;
+  const evt=objs.map(o=>o.evento).filter(Boolean);if(evt.length)r.evento=evt.join("; ");return r};
+ for(const f of FINCAS){const out=new Map(),porF=new Map();for(const[d,moms]of envRaw.get(f.id)){out.set(d,aggEnv(Object.values(moms)));const g={};
+  for(const[k,o]of Object.entries(moms)){const fu=k.includes("~")?k.split("~")[0]:"*";(g[fu]||(g[fu]=[])).push(o)}
+  for(const[fu,objs]of Object.entries(g)){if(fu==="*")continue;let m=porF.get(fu);if(!m)porF.set(fu,m=new Map());m.set(d,aggEnv([...objs,...(g["*"]||[])]))}
+  if(g["*"])for(const x of fuentesDe(f.id)){let m=porF.get(x.id);if(!m)porF.set(x.id,m=new Map());if(!m.has(d))m.set(d,aggEnv(g["*"]))}}
+  env.set(f.id,out);envF.set(f.id,porF)}
+ const envDay=(f,d,fu)=>fu?(envF.get(f)?.get(fu)?.get(d)||null):(env.get(f)?.get(d)||null);
  const eventos=evs.filter(r=>dn(r.fecha)!=null).sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);
  const ubs=[];
  for(const l of S.lotesManual.values())for(const u of(l.ubicaciones||[])){const start=dn(u.fechaIngreso);if(!u.finca||start==null)continue;const sal=dn(u.fechaSalida);
@@ -464,7 +474,7 @@ function vivosEn(u,d){const i=d-u.start;if(i<0)return u.inicial;if(i<u.dias.leng
 function liberacion(M,finca,fin,ret,unidad){if(fin==null||ret==null)return null;if(unidad!=="grados-día")return{d:fin+ret,est:false};
  let acc=0,d=fin,est=false;const temps=[];for(let x=fin-30;x<=fin;x++){const e=M.envDay(finca,x);if(e&&e.tAgua!=null)temps.push(e.tAgua)}const prom=temps.length?temps.reduce((a,b)=>a+b,0)/temps.length:12;
  while(acc<ret&&d<fin+800){d++;const e=M.envDay(finca,d);let t=e&&e.tAgua!=null?e.tAgua:null;if(t==null){t=prom;est=true}acc+=Math.max(t,0.5)}return{d,est}}
-function corrUb(M,u,lag){const out=[];for(const v of AGUA){const xs=[],ys=[];for(const x of u.dias){if(!x.reg||x.pct==null)continue;const e=M.envDay(u.finca,x.d-lag);if(!e||e[v.k]==null)continue;xs.push(e[v.k]);ys.push(x.pct)}out.push({v,r:pearson(xs,ys),n:xs.length})}return out}
+function corrUb(M,u,lag){const out=[];for(const v of AGUA){const xs=[],ys=[];for(const x of u.dias){if(!x.reg||x.pct==null)continue;const e=M.envDay(u.finca,x.d-lag,u.fuente);if(!e||e[v.k]==null)continue;xs.push(e[v.k]);ys.push(x.pct)}out.push({v,r:pearson(xs,ys),n:xs.length})}return out}
 function corrFinca(M,f,lag){const days=new Map();for(const u of M.ubs){if(u.finca!==f)continue;for(const x of u.dias){if(!x.reg)continue;const o=days.get(x.d)||{mu:0,v:0};o.mu+=x.muertos;o.v+=x.vivos;days.set(x.d,o)}}
  const out=[];for(const v of AGUA){const xs=[],ys=[];for(const[d,o]of days){if(!o.v)continue;const e=M.envDay(f,d-lag);if(!e||e[v.k]==null)continue;xs.push(e[v.k]);ys.push(o.mu/o.v*100)}out.push({v,r:pearson(xs,ys),n:xs.length})}return out}
 function cmpLote(M,loteId){const us=M.ubs.filter(u=>u.lote.id===loteId&&u.dias.length&&u.inicial>0);if(us.length<2)return null;
@@ -503,7 +513,7 @@ function alertas(M){
   if(dg&&hoy-d<=21&&norm(dg)!==norm("Sin diagnóstico concluyente")){const k=r.finca+"|"+norm(canon(dg));const o=diagF.get(k)||{n:0,lotes:new Set(),txt:canon(dg),f:r.finca};o.n++;if(r.lote)o.lotes.add(r.lote);diagF.set(k,o)}}
  for(const o of diagF.values())if(o.n>=2)P(o.lotes.size>=2?"alta":"media",o.f,null,`${fNom(o.f)}: «${o.txt}» se repite`,`${o.n} registros en 21 días${o.lotes.size>=2?" en "+o.lotes.size+" lotes":""}.`,o.lotes.size>=2?"Al aparecer en varios lotes, revisar lo común de la finca: fuente de agua, orden de los estanques, alimento, equipos y personal compartidos.":"Confirmar con laboratorio y revisar si aparece en las otras fincas con el mismo lote.");
  for(const f of FINCAS){const act=M.ubs.some(u=>u.finca===f.id&&u.activo);if(!act)continue;let visto=false;
-  for(let d=hoy;d>hoy-3&&!visto;d--){const e=M.envDay(f.id,d);if(!e)continue;visto=true;const crit=[],aten=[];
+  for(const fu of fuentesDe(f.id)){let vf=false;for(let d=hoy;d>hoy-3&&!vf;d--){const e=M.envDay(f.id,d,fu.id);if(!e||!Object.keys(e).length)continue;vf=true;visto=true;const crit=[],aten=[];
    if(e.tAgua!=null){if(e.tAgua>=c.tAguaCrit)crit.push(`agua a ${fmtN(e.tAgua,1)} °C`);else if(e.tAgua>=c.tAguaMax)aten.push(`agua a ${fmtN(e.tAgua,1)} °C`)}
    if(e.oxigeno!=null){if(e.oxigeno<c.oxCrit)crit.push(`oxígeno ${fmtN(e.oxigeno,1)} mg/L`);else if(e.oxigeno<c.oxMin)aten.push(`oxígeno ${fmtN(e.oxigeno,1)} mg/L`)}
    if(e.ph!=null&&(e.ph<c.phMin||e.ph>c.phMax))aten.push(`pH ${fmtN(e.ph,1)}`);if(e.amoniaco!=null&&e.amoniaco>c.amonMax)aten.push(`amoníaco ${fmtN(e.amoniaco,2)} mg/L`);
@@ -512,7 +522,7 @@ function alertas(M){
     if(e.tAgua!=null&&e.tAgua>=c.tAguaMax)sug.push("reducir ración, evitar clasificar o trasladar en horas calurosas y vigilar Lactococcus y Flavobacterium");
     if(e.turbidez!=null&&e.turbidez>c.turbMax)sug.push("reducir alimento, revisar desarenador y bocatoma y observar branquias en los próximos días");
     if(!sug.length)sug.push("repetir la medición, revisar recambio de agua y observar el comportamiento de los peces");
-    P(crit.length?"alta":"media",f.id,null,`${fNom(f.id)}: agua fuera de rango`,`${fmtF(d)}: ${all.join(", ")}.`,sug.join("; ").replace(/^./,m=>m.toUpperCase())+". Vigilar la mortalidad de 1 a 3 días después.")}}
+    P(crit.length?"alta":"media",f.id,null,`${fNom(f.id)}${fuentesDe(f.id).length>1?" · "+fu.n:""}: agua fuera de rango`,`${fmtF(d)}: ${all.join(", ")}.`,sug.join("; ").replace(/^./,m=>m.toUpperCase())+". Vigilar la mortalidad de 1 a 3 días después.")}}}
   if(!visto){let last=null;for(let d=hoy;d>hoy-7;d--)if(M.envDay(f.id,d)){last=d;break}if(last==null)P("info",f.id,null,`${fNom(f.id)}: sin parámetros de agua recientes`,"No hay temperatura ni oxígeno registrados en los últimos 7 días.","Medir al menos temperatura y oxígeno cada mañana (a primera hora, cuando el oxígeno está más bajo).")}}
  for(const lid of new Set(M.ubs.filter(u=>u.activo).map(u=>u.lote.id))){const C=cmpLote(M,lid);if(!C||C.W<7)continue;const cod=S.lotes.get(lid)?.codigo;
   for(const p of C.pares){if(p.t&&p.t.p<.05&&p.ratio&&p.ratio>=c.ratioFincas){const hi=p.a.pct>p.b.pct?p.a:p.b,lo=hi===p.a?p.b:p.a;
@@ -654,13 +664,14 @@ V.diario=v=>{const M=S.M;if(!S.dia.fecha)S.dia.fecha=hoyStr();const st=S.dia;con
  const segF=el("div",{class:"seg big",role:"group","aria-label":"Finca"},FINCAS.map(f=>el("button",{"aria-pressed":st.finca===f.id?"true":"false",onclick:()=>{st.finca=f.id;LS.set("finca",f.id);render()}},f.nombre)));
  const fecha=el("input",{type:"date",class:"inp",value:st.fecha,max:hoyStr(),"aria-label":"Fecha",onchange:e=>{if(!dn(e.target.value))return;if(dn(e.target.value)>hoy){toast("No se puede registrar una fecha futura");e.target.value=st.fecha;return}st.fecha=e.target.value;render()}});
  const mover=k=>{const n=d+k;if(n>hoy)return;st.fecha=ds(n);render()};
- v.append(el("section",{class:"panel stack"},segF,el("div",{class:"dayctl"},el("button",{class:"btn","aria-label":"Día anterior",onclick:()=>mover(-1)},"‹"),fecha,el("button",{class:"btn","aria-label":"Día siguiente",disabled:d>=hoy,onclick:()=>mover(1)},"›"),d!==hoy?el("button",{class:"btn",onclick:()=>{st.fecha=hoyStr();render()}},"Hoy"):null),
+ const FU=fuentesDe(st.finca);if(!FU.some(x=>x.id===st.fuente))st.fuente=FU[0].id;const segFu=FU.length>1?el("div",null,el("div",{class:"small muted",style:"margin-bottom:6px",text:"Punto de medición (entrada de agua)"}),el("div",{class:"seg",role:"group","aria-label":"Punto de medición"},FU.map(x=>el("button",{"aria-pressed":st.fuente===x.id?"true":"false",onclick:()=>{st.fuente=x.id;render()}},x.n)))):el("div",{class:"small muted",text:"Punto de medición: "+FU[0].n});
+ v.append(el("section",{class:"panel stack"},segF,segFu,el("div",{class:"dayctl"},el("button",{class:"btn","aria-label":"Día anterior",onclick:()=>mover(-1)},"‹"),fecha,el("button",{class:"btn","aria-label":"Día siguiente",disabled:d>=hoy,onclick:()=>mover(1)},"›"),d!==hoy?el("button",{class:"btn",onclick:()=>{st.fecha=hoyStr();render()}},"Hoy"):null),
   el("div",{class:"small muted",text:d===hoy?"Registrando el día de hoy.":`Registrando ${fmtFc(d)}${hoy-d>1?" (registro histórico)":""}.`})));
- const doc=diarioDoc(st.finca,st.fecha);const exM=(doc?.mort||{})[st.fecha]||{};const exA=((doc?.amb||{})[st.fecha]||{});
+ const doc=diarioDoc(st.finca,st.fecha);const exM=(doc?.mort||{})[st.fecha]||{};const exA=((doc?.amb||{})[st.fecha]||{});const K=mo=>st.fuente+"~"+mo;
  // Agua
  const draftA={};const segM=el("div",{class:"seg",role:"group","aria-label":"Momento"});const aguaBox=el("div");
- const drawAgua=()=>{segM.textContent="";for(const[k,n]of Object.entries(MOMENTOS))segM.append(el("button",{"aria-pressed":st.momento===k?"true":"false",onclick:()=>{st.momento=k;drawAgua()}},n+(exA[k]?" ✓":"")));
-  aguaBox.textContent="";const ex=exA[st.momento]||{};const cur=draftA[st.momento]||(draftA[st.momento]=Object.fromEntries([...AGUA.map(a=>[a.k,ex[a.k]??""]),["evento",ex.evento||""]]));
+ const drawAgua=()=>{segM.textContent="";for(const[k,n]of Object.entries(MOMENTOS))segM.append(el("button",{"aria-pressed":st.momento===k?"true":"false",onclick:()=>{st.momento=k;drawAgua()}},n+(exA[K(k)]?" ✓":"")));
+  aguaBox.textContent="";const ex=exA[K(st.momento)]||{};const cur=draftA[K(st.momento)]||(draftA[K(st.momento)]=Object.fromEntries([...AGUA.map(a=>[a.k,ex[a.k]??""]),["evento",ex.evento||""]]));
   const campos=AGUA.map(a=>{const i=el("input",{type:"text",inputmode:"decimal",value:cur[a.k]===""?"":String(cur[a.k]).replace(".",","),placeholder:a.u||"",autocomplete:"off"});
    const chk=()=>{const n=num(i.value);i.dataset.r=i.value.trim()===""?"":n==null||n<a.min||n>a.max?"bad":(rango(a.k,n)||"")};chk();
    i.addEventListener("input",()=>{cur[a.k]=i.value;chk()});return el("label",{class:"f"},`${a.n}${a.u?" ("+a.u+")":""}`,i)});
@@ -694,7 +705,7 @@ V.diario=v=>{const M=S.M;if(!S.dia.fecha)S.dia.fecha=hoyStr();const st=S.dia;con
    if(vivos&&n/vivos*100>S.cfg.saltoMort)warns.push(`${L}: ${n} peces (${pct(n/vivos*100,1)} del estanque)`);
    if(!e||e.m!==n||(e.c||"")!==dr.c)mortP[u.lote.id]={m:n,c:dr.c||"",r:who,p:S.me.id||"",t}}
   for(const[mo,cur]of Object.entries(draftA)){const ex=exA[mo]||{};const o={};let any=false,changed=false;
-   for(const a of AGUA){const raw=String(cur[a.k]??"").trim();const n=raw===""?null:num(raw);if(raw!==""&&(n==null||n<a.min||n>a.max)){errs.push(`${a.n} (${MOMENTOS[mo].toLowerCase()}): ${raw} no es un valor posible (${a.min} a ${a.max} ${a.u})`);continue}
+   for(const a of AGUA){const raw=String(cur[a.k]??"").trim();const n=raw===""?null:num(raw);if(raw!==""&&(n==null||n<a.min||n>a.max)){errs.push(`${a.n} (${MOMENTOS[mo.split("~").pop()].toLowerCase()}): ${raw} no es un valor posible (${a.min} a ${a.max} ${a.u})`);continue}
     o[a.k]=n;if(n!=null)any=true;if((ex[a.k]??null)!==n)changed=true}
    o.evento=(cur.evento||"").trim();if(o.evento)any=true;if((ex.evento||"")!==o.evento)changed=true;
    if(changed)ambP[mo]=any?{...o,r:who,p:S.me.id||"",t}:null}
@@ -732,7 +743,7 @@ V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.ev
    else i=el("input",{type:c.t==="date"?"date":"text",inputmode:c.t==="number"?"decimal":null,list:c.list,value:val,placeholder:c.ph,max:c.t==="date"&&c.k!=="fin"?hoyStr():null,oninput:on});
    return el("label",{class:"f"+(c.t==="textarea"?" wide":"")},c.l+(c.req?" *":""),c.hint?el("span",{class:"hint",text:c.hint}):null,i)});
   const notas=el("textarea",{oninput:e=>{st.notas=e.target.value;st.tocado=true}});notas.value=st.notas;
-  add(body,[el("div",{class:"fgrid",style:"margin-top:14px"},el("label",{class:"f"},"Finca *",fs),el("label",{class:"f"},FW(st.tipo)?"Lote (opcional)":"Lote *",ls),(()=>{const u=M.byKey.get(st.lote+"|"+st.finca);if(!u||!u.canales)return null;const cs=[...u.canales.values()].filter(c=>c.dias.has(d));if(cs.length<2&&!st.canal)return null;const cs_=el("select",{onchange:e=>st.canal=e.target.value},el("option",{value:"",text:"Todo el lote"}),cs.map(c=>el("option",{value:c.nombre,text:"Canal "+c.nombre})));cs_.value=st.canal||"";return el("label",{class:"f"},"Canal (opcional)",cs_)})(),
+  add(body,[el("div",{class:"fgrid",style:"margin-top:14px"},el("label",{class:"f"},"Finca *",fs),el("label",{class:"f"},FW(st.tipo)?"Lote (opcional)":"Lote *",ls),(()=>{const u=M.byKey.get(st.lote+"|"+st.finca);if(!u||!u.canales)return null;let cs=[...u.canales.values()].filter(c=>c.dias.has(d));if(!cs.length){const ref=Math.min(d,u.end);cs=[...u.canales.values()].filter(c=>c.dias.has(ref))}if(cs.length<2&&!st.canal)return null;const cs_=el("select",{onchange:e=>st.canal=e.target.value},el("option",{value:"",text:"Todo el lote"}),cs.map(c=>el("option",{value:c.nombre,text:"Tanque "+c.nombre})));cs_.value=st.canal||"";return el("label",{class:"f"},"Tanque",el("span",{class:"hint",text:"«Todo el lote» o un tanque específico"}),cs_)})(),
    el("label",{class:"f"},"Fecha *",el("input",{type:"date",value:st.fecha,max:hoyStr(),onchange:e=>{st.fecha=e.target.value;draw()}})),fields,el("label",{class:"f wide"},"Notas",notas)),adjBox(st,draw),
    st.tipo==="tratamiento"?el("p",{class:"small muted",text:"Para trucha el retiro suele venir en grados-día (suma de la temperatura diaria del agua). La app calcula la fecha de liberación con las temperaturas registradas en la finca."}):null,
    el("div",{class:"row",style:"margin-top:14px"},st.id&&!st.legacy?el("button",{class:"btn danger",onclick:async()=>{if(!confirm("¿Eliminar este evento?"))return;const ok=await enqueue({kind:"del",path:"eventos/"+st.id});toast(ok?"Evento eliminado":"Se eliminará cuando haya señal");go("lotes")}},"Eliminar"):null,
@@ -820,7 +831,7 @@ V.lotes=v=>{const M=S.M;const lotes=[...S.lotes.values()].sort((a,b)=>(a.estado=
  const draw=()=>{S.varSel=varSel.value;const series=us.map(u=>({name:fNom(u.finca),color:FCOLOR[u.finca],gap:3,points:u.dias.filter(x=>x.pct!=null).map(x=>({x:x.d,y:x.pct,extra:x.muertos+" peces"}))}));
   const mk=[];for(const u of us)for(const r of u.evs)if(["tratamiento","necropsia","laboratorio"].includes(r.tipo)){const x=r.datos||{};mk.push({x:dn(r.tipo==="tratamiento"?(x.inicio||r.fecha):r.fecha),color:r.tipo==="tratamiento"?"var(--m-trat)":r.tipo==="necropsia"?"var(--m-nec)":"var(--m-lab)",label:`${TIPOS[r.tipo]} (${fNom(r.finca)}): ${x.producto||x.diagnostico||x.agente||x.resultado||""}`})}
   lineChart(ch,{series,markers:mk,yFmt:v=>fmtN(v,2)+" %",yLabel:"Mortalidad diaria"});
-  ch2.textContent="";if(varSel.value){const vv=AGUA.find(x=>x.k===varSel.value);const s2=us.map(u=>({name:fNom(u.finca),color:FCOLOR[u.finca],gap:3,points:u.dias.map(x=>{const e=M.envDay(u.finca,x.d);return e&&e[vv.k]!=null?{x:x.d,y:e[vv.k]}:null}).filter(Boolean)}));
+  ch2.textContent="";if(varSel.value){const vv=AGUA.find(x=>x.k===varSel.value);const s2=us.map(u=>({name:fNom(u.finca),color:FCOLOR[u.finca],gap:3,points:u.dias.map(x=>{const e=M.envDay(u.finca,x.d,u.fuente);return e&&e[vv.k]!=null?{x:x.d,y:e[vv.k]}:null}).filter(Boolean)}));
    const c=S.cfg;const bands=vv.k==="tAgua"?[{from:c.tAguaMax,to:c.tAguaCrit,color:"var(--warn)"},{from:c.tAguaCrit,to:99,color:"var(--bad)"}]:vv.k==="oxigeno"?[{from:c.oxCrit,to:c.oxMin,color:"var(--warn)"},{from:0,to:c.oxCrit,color:"var(--bad)"}]:[];
    ch2.append(el("h3",{style:"margin:16px 0 6px;font-size:1.1rem",text:`${vv.n}${vv.u?" ("+vv.u+")":""}`}));const h=el("div");ch2.append(h);lineChart(h,{series:s2,height:170,yFmt:v=>fmtN(v,1),bands})}};
  main.append(el("section",{class:"panel"},el("div",{class:"row",style:"margin-bottom:10px"},el("h3",{text:"Mortalidad diaria y agua"}),el("span",{class:"spacer"}),varSel),ch,
@@ -1059,6 +1070,7 @@ V.ajustes=v=>{const c={...S.cfg};v.append(aparienciaCard(),gap());
   el("div",{class:"fgrid"},Object.keys(DEF).filter(k=>!Array.isArray(DEF[k])).map(k=>el("label",{class:"f"},CFGL[k][0]+(CFGL[k][1]?` (${CFGL[k][1]})`:""),el("input",{type:"text",inputmode:"decimal",value:String(c[k]).replace(".",","),disabled:!S.canWrite,oninput:e=>c[k]=num(e.target.value)})))),
   S.canWrite?el("div",{class:"row",style:"margin-top:14px"},el("button",{class:"btn",onclick:()=>{S.cfg={...S.cfg};render();toast("Para restaurar, guarda después de revisar los valores");Object.assign(c,DEF)}},"Valores sugeridos"),el("span",{class:"spacer"}),el("button",{class:"btn pri",onclick:async()=>{for(const k in DEF)if(c[k]==null)return toast("Completa: "+CFGL[k][0]);if(c.tAguaCrit<=c.tAguaMax||c.oxCrit>=c.oxMin||c.phMin>=c.phMax)return toast("Revisa que los niveles críticos sean más extremos que los de atención");try{await withTimeout(S.db.doc("config/umbrales").set(c),20000);toast("Umbrales guardados")}catch(e){toast("No se pudo guardar")}}},"Guardar umbrales")):null));
  v.append(gap(),tablaEditable("Densidad máxima por canal","Se aplica la primera fila que coincida: por el inicio del nombre del canal (SD, SE, X, Y, Z, Can…) y, si se indica, por el peso promedio de los peces. Las filas sin canal sirven para cualquier canal según el peso. 0 = sin límite.","dens",[{k:"p",l:"Canal empieza por"},{k:"desde",l:"Peso desde (g)",num:1},{k:"hasta",l:"Peso hasta (g)",num:1},{k:"max",l:"Máxima (kg/m³)",num:1}]),
+  gap(),tablaEditable("Puntos de medición de agua","Cada finca mide el agua a la entrada de sus fuentes. Indica qué canales recibe cada punto, por el inicio del nombre del canal, separados por coma; deja vacío para «todos los demás». Así la temperatura y el oxígeno se cruzan con los lotes correctos.","fuentes",[{k:"f",l:"Finca"},{k:"n",l:"Punto de medición"},{k:"p",l:"Canales que empiezan por"}]),
   gap(),tablaEditable("Mortalidad esperada por etapa","Mortalidad diaria normal para cada etapa, según el programa de producción. La etapa se define por el peso promedio. Las alertas comparan la mortalidad real contra este valor.","etapas",[{k:"n",l:"Etapa"},{k:"hasta",l:"Hasta peso (g)",num:1},{k:"ref",l:"Mortalidad diaria esperada (%)",num:1}]));
  v.append(gap(),card("Exportar y respaldar",el("p",{class:"small muted",text:"Descarga la información en CSV (abre en Excel), con el mismo formato que acepta la carga de históricos."}),el("div",{class:"row"},el("button",{class:"btn",onclick:()=>exportar("diario")},"Mortalidad y agua"),el("button",{class:"btn",onclick:()=>exportar("eventos")},"Eventos sanitarios"),el("button",{class:"btn",onclick:()=>exportar("lotes")},"Lotes"))));
  v.append(gap(),card("Usar como app en el celular",el("p",{class:"small",text:"Abre esta página en el navegador del celular, entra con tu usuario y usa «Agregar a la pantalla de inicio» (Chrome: menú ⋮; Safari: compartir). Queda como un ícono. Si no hay señal en la finca, los registros se guardan en el teléfono y se envían solos cuando vuelve la conexión; el aviso naranja arriba muestra cuántos faltan por enviar."})));
@@ -1169,7 +1181,7 @@ function exportar(t){const M=S.M;
  if(t==="eventos"){const keys=[...new Set(Object.values(CAMPOS).flat().map(c=>c.k))];return bajar(`eventos-${hoyStr()}.csv`,[["fecha","tipo","finca","lote","responsable","notas",...keys].join(";")].concat(M.eventos.map(r=>[r.fecha,r.tipo,fNom(r.finca),S.lotes.get(r.lote)?.codigo||"",r.responsable,r.notas,...keys.map(k=>typeof r.datos?.[k]==="number"?nq(r.datos[k]):r.datos?.[k])].map(q).join(";"))))}
  const L=["fecha;finca;lote;estanque;muertos;causa;momento;"+AGUA.map(a=>a.k).join(";")+";evento;responsable"];
  for(const[k,m]of M.mort){const[lid,f]=k.split("|");const l=S.lotes.get(lid);const u=M.byKey.get(k);for(const[d,e]of[...m].sort((a,b)=>a[0]-b[0]))L.push([ds(d),fNom(f),l?.codigo||lid,u?.ub.unidad||"",e.m,e.c,"","","","","","","","","","","",e.r].map(q).join(";"))}
- for(const f of FINCAS)for(const[d,moms]of[...M.envRaw.get(f.id)].sort((a,b)=>a[0]-b[0]))for(const[mo,o]of Object.entries(moms))L.push([ds(d),f.nombre,"","","","",MOMENTOS[mo]||"",...AGUA.map(a=>nq(o[a.k])),o.evento,o.r].map(q).join(";"));
+ for(const f of FINCAS)for(const[d,moms]of[...M.envRaw.get(f.id)].sort((a,b)=>a[0]-b[0]))for(const[mo,o]of Object.entries(moms))L.push([ds(d),f.nombre,"","","","",(mo.includes("~")?(fuentesDe(f.id).find(x=>x.id===mo.split("~")[0])?.n||"")+" · ":"")+(MOMENTOS[mo.split("~").pop()]||""),...AGUA.map(a=>nq(o[a.k])),o.evento,o.r].map(q).join(";"));
  bajar(`mortalidad-y-agua-${hoyStr()}.csv`,L)}
 
 /* ===== Arranque ===== */
