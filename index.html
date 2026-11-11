@@ -753,11 +753,17 @@ V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.ev
   const us=M.ubs.filter(u=>u.finca===st.finca&&d!=null&&u.start<=d&&(u.sal==null||d<=u.sal));
   if(st.lote&&!us.some(u=>u.lote.id===st.lote)&&!st.id)st.lote="";
   const canalesDe=u=>{if(!u.canales)return[];let cs=[...u.canales.values()].filter(c=>c.dias.has(d));if(!cs.length){const ref=Math.min(d,u.end);cs=[...u.canales.values()].filter(c=>c.dias.has(ref))}return cs.map(c=>c.nombre).sort((a,b)=>a.localeCompare(b,"es",{numeric:true}))};
-  const ls=el("select",{onchange:e=>{const[lo,ca]=e.target.value.split("||");st.lote=lo||"";st.canal=ca||"";draw()}},el("option",{value:"",text:FW(st.tipo)?"Toda la finca":us.length?"Elige el tanque o el lote":"Sin lotes en esa fecha"}),
-   us.map(u=>{const cs=canalesDe(u);if(cs.length<=1)return el("option",{value:u.lote.id+"||"+(cs[0]||""),text:`${cs[0]?"Tanque "+cs[0]+" · ":(u.ub.unidad?"Estanque "+u.ub.unidad+" · ":"")}Lote ${u.lote.codigo}`});
-    return el("optgroup",{label:`Lote ${u.lote.codigo}`},el("option",{value:u.lote.id+"||",text:`Todo el lote ${u.lote.codigo} (${cs.join(", ")})`}),cs.map(c=>el("option",{value:u.lote.id+"||"+c,text:`Tanque ${c} · Lote ${u.lote.codigo}`})))}));
-  if(st.lote&&!us.some(u=>u.lote.id===st.lote)&&S.lotes.get(st.lote))ls.append(el("option",{value:st.lote+"||"+(st.canal||""),text:(st.canal?"Tanque "+st.canal+" · ":"")+"Lote "+S.lotes.get(st.lote).codigo+" (fuera de periodo)"}));ls.value=st.lote?st.lote+"||"+(st.canal||""):"";
-  if(st.lote&&ls.value!==st.lote+"||"+(st.canal||"")){ls.append(el("option",{value:st.lote+"||"+(st.canal||""),text:(st.canal?"Tanque "+st.canal+" · ":"")+"Lote "+(S.lotes.get(st.lote)?.codigo||"")}));ls.value=st.lote+"||"+(st.canal||"")}
+  const ls=el("select",{onchange:e=>{st.lote=e.target.value;const u=M.byKey.get(st.lote+"|"+st.finca);const cs=u?canalesDe(u):[];st.canal=cs.length===1?cs[0]:"";draw()}},el("option",{value:"",text:FW(st.tipo)?"Toda la finca":us.length?"Elige el lote":"Sin lotes en esa fecha"}),
+   us.map(u=>{const cs=canalesDe(u);return el("option",{value:u.lote.id,text:`Lote ${u.lote.codigo}${cs.length?` (${cs.length===1?"tanque":"tanques"} ${cs.join(", ")})`:(u.ub.unidad?" · "+u.ub.unidad:"")}`})}));
+  const tanquesSel=(()=>{if(!st.lote)return null;const u=M.byKey.get(st.lote+"|"+st.finca);const cs=u?canalesDe(u):[];const marcados=new Set(String(st.canal||"").split(",").map(x=>x.trim()).filter(Boolean));
+   for(const m of[...marcados])if(!cs.includes(m))cs.push(m);if(!cs.length)return null;
+   if(cs.length===1)return el("div",{style:"display:flex;flex-direction:column;gap:4px"},el("b",{text:"Tanque"}),el("div",{class:"small",style:"padding:8px 0",text:`Tanque ${cs[0]} (es el único tanque de este lote)`}));
+   const todos=!marcados.size||cs.every(c=>marcados.has(c));
+   const toggle=c=>{const m=new Set(todos&&marcados.size===0?[]:marcados);m.has(c)?m.delete(c):m.add(c);st.canal=cs.filter(x=>m.has(x)).length===cs.length?"":cs.filter(x=>m.has(x)).join(", ");draw()};
+   return el("div",{style:"grid-column:1/-1;display:flex;flex-direction:column;gap:4px"},el("b",{text:"Tanques *"}),el("span",{class:"small muted",text:"Toca uno o varios tanques, o «Todo el lote»"}),
+    el("div",{class:"seg",style:"flex-wrap:wrap;margin-top:6px"},el("button",{type:"button","aria-pressed":todos?"true":"false",onclick:()=>{st.canal="";draw()}},"Todo el lote"),
+     cs.map(c=>el("button",{type:"button","aria-pressed":!todos&&marcados.has(c)?"true":"false",onclick:()=>toggle(c)},c))))})();
+  if(st.lote&&!us.some(u=>u.lote.id===st.lote)&&S.lotes.get(st.lote))ls.append(el("option",{value:st.lote,text:"Lote "+S.lotes.get(st.lote).codigo+" (fuera de periodo)"}));ls.value=st.lote;
   if(!st.lote&&us.length===1&&!FW(st.tipo)){st.lote=us[0].lote.id;ls.value=st.lote}
   const fields=CAMPOS[st.tipo].map(c=>{if(st.datos[c.k]==null)st.datos[c.k]=c.t==="select"?c.opts[0]:c.t==="date"&&(c.k==="inicio")?st.fecha:"";const val=st.datos[c.k];const on=e=>{st.datos[c.k]=e.target.value;st.tocado=true};let i;
    if(c.t==="select"){i=el("select",{onchange:on},c.opts.map(o=>el("option",{value:o,text:o})));i.value=val}
@@ -765,7 +771,7 @@ V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.ev
    else i=el("input",{type:c.t==="date"?"date":"text",inputmode:c.t==="number"?"decimal":null,list:c.list,value:val,placeholder:c.ph,max:c.t==="date"&&c.k!=="fin"?hoyStr():null,oninput:on});
    return el("label",{class:"f"+(c.t==="textarea"?" wide":"")},c.l+(c.req?" *":""),c.hint?el("span",{class:"hint",text:c.hint}):null,i)});
   const notas=el("textarea",{oninput:e=>{st.notas=e.target.value;st.tocado=true}});notas.value=st.notas;
-  add(body,[el("div",{class:"fgrid",style:"margin-top:14px"},el("label",{class:"f"},"Finca *",fs),el("label",{class:"f"},FW(st.tipo)?"Tanque o lote (opcional)":"Tanque o lote *",el("span",{class:"hint",text:"Elige un tanque para registrarlo solo en ese tanque, o «Todo el lote»"}),ls),
+  add(body,[el("div",{class:"fgrid",style:"margin-top:14px"},el("label",{class:"f"},"Finca *",fs),el("label",{class:"f"},FW(st.tipo)?"Lote (opcional)":"Lote *",ls),tanquesSel,
    el("label",{class:"f"},"Fecha *",el("input",{type:"date",value:st.fecha,max:hoyStr(),onchange:e=>{st.fecha=e.target.value;draw()}})),fields,el("label",{class:"f wide"},"Notas",notas)),adjBox(st,draw),
    st.tipo==="tratamiento"?el("p",{class:"small muted",text:"Para trucha el retiro suele venir en grados-día (suma de la temperatura diaria del agua). La app calcula la fecha de liberación con las temperaturas registradas en la finca."}):null,
    el("div",{class:"row",style:"margin-top:14px"},st.id&&!st.legacy?el("button",{class:"btn danger",onclick:async()=>{if(!confirm("¿Eliminar este evento?"))return;const ok=await enqueue({kind:"del",path:"eventos/"+st.id});toast(ok?"Evento eliminado":"Se eliminará cuando haya señal");go(S.volverA||"lotes")}},"Eliminar"):null,
@@ -824,7 +830,7 @@ async function subir(files,st,redraw){if(!S.assets)return;for(const f of files.s
   finally{st.subiendo--;redraw()}}}
 function tlItem(r,showLote){const x=r.datos||{};const L=S.lotes.get(r.lote);const det=(CAMPOS[r.tipo]||[]).filter(c=>x[c.k]!==""&&x[c.k]!=null);
  const extra=r.legacy?Object.entries(x).filter(([k])=>!(CAMPOS[r.tipo]||[]).some(c=>c.k===k)):[];
- return el("li",{"data-t":r.tipo},el("div",{class:"h"},el("b",{text:TIPOS[r.tipo]||r.tipo}),el("span",{class:"small muted",text:`${fmtF(r.fecha)} · ${fNom(r.finca)}${L&&showLote?" · Lote "+L.codigo:""}${r.canal?" · Canal "+r.canal:""}${r.responsable?" · "+r.responsable:""}`}),r.legacy?null:el("span",{class:"chip",title:"Número de registro",text:numReg(r.id)}),
+ return el("li",{"data-t":r.tipo},el("div",{class:"h"},el("b",{text:TIPOS[r.tipo]||r.tipo}),el("span",{class:"small muted",text:`${fmtF(r.fecha)} · ${fNom(r.finca)}${L&&showLote?" · Lote "+L.codigo:""}${r.canal?(r.canal.includes(",")?" · Tanques ":" · Tanque ")+r.canal:""}${r.responsable?" · "+r.responsable:""}`}),r.legacy?null:el("span",{class:"chip",title:"Número de registro",text:numReg(r.id)}),
   r.tipo==="laboratorio"&&x.resultado?el("span",{class:"chip "+(norm(x.resultado)==="positivo"?"alta":norm(x.resultado)==="negativo"?"ok":"info"),text:x.resultado}):null,el("span",{class:"spacer"}),
   S.canWrite&&!r.legacy?el("button",{class:"btn sm",onclick:()=>go("evento",{state:{evPre:{id:r.id},volverA:S.view}})},"Editar"):null),
   det.length||r.notas||extra.length?el("dl",null,det.map(c=>[el("dt",{text:c.l}),el("dd",{text:c.t==="date"?fmtF(x[c.k]):c.t==="number"?fmtN(num(x[c.k]),2).replace(/,00$/,""):String(x[c.k])})]),extra.map(([k,v])=>[el("dt",{text:k}),el("dd",{text:String(v)})]),r.notas?[el("dt",{text:"Notas"}),el("dd",{text:r.notas})]:null):null,(r.adjuntos||[]).length?adjView(r.adjuntos):r.tipo==="tratamiento"&&!r.legacy?el("div",{class:"small",style:"margin-top:6px;color:var(--warn);font-weight:600",text:"Falta adjuntar el soporte de la fórmula médica."}):null)}
