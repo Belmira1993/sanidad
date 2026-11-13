@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#FFFFFF">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Belmira · Sanidad</title>
+<title>Belmira</title>
 <meta name="application-name" content="Belmira">
 <meta name="apple-mobile-web-app-title" content="Belmira">
 <link rel="icon" type="image/svg+xml" href="icono.svg">
@@ -222,19 +222,41 @@ details.mas summary{color:var(--accent);font-weight:700;padding:8px 0;font-size:
 .dayctl .btn{font-size:1.5rem;line-height:1;padding:4px 12px;font-weight:400}
 .top h1{padding-bottom:0}
 @media (max-width:760px){.logo{height:28px}.top h1{font-size:1rem;padding-bottom:8px}.top-in{padding:8px 14px 0}.seg.big button{font-size:1.02rem;padding:8px 6px;line-height:1.15}.fincas{gap:12px}.finca .nm{font-size:1.75rem}}
+/* ===== ERP: pantalla de módulos ===== */
+.mod-card{width:min(480px,100%)}
+.mod-list{display:flex;flex-direction:column;gap:12px}
+.mod-it{display:flex;align-items:center;gap:16px;width:100%;text-align:left;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:16px;cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s}
+.mod-it:hover{border-color:var(--accent);box-shadow:0 6px 20px rgb(30 43 56 / .10);transform:translateY(-1px)}
+.mod-it:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mod-ic{flex:none;width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--info-bg);color:var(--brand)}
+.mod-ic svg{width:28px;height:28px}
+.mod-tx{flex:1;min-width:0}.mod-tx b{display:block;font-size:1.2rem;color:var(--brand)}.mod-tx span{display:block;font-size:.88rem;color:var(--ink-2);line-height:1.35}
+.mod-rol{flex:none;font-size:.75rem;font-weight:700;color:var(--ink-2);background:var(--surface-2);border-radius:99px;padding:3px 10px;white-space:nowrap}
+.mod-pie{margin-top:18px;align-items:center;gap:8px}
+.modbtn{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font:600 .82rem var(--font);color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);border-radius:99px;padding:5px 12px;cursor:pointer}
+.modbtn[hidden]{display:none}.modbtn svg{width:16px;height:16px}.modbtn:hover{color:var(--brand);border-color:var(--accent)}
+@media (max-width:760px){.modbtn span{display:none}.modbtn{padding:6px 8px}.mod-it{padding:14px;gap:12px}.mod-ic{width:44px;height:44px}.mod-rol{display:none}}
 </style>
 <script>try{const t=JSON.parse(localStorage.getItem("sanidad:tema"));if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <div id="login" class="login" hidden>
   <div class="login-card">
-    <h1 class="login-t"><span class="logo-wrap"><img class="logo logo-claro" src="logo.svg" alt="Truchas Belmira" width="628" height="203"><img class="logo logo-oscuro" src="logo-blanco.svg" alt="" aria-hidden="true" width="628" height="203"></span>Módulo de Sanidad</h1>
-    <p class="muted" style="margin:6px 0 22px">San Miguel · Yolombal · Abriaquí</p>
+    <h1 class="login-t"><span class="logo-wrap"><img class="logo logo-claro" src="logo.svg" alt="Truchas Belmira" width="628" height="203"><img class="logo logo-oscuro" src="logo-blanco.svg" alt="" aria-hidden="true" width="628" height="203"></span>Sistema de gestión</h1>
+    <p class="muted" style="margin:6px 0 22px">Sanidad · Compras</p>
     <div id="lbody"></div>
   </div>
 </div>
+<div id="modulos" class="login" hidden>
+  <div class="login-card mod-card">
+    <h1 class="login-t"><span class="logo-wrap"><img class="logo logo-claro" src="logo.svg" alt="Truchas Belmira" width="628" height="203"><img class="logo logo-oscuro" src="logo-blanco.svg" alt="" aria-hidden="true" width="628" height="203"></span><span id="mhola">Hola</span></h1>
+    <p class="muted" style="margin:6px 0 18px">¿A qué módulo quieres entrar?</p>
+    <div id="mbody" class="mod-list"></div>
+    <div class="row mod-pie"><span class="small muted" id="mcorreo"></span><span class="spacer"></span><button type="button" class="linkbtn" id="msalir">Cerrar sesión</button></div>
+  </div>
+</div>
 <header class="top"><div class="top-in">
-  <h1><span class="logo-wrap"><img class="logo logo-claro" src="logo.svg" alt="Truchas Belmira" width="628" height="203"><img class="logo logo-oscuro" src="logo-blanco.svg" alt="" aria-hidden="true" width="628" height="203"></span><span class="app-t">Sanidad</span> <button id="pend" type="button"></button></h1>
+  <h1><span class="logo-wrap"><img class="logo logo-claro" src="logo.svg" alt="Truchas Belmira" width="628" height="203"><img class="logo logo-oscuro" src="logo-blanco.svg" alt="" aria-hidden="true" width="628" height="203"></span><span class="app-t">Sanidad</span> <button id="pend" type="button"></button><button id="cambiarMod" type="button" class="modbtn" hidden title="Cambiar de módulo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Módulos</span></button></h1>
   <nav class="desk" id="nav">
     <a href="#inicio">Inicio</a><a href="#diario">Agua y clima</a><a href="#evento">Eventos sanitarios</a><a href="#lotes">Lotes</a>
     <a href="#comparar">Lote entre fincas</a><a href="#temporadas">Temporadas</a><a href="#ensayos">Ensayos</a><a href="#correcciones">Correcciones</a><a href="#calidad">Calidad de datos</a><a href="#claude">Análisis</a><a href="#ajustes">Ajustes</a>
@@ -312,6 +334,17 @@ function el(tag,a,...kids){const e=document.createElement(tag);if(a)for(const[k,
 function add(e,kids){for(const k of [kids].flat(9)){if(k==null||k===false)continue;e.append(k instanceof Node?k:document.createTextNode(String(k)))}return e}
 const SVGNS="http://www.w3.org/2000/svg";
 function sv(tag,a,...kids){const e=document.createElementNS(SVGNS,tag);if(a)for(const[k,v]of Object.entries(a))if(v!=null)k==="text"?e.textContent=v:e.setAttribute(k,v);add(e,kids);return e}
+/* ===== ERP: módulos y permisos =====
+   Los permisos viven en app_metadata del usuario (solo el administrador los cambia):
+   {"rol":"admin"} = administrador de todo; {"modulos":{"sanidad":"registro","compras":"solicitante"}} = por módulo.
+   Usuarios antiguos sin "modulos" conservan Sanidad con su "rol" de siempre. */
+const MODS={
+ sanidad:{n:"Sanidad",d:"Agua y clima, eventos sanitarios, lotes y alertas de las fincas.",ic:"M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z|M8 11h.01"},
+ compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html"}};
+const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras"};
+function modulosDe(u){const am=u?.app_metadata||{};const m=am.modulos&&typeof am.modulos==="object"?{...am.modulos}:{sanidad:am.rol||"registro"};
+ if(am.rol==="admin")for(const k of Object.keys(MODS))m[k]="admin";for(const k of Object.keys(m))if(!MODS[k])delete m[k];return m}
+function modIcon(d){return sv("svg",{viewBox:"0 0 24 24",fill:"none",stroke:"currentColor","stroke-width":"2","stroke-linecap":"round","stroke-linejoin":"round","aria-hidden":"true"},d.split("|").map(p=>sv("path",{d:p})))}
 function toast(m,ms=3400){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display="none",ms)}
 function pearson(xs,ys){const n=xs.length;if(n<3)return null;let mx=0,my=0;for(let i=0;i<n;i++){mx+=xs[i];my+=ys[i]}mx/=n;my/=n;let sxy=0,sxx=0,syy=0;for(let i=0;i<n;i++){const a=xs[i]-mx,b=ys[i]-my;sxy+=a*b;sxx+=a*a;syy+=b*b}if(!sxx||!syy)return null;return sxy/Math.sqrt(sxx*syy)}
 function ncdf(z){const t=1/(1+.2316419*Math.abs(z)),d=.3989423*Math.exp(-z*z/2),p=d*t*(.3193815+t*(-.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p}
@@ -1259,6 +1292,8 @@ function exportar(t){const M=S.M;
 function route(){if(/access_token|error_description|type=recovery/.test(location.hash))return;const h=location.hash.slice(1);const prev=S.view;S.view=V[h]?h:"inicio";$("#sheet").classList.remove("open");if(prev==="lotes"&&S.view!=="lotes")S.editLote=null;if(S.ready)render();window.scrollTo(0,0)}
 window.addEventListener("hashchange",route);
 $("#mas").addEventListener("click",()=>$("#sheet").classList.add("open"));$("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet"||e.target.tagName==="A")$("#sheet").classList.remove("open")});
+$("#cambiarMod").addEventListener("click",()=>showModulos());
+$("#msalir").addEventListener("click",async()=>{if(OB.list.length&&!confirm(`Hay ${OB.list.length} registros sin enviar en este teléfono. Si cierras sesión se enviarán cuando vuelvas a entrar. ¿Cerrar sesión?`))return;await sb.auth.signOut();location.hash="";location.reload()});
 $("#pend").addEventListener("click",async()=>{toast("Reintentando envío…");const ok=await flush();toast(ok?"Todo enviado.":"Aún sin conexión con el servidor; se seguirá intentando.")});
 let rz,lastW=window.innerWidth;window.addEventListener("resize",()=>{if(Math.abs(window.innerWidth-lastW)<40)return;lastW=window.innerWidth;clearTimeout(rz);rz=setTimeout(()=>{if(S.ready&&["lotes","comparar","temporadas"].includes(S.view)&&S.editLote==null)render()},250)});
 const QUIETAS=["diario","evento","ajustes","claude"];
@@ -1330,7 +1365,16 @@ function cuentaCard(){const nom=el("input",{value:S.me.name||""}),p1=el("input",
 function start(session){if(S.started)return;if(session.user?.user_metadata?.cambiar_clave){S.recovering=true;showLogin("nueva",["ok","Bienvenido. Por seguridad, crea tu propia contraseña antes de continuar."]);return}S.started=true;$("#login").hidden=true;$("#status").style.display="block";$("#status").textContent="Cargando datos…";
  if(/access_token|type=/.test(location.hash))history.replaceState(null,"",location.pathname+"#inicio");
  const u=session.user;S.me={id:u.id,name:u.user_metadata?.nombre||(u.email||"").split("@")[0],email:u.email};if(!S.resp)S.resp=u.user_metadata?.nombre||"";
- S.canWrite=u.app_metadata?.rol!=="lector";S.rol=u.app_metadata?.rol||"registro";S.esAdmin=S.rol==="admin";if(S.esAdmin)sb.rpc("uso_bd").then(({data})=>{if(data){S.uso=data;if(S.ready){compute();render()}}},()=>{});S.db=makeDb(sb);S.assets=S.canWrite?makeAssets(sb):null;route();flush();
+ S.mods=modulosDe(u);const ks=Object.keys(S.mods);$("#status").style.display="none";
+ if(!ks.length){$("#status").style.display="block";$("#status").textContent="Tu usuario aún no tiene módulos asignados. Pide al administrador que lo revise.";return}
+ $("#cambiarMod").hidden=ks.length<2;showModulos()}
+function showModulos(){const box=$("#mbody");box.textContent="";$("#mhola").textContent="Hola, "+(S.me.name||"").split(" ")[0];$("#mcorreo").textContent=S.me.email||"";
+ for(const[k,rol]of Object.entries(S.mods)){const m=MODS[k];box.append(el("button",{type:"button",class:"mod-it",onclick:()=>entrarModulo(k)},
+  el("span",{class:"mod-ic"},modIcon(m.ic)),el("span",{class:"mod-tx"},el("b",{text:m.n}),el("span",{text:m.d})),el("span",{class:"mod-rol",text:ROLN[rol]||rol})))}
+ $("#modulos").hidden=false}
+function entrarModulo(k){const m=MODS[k];if(m.url){location.href=m.url;return}$("#modulos").hidden=true;if(k==="sanidad")entrarSanidad()}
+function entrarSanidad(){if(S.sanidadOn)return;S.sanidadOn=true;$("#status").style.display="block";$("#status").textContent="Cargando datos…";
+ S.rol=S.mods.sanidad||"registro";S.canWrite=S.rol!=="lector";S.esAdmin=S.rol==="admin";if(S.esAdmin)sb.rpc("uso_bd").then(({data})=>{if(data){S.uso=data;if(S.ready){compute();render()}}},()=>{});S.db=makeDb(sb);S.assets=S.canWrite?makeAssets(sb):null;route();flush();
  const timer=setTimeout(()=>{if(!S.ready)$("#status").textContent="Los datos aún no responden. Revisa la conexión; la app seguirá intentando."},12000);
  const fail=e=>{clearTimeout(timer);$("#status").style.display="block";$("#status").textContent=e.code==="not_granted"?"Tu usuario no tiene acceso a los datos. Pide al administrador que lo revise.":"No se pudieron cargar los datos. Revisa la conexión y recarga la página.";};
  const snap=(col,fn)=>S.db.collection(col).onSnapshot(s=>{fn(s);clearTimeout(timer);changed()},fail);
