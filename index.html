@@ -340,7 +340,7 @@ function sv(tag,a,...kids){const e=document.createElementNS(SVGNS,tag);if(a)for(
    Usuarios antiguos sin "modulos" conservan Sanidad con su "rol" de siempre. */
 const MODS={
  sanidad:{n:"Sanidad",d:"Agua y clima, eventos sanitarios, lotes y alertas de las fincas.",ic:"M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z|M8 11h.01"},
- compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261113b"}};
+ compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261113c"}};
 const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras"};
 function modulosDe(u){const am=u?.app_metadata||{};const m=am.modulos&&typeof am.modulos==="object"?{...am.modulos}:{sanidad:am.rol||"registro"};
  if(am.rol==="admin")for(const k of Object.keys(MODS))m[k]="admin";for(const k of Object.keys(m))if(!MODS[k])delete m[k];return m}
@@ -1390,7 +1390,9 @@ function start(session){if(S.started)return;if(session.user?.user_metadata?.camb
  S.mods=modulosDe(u);const ks=Object.keys(S.mods);$("#status").style.display="none";
  if(!ks.length){$("#status").style.display="block";$("#status").textContent="Tu usuario aún no tiene módulos asignados. Pide al administrador que lo revise.";return}
  $("#cambiarMod").hidden=ks.length<2;showModulos()}
-function showModulos(){const box=$("#mbody");box.textContent="";$("#mhola").textContent="Hola, "+(S.me.name||"").split(" ")[0];$("#mcorreo").textContent=S.me.email||"";
+function showModulos(){/* Si venía de un enlace (por ejemplo un pedido enviado por WhatsApp), vuelve allí después de entrar */
+ try{const v=sessionStorage.getItem("belmira:volver");if(v&&S.mods.compras&&/^https:\/\/belmira1993\.github\.io\/sanidad\/compras\.html/.test(v)){sessionStorage.removeItem("belmira:volver");location.href=v;return}}catch(e){}
+ const box=$("#mbody");box.textContent="";$("#mhola").textContent="Hola, "+(S.me.name||"").split(" ")[0];$("#mcorreo").textContent=S.me.email||"";
  for(const[k,rol]of Object.entries(S.mods)){const m=MODS[k];box.append(el("button",{type:"button",class:"mod-it",onclick:()=>entrarModulo(k)},
   el("span",{class:"mod-ic"},modIcon(m.ic)),el("span",{class:"mod-tx"},el("b",{text:m.n}),el("span",{text:m.d})),el("span",{class:"mod-rol",text:ROLN[rol]||rol})))}
  $("#modulos").hidden=false}
