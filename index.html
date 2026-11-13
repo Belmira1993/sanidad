@@ -340,7 +340,7 @@ function sv(tag,a,...kids){const e=document.createElementNS(SVGNS,tag);if(a)for(
    Usuarios antiguos sin "modulos" conservan Sanidad con su "rol" de siempre. */
 const MODS={
  sanidad:{n:"Sanidad",d:"Agua y clima, eventos sanitarios, lotes y alertas de las fincas.",ic:"M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z|M8 11h.01"},
- compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html"}};
+ compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261113b"}};
 const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras"};
 function modulosDe(u){const am=u?.app_metadata||{};const m=am.modulos&&typeof am.modulos==="object"?{...am.modulos}:{sanidad:am.rol||"registro"};
  if(am.rol==="admin")for(const k of Object.keys(MODS))m[k]="admin";for(const k of Object.keys(m))if(!MODS[k])delete m[k];return m}
@@ -1322,7 +1322,8 @@ function makeDb(sb){const cols=new Map(),CK="cache:",saveT={};
  /* Lecturas paginadas. "actualizado" lo pone la base de datos en cada cambio. */
  async function pages(q){const out=[];for(let from=0;;from+=1000){const{data,error}=await q().range(from,from+999);if(error)throw dbErr(error);out.push(...data);if(data.length<1000)break}return out}
  const fetchAll=name=>pages(()=>sb.from("documentos").select("id,data,actualizado").eq("coleccion",name));
- const fetchSince=(name,t)=>pages(()=>sb.from("documentos").select("id,data,actualizado").eq("coleccion",name).gte("actualizado",t));
+ /* Margen de 2 minutos: si dos personas guardan casi al mismo tiempo, ningún cambio se queda sin bajar. */
+ const fetchSince=(name,t)=>pages(()=>sb.from("documentos").select("id,data,actualizado").eq("coleccion",name).gte("actualizado",new Date(Date.parse(t)-120000).toISOString()));
  const fetchIds=name=>pages(()=>sb.from("documentos").select("id").eq("coleccion",name));
  async function fetchByIds(name,ids){const out=[];for(let i=0;i<ids.length;i+=100){const{data,error}=await sb.from("documentos").select("id,data,actualizado").eq("coleccion",name).in("id",ids.slice(i,i+100));if(error)throw dbErr(error);out.push(...data)}return out}
  const marca=(c,rows)=>{for(const r of rows)if(r.actualizado&&(!c.t||r.actualizado>c.t))c.t=r.actualizado};
