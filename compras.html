@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<title>Belmira · Compras</title>
+<link rel="icon" type="image/svg+xml" href="icono.svg">
+<link rel="apple-touch-icon" href="icono-app.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<style>
+/* Identidad Belmira (misma que Sanidad) */
+:root{--bg:#F4F6F3;--surface:#FFFFFF;--surface-2:#EEF2ED;--ink:#1E2B38;--ink-2:#5A6A70;--line:#DDE4DC;
+ --brand:#2D4E7F;--brand-ink:#FFFFFF;--accent:#0085A5;--ok:#2E7D4F;--warn:#9A6200;--bad:#B3261E;
+ --ok-bg:#E2F0E6;--warn-bg:#F7EBD0;--bad-bg:#F8E1DE;--info-bg:#DCEFF4;
+ --font:Calibri,Carlito,"Segoe UI","Helvetica Neue",Arial,sans-serif;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1821;--surface:#15222D;--surface-2:#1C2B38;--ink:#E5ECEF;--ink-2:#A3B1B8;--line:#293A48;
+ --brand:#8DB0DE;--brand-ink:#0E1821;--accent:#4CC0DA;--ok-bg:#1B3427;--warn-bg:#382E15;--bad-bg:#3B1F1E;--info-bg:#15303A;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0E1821;--surface:#15222D;--surface-2:#1C2B38;--ink:#E5ECEF;--ink-2:#A3B1B8;--line:#293A48;
+ --brand:#8DB0DE;--brand-ink:#0E1821;--accent:#4CC0DA;--ok-bg:#1B3427;--warn-bg:#382E15;--bad-bg:#3B1F1E;--info-bg:#15303A;color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15.5px/1.5 var(--font);padding-top:env(safe-area-inset-top,0px)}
+h1,h2{margin:0;line-height:1.15;font-weight:700}
+.top{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.top-in{max-width:1240px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:12px}
+.logo-wrap{display:block;flex:none;line-height:0}.logo{display:block;height:34px;width:auto}.logo-oscuro{display:none!important}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo-claro{display:none!important}:root:not([data-theme="light"]) .logo-oscuro{display:block!important}}
+:root[data-theme="dark"] .logo-claro{display:none!important}:root[data-theme="dark"] .logo-oscuro{display:block!important}
+.app-t{font-size:1.15rem;font-weight:700;color:var(--ink-2);padding-left:12px;border-left:1px solid var(--line);line-height:1.3}
+.modbtn{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font:600 .82rem var(--font);color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);border-radius:99px;padding:5px 12px;cursor:pointer;text-decoration:none}
+.modbtn svg{width:16px;height:16px}.modbtn:hover{color:var(--brand);border-color:var(--accent)}
+main{max-width:1240px;margin:0 auto;padding:24px 20px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:24px;box-shadow:0 1px 2px rgb(30 43 56 / .05)}
+.panel h2{font-size:1.5rem;color:var(--brand);margin-bottom:8px}
+.muted{color:var(--ink-2)}
+.etapas{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:8px}
+.etapas li{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
+.etapas b{color:var(--brand)}
+.tag{flex:none;font-size:.75rem;font-weight:700;border-radius:99px;padding:2px 10px;background:var(--info-bg);color:var(--accent)}
+.tag.ok{background:var(--ok-bg);color:var(--ok)}
+@media (max-width:760px){.logo{height:28px}.app-t{font-size:1rem}.top-in{padding:8px 14px}.modbtn span{display:none}.modbtn{padding:6px 8px}main{padding:16px 14px}.panel{padding:18px}}
+</style>
+<script>try{const t=JSON.parse(localStorage.getItem("sanidad:tema"));if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <span class="logo-wrap"><img class="logo logo-claro" src="logo.svg" alt="Truchas Belmira" width="628" height="203"><img class="logo logo-oscuro" src="logo-blanco.svg" alt="" aria-hidden="true" width="628" height="203"></span>
+  <span class="app-t">Compras</span>
+  <a class="modbtn" href="index.html" title="Cambiar de módulo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Módulos</span></a>
+</div></header>
+<main><div class="panel" id="view"><p class="muted">Cargando…</p></div></main>
+<script>
+(() => {
+"use strict";
+// Misma conexión que Sanidad: la sesión se comparte porque las dos páginas están en el mismo sitio.
+const CONFIG={url:"https://fzqrckirrydtrshvnaxc.supabase.co",anonKey:"sb_publishable_g37h8dqLz6VNJyb45zuX9Q_7oDlaac1"};
+const view=document.getElementById("view");
+function tieneCompras(u){const am=u?.app_metadata||{};return am.rol==="admin"||!!(am.modulos&&am.modulos.compras)}
+async function init(){
+ if(!window.supabase){view.innerHTML='<p class="muted">No se pudo cargar la conexión. Revisa la señal y recarga la página.</p>';return}
+ const sb=supabase.createClient(CONFIG.url,CONFIG.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+ const{data}=await sb.auth.getSession();
+ if(!data.session){location.replace("index.html");return}
+ if(!tieneCompras(data.session.user)){view.innerHTML='<h2>Sin acceso a Compras</h2><p class="muted">Tu usuario no tiene asignado este módulo. Pide al administrador que lo revise.</p>';return}
+ view.innerHTML=
+  '<h2>Módulo de Compras en preparación</h2>'+
+  '<p class="muted">Aquí estará el ciclo completo de las compras de Belmira. Se habilita por etapas:</p>'+
+  '<ul class="etapas">'+
+  '<li><span class="tag ok">Lista</span><span><b>Base del ERP:</b> un solo ingreso y módulos según el usuario.</span></li>'+
+  '<li><span class="tag">Siguiente</span><span><b>Ciclo de compra:</b> pedido, aprobación, cotización, compra, pago, recepción, novedades y cierre.</span></li>'+
+  '<li><span class="tag">Después</span><span><b>Retenciones y centros de costos</b> de las facturas.</span></li>'+
+  '<li><span class="tag">Después</span><span><b>Proveedores:</b> RUT, evaluación anual, recotización y 3 cotizaciones.</span></li>'+
+  '</ul>';
+}
+init();
+})();
+</script>
+</body>
+</html>
