@@ -284,7 +284,22 @@ dialog.dlg::backdrop{background:rgb(14 24 33 / .45)}
 .cc-row .nm{flex:1;font-weight:600}
 .cc-row.off .nm{color:var(--ink-2);text-decoration:line-through}
 .mas{display:block;margin:12px auto 0}
+details.mas{display:block;margin:12px 0 0}
+.leer{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+.leido{border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:.9rem;margin:8px 0;background:var(--surface-2)}
+.leido.ok{border-color:var(--ok);background:var(--ok-bg)}
 nav.mob{grid-template-columns:repeat(4,1fr)}
+.res{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.res:first-of-type{border-top:0}
+.res .chip{flex:none;margin-top:2px}
+.res-t{flex:1;min-width:0;overflow-wrap:anywhere}
+.res-t .sub{display:block;font-size:.82rem;color:var(--ink-2)}
+.revi{display:flex;width:100%;align-items:center;gap:10px;justify-content:space-between;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:10px 4px;cursor:pointer;color:var(--ink);font:inherit}
+.revi:first-of-type{border-top:0}
+.revi:hover{background:var(--surface-2)}
+.revi.on{background:var(--info-bg);border-radius:6px}
+.revi span{flex:1;min-width:0}
+.revi b{flex:none}
 .hrow{margin-bottom:12px}
 @media (max-width:760px){.tools select.inp{flex:1 1 100%}.hrow h2{flex:1 1 100%}.hrow .spacer{display:none}.hrow .btn{flex:1}.modbtn{margin-left:auto!important}}
 </style>
@@ -328,21 +343,25 @@ const IDB={p:null,open(){return this.p||(this.p=new Promise((res,rej)=>{const r=
 
 /* Datos: carga lo guardado en el equipo y baja solo lo que cambió (igual que Sanidad). */
 function makeDb(sb){const cols=new Map(),CK="cache:",saveT={};
- const saveCache=n=>{clearTimeout(saveT[n]);saveT[n]=setTimeout(()=>{const c=cols.get(n);IDB.set(CK+n,{u:S.me.id,t:c.t||null,docs:[...c.docs]})},1500)};
+ const saveCache=n=>{clearTimeout(saveT[n]);saveT[n]=setTimeout(()=>{const c=cols.get(n);IDB.set(CK+n,{u:S.me.id,t:c.t||null,rev:c.rev||0,docs:[...c.docs]})},1500)};
  const emit=(n,cache)=>{const c=cols.get(n);c.subs.forEach(f=>{try{f()}catch(e){console.error(e)}});if(!cache)saveCache(n)};
  async function pages(q){const out=[];for(let from=0;;from+=1000){const{data,error}=await q().range(from,from+999);if(error)throw dbErr(error);out.push(...data);if(data.length<1000)break}return out}
  const sel="id,data,actualizado";
  const fetchAll=n=>pages(()=>sb.from("documentos").select(sel).eq("coleccion",n));
- const fetchSince=(n,t)=>pages(()=>sb.from("documentos").select(sel).eq("coleccion",n).gte("actualizado",t));
+ /* Margen de 2 minutos: si dos personas guardan casi al mismo tiempo, ningún cambio se pierde. */
+ const fetchSince=(n,t)=>pages(()=>sb.from("documentos").select(sel).eq("coleccion",n).gte("actualizado",new Date(Date.parse(t)-120000).toISOString()));
  const fetchIds=n=>pages(()=>sb.from("documentos").select("id").eq("coleccion",n));
  async function fetchByIds(n,ids){const out=[];for(let i=0;i<ids.length;i+=100){const{data,error}=await sb.from("documentos").select(sel).eq("coleccion",n).in("id",ids.slice(i,i+100));if(error)throw dbErr(error);out.push(...data)}return out}
  const marca=(c,rows)=>{for(const r of rows)if(r.actualizado&&(!c.t||r.actualizado>c.t))c.t=r.actualizado};
  async function load(n){const c=cols.get(n);
-  if(!c.loaded&&!c.cacheLeido){c.cacheLeido=true;const k=await IDB.get(CK+n);if(k&&k.u===S.me.id&&Array.isArray(k.docs)){c.docs=new Map(k.docs);c.t=k.t;c.loaded=true;emit(n,true)}}
-  try{if(c.t){const[ch,ids]=await withTimeout(Promise.all([fetchSince(n,c.t),fetchIds(n)]),25000);const vivos=new Set(ids.map(r=>r.id));
-    for(const k of [...c.docs.keys()])if(!vivos.has(k))c.docs.delete(k);for(const r of ch)c.docs.set(r.id,r.data);marca(c,ch);
-    const faltan=[...vivos].filter(i=>!c.docs.has(i));if(faltan.length){const fx=await withTimeout(fetchByIds(n,faltan),25000);for(const r of fx)c.docs.set(r.id,r.data);marca(c,fx)}}
-   else{const rows=await withTimeout(fetchAll(n),25000);c.docs=new Map(rows.map(r=>[r.id,r.data]));marca(c,rows)}
+  if(!c.loaded&&!c.cacheLeido){c.cacheLeido=true;const k=await IDB.get(CK+n);if(k&&k.u===S.me.id&&Array.isArray(k.docs)){c.docs=new Map(k.docs);c.t=k.t;c.rev=k.rev||0;c.loaded=true;emit(n,true)}}
+  /* En Compras nada se borra (se anula o se unifica). La lista de identificadores solo se revisa una vez al día. */
+  try{if(c.t){const revisar=Date.now()-(c.rev||0)>864e5;const[ch,ids]=await withTimeout(Promise.all([fetchSince(n,c.t),revisar?fetchIds(n):null]),25000);
+    if(ids){const vivos=new Set(ids.map(r=>r.id));for(const k of [...c.docs.keys()])if(!vivos.has(k))c.docs.delete(k);c.rev=Date.now();
+     const faltan=[...vivos].filter(i=>!c.docs.has(i)&&!ch.some(r=>r.id===i));if(faltan.length){const fx=await withTimeout(fetchByIds(n,faltan),25000);for(const r of fx)c.docs.set(r.id,r.data);marca(c,fx)}}
+    for(const r of ch)c.docs.set(r.id,r.data);marca(c,ch);
+   }
+   else{const rows=await withTimeout(fetchAll(n),25000);c.docs=new Map(rows.map(r=>[r.id,r.data]));marca(c,rows);c.rev=Date.now()}
    c.loaded=true;c.err=null;emit(n,false)}
   catch(e){c.err=dbErr(e);if(c.loaded){if(!S.avisoOffline){S.avisoOffline=true;toast("Sin conexión: se muestran los últimos datos guardados en este equipo.",6000)}setTimeout(()=>load(n),30000)}else emit(n,true)}}
  function col(n){let c=cols.get(n);if(!c){c={docs:new Map(),subs:new Set(),loaded:false};cols.set(n,c);load(n)}return c}
@@ -363,11 +382,13 @@ const VISTAS=[
  {id:"inicio",t:"Pedidos",ic:'<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h8"/>'},
  {id:"proveedores",t:"Proveedores",ic:'<path d="M3 21h18M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/>'},
  {id:"articulos",t:"Artículos",ic:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/>'},
- {id:"centros",t:"Centros de costos",tm:"Centros",ic:'<circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/>'}];
-function pintarNav(){
- $("#navd").innerHTML=VISTAS.map(v=>`<a href="#${v.id}"${S.vista===v.id?' aria-current="page"':""}>${v.t}</a>`).join("");
- $("#navm").innerHTML=VISTAS.map(v=>`<a href="#${v.id}"${S.vista===v.id?' aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">${v.ic}</svg>${v.tm||v.t}</a>`).join("")}
-function ir(){const h=location.hash.slice(1);S.vista=VISTAS.some(v=>v.id===h)?h:"inicio";pintarNav();render();window.scrollTo(0,0)}
+ {id:"centros",t:"Centros de costos",tm:"Centros",ic:'<circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/>'},
+ {id:"correcciones",t:"Correcciones",ic:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/>',solo:"gestion"}];
+const vistas=()=>VISTAS.filter(v=>!v.solo||S.gestion);
+function pintarNav(){const V=vistas();$("#navm").style.gridTemplateColumns=`repeat(${V.length},1fr)`;
+ $("#navd").innerHTML=V.map(v=>`<a href="#${v.id}"${S.vista===v.id?' aria-current="page"':""}>${v.t}</a>`).join("");
+ $("#navm").innerHTML=V.map(v=>`<a href="#${v.id}"${S.vista===v.id?' aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">${v.ic}</svg>${v.tm||v.t}</a>`).join("")}
+function ir(){if(dlg.open)dlg.close();const h=location.hash.slice(1);S.vista=vistas().some(v=>v.id===h)?h:"inicio";pintarNav();render();window.scrollTo(0,0)}
 window.addEventListener("hashchange",ir);
 
 /* ---------- Datos derivados ---------- */
@@ -389,6 +410,7 @@ function render(){const v=$("#view");
  if(S.vista==="inicio")v.innerHTML=vInicio();
  else if(S.vista==="proveedores")v.innerHTML=vProv();
  else if(S.vista==="articulos")v.innerHTML=vArt();
+ else if(S.vista==="correcciones")v.innerHTML=vCorr();
  else v.innerHTML=vCentros();
  enlazar()}
 function vInicio(){const np=provs().size,na=[...arts().values()].filter(d=>!d.unido).length,nc=centros().filter(c=>c.activo!==false).length;
@@ -443,6 +465,47 @@ function vCentros(){const w=cargando(COL.cfg);if(w)return w;const L=centros();
  <div class="panel">${L.length?L.map((c,i)=>`<div class="cc-row${c.activo===false?" off":""}"><span class="nm">${esc(c.nombre)}</span>${c.activo===false?'<span class="chip">Inactivo</span>':""}
   ${S.gestion?`<button class="btn sm" data-cc-ren="${i}">Cambiar nombre</button><button class="btn sm" data-cc-act="${i}">${c.activo===false?"Activar":"Desactivar"}</button>`:""}</div>`).join(""):'<p class="empty">Sin centros de costos.</p>'}</div>`}
 
+/* ---------- Correcciones y calidad de datos ---------- */
+/* Revisiones de calidad: cada una es un filtro que se puede abrir y corregir. */
+function revisiones(){const P=provs(),C=ctas(),A=arts();const nombres=new Map();
+ for(const[id,d]of P){const k=norm(d.nombre);nombres.set(k,(nombres.get(k)||[]).concat(id))}
+ const R=[
+  {id:"sintipo",t:"Proveedores sin tipo de persona",tipo:"prov",f:(id,d)=>!d.tipo},
+  {id:"sinrut",t:"Proveedores sin RUT leído",tipo:"prov",f:(id,d)=>!d.fechaRut,info:true},
+  {id:"repnit",t:"NIT que venían repetidos en el Excel",tipo:"prov",f:(id,d)=>/También aparece como/.test(d.nota||"")},
+  {id:"repnom",t:"Mismo nombre con distinto NIT",tipo:"prov",f:(id,d)=>(nombres.get(norm(d.nombre))||[]).length>1},
+  {id:"dv",t:"Dígito de verificación que no cuadra",tipo:"prov",f:(id,d)=>d.dv&&+d.dv!==dvNit(id)}];
+ if(S.verCuentas)R.push(
+  {id:"sincta",t:"Proveedores sin cuenta bancaria",tipo:"prov",f:id=>!C.has(id),info:true},
+  {id:"ctacorta",t:"Cuentas con menos de 9 dígitos (¿se perdió un cero?)",tipo:"prov",f:id=>C.has(id)&&C.get(id).numero.length<9},
+  {id:"ctasinbanco",t:"Cuentas sin banco o sin tipo",tipo:"prov",f:id=>C.has(id)&&(!C.get(id).banco||!C.get(id).tipoCuenta),info:true},
+  {id:"ctarep",t:"Misma cuenta en dos proveedores",tipo:"prov",f:(()=>{const m=new Map();for(const[k,c]of C)m.set(c.numero,(m.get(c.numero)||0)+1);return id=>C.has(id)&&m.get(C.get(id).numero)>1})()});
+ R.push({id:"artsim",t:"Artículos que parecen repetidos",tipo:"art",f:(id,d)=>!d.unido&&similares(d.nombre,id).length>0});
+ for(const r of R){const src=r.tipo==="prov"?P:A;r.ids=[...src].filter(([id,d])=>r.f(id,d)).map(([id])=>id)}
+ return R}
+function vCorr(){const w=cargando(COL.prov,COL.art,COL.cfg,...(S.verCuentas?[COL.cta]:[]));if(w)return w;
+ const f=S.corr||(S.corr={q:"",tipo:"",rev:""}),R=revisiones(),rev=R.find(r=>r.id===f.rev);
+ const P=provs(),A=arts(),C=ctas(),q=f.q.trim();let res=[];
+ if(rev)res=rev.ids.map(id=>[rev.tipo,id]);
+ else if(q){
+  if(!f.tipo||f.tipo==="prov")for(const[id,d]of P)if(coincide(id+" "+d.nombre+" "+(d.nota||"")+" "+(C.get(id)?.numero||""),q))res.push(["prov",id]);
+  if(!f.tipo||f.tipo==="art")for(const[id,d]of A)if(coincide(id+" "+d.nombre+" "+(d.nota||""),q))res.push(["art",id]);
+  if(!f.tipo||f.tipo==="cc")centros().forEach((c,i)=>{if(coincide(c.nombre,q))res.push(["cc",i])})}
+ const total=res.length;res=res.slice(0,100);
+ const item=([t,id])=>{if(t==="prov"){const d=P.get(id),c=C.get(id);return`<div class="res"><span class="chip info">Proveedor</span><div class="res-t"><b>${esc(d.nombre)}</b><span class="sub mono">${esc(id)}${d.tipo?" · "+TIPOS[d.tipo]:" · sin tipo"}${c?" · cuenta "+esc(c.numero)+(c.banco?" "+esc(c.banco):""):""}</span>${d.nota?`<span class="sub">${esc(d.nota)}</span>`:""}</div><button class="btn sm" data-prov="${esc(id)}">Editar</button></div>`}
+  if(t==="art"){const d=A.get(id);return`<div class="res"><span class="chip ok">Artículo</span><div class="res-t"><b>${esc(d.nombre)}</b><span class="sub"><span class="mono">${esc(id)}</span> · ${esc(d.unidad)}${d.unido?" · unificado":""}</span></div><button class="btn sm" data-art="${esc(id)}">Editar</button></div>`}
+  const c=centros()[id];return`<div class="res"><span class="chip">Centro</span><div class="res-t"><b>${esc(c.nombre)}</b><span class="sub">${c.activo===false?"Inactivo":"Activo"}</span></div><button class="btn sm" data-cc-ren="${id}">Editar</button></div>`};
+ return`<div class="row hrow"><h2 style="color:var(--brand)">Correcciones</h2></div>
+ <p class="ro-note">Busca cualquier dato por nombre, NIT, código o número de cuenta y pulsa «Editar». Cada cambio queda en la trazabilidad con tu nombre. Las órdenes de compra abiertas aparecerán aquí cuando se publique el ciclo de pedidos.</p>
+ <div class="tools"><input class="inp" type="search" id="qcorr" placeholder="Nombre, NIT, código o cuenta" value="${esc(f.q)}" aria-label="Buscar">
+  <select class="inp" id="tcorr" aria-label="Tipo de dato"><option value="">Todo</option><option value="prov"${f.tipo==="prov"?" selected":""}>Proveedores</option><option value="art"${f.tipo==="art"?" selected":""}>Artículos</option><option value="cc"${f.tipo==="cc"?" selected":""}>Centros de costos</option></select></div>
+ <div class="grid2">
+ <div class="panel"><h3 style="color:var(--brand);margin-bottom:8px">Calidad de datos</h3><p class="muted small" style="margin:0 0 8px">Toca una fila para ver y corregir esos registros.</p>
+  ${R.map(r=>`<button class="revi${f.rev===r.id?" on":""}" data-rev="${r.id}"><span>${esc(r.t)}</span><b class="${r.ids.length?(r.info?"chip info":"chip warn"):"chip ok"}">${fmtN(r.ids.length)}</b></button>`).join("")}</div>
+ <div class="panel"><h3 style="color:var(--brand);margin-bottom:8px">${rev?esc(rev.t):"Resultados"}</h3>
+  ${rev||q?`<p class="count">${total?fmtN(total)+" encontrado"+(total>1?"s":"")+(total>100?"; se muestran 100":""):"Nada encontrado."}</p>${res.map(item).join("")}${rev?'<button class="btn sm" data-rev="">Quitar filtro</button>':""}`:'<p class="muted">Escribe arriba o elige una revisión de la izquierda.</p>'}</div>
+ </div>`}
+
 /* ---------- Eventos ---------- */
 function enlazar(){
  document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>location.hash=b.dataset.go);
@@ -453,6 +516,8 @@ function enlazar(){
  document.querySelectorAll("[data-acc]").forEach(b=>b.onclick=()=>({"nuevo-prov":()=>dlgProv(null),"importar":dlgImportar,"nuevo-art":()=>dlgArt(null),"nuevo-cc":()=>ccNombre(-1),
   "mas-prov":()=>{S.lim.prov+=200;render()},"mas-art":()=>{S.lim.art+=200;render()}})[b.dataset.acc]());
  document.querySelectorAll("[data-cc-ren]").forEach(b=>b.onclick=()=>ccNombre(+b.dataset.ccRen));
+ const qc=$("#qcorr");if(qc){qc.oninput=()=>{S.corr.q=qc.value;S.corr.rev="";repintar("#qcorr")};$("#tcorr").onchange=e=>{S.corr.tipo=e.target.value;render()}}
+ document.querySelectorAll("[data-rev]").forEach(b=>b.onclick=()=>{S.corr.rev=S.corr.rev===b.dataset.rev?"":b.dataset.rev;render()});
  document.querySelectorAll("[data-cc-act]").forEach(b=>b.onclick=()=>ccActivo(+b.dataset.ccAct));
 }
 function repintar(sel){const el=$(sel),pos=el.selectionStart;render();const n=$(sel);n.focus();try{n.setSelectionRange(pos,pos)}catch{}}
@@ -464,38 +529,117 @@ function abrir(titulo,cuerpo,pie){dlg.innerHTML=`<div class="dlg-h"><h3>${titulo
 async function guardando(btn,fn){const t=btn.textContent;btn.disabled=true;btn.textContent="Guardando…";try{await fn()}catch(e){toast(e.message||"No se pudo guardar.",5000)}finally{btn.disabled=false;btn.textContent=t}}
 
 /* ---------- Proveedor ---------- */
-function dlgProv(id){const d=id?provs().get(id):{nombre:"",tipo:""},c=id?ctas().get(id)||{}:{},ro=!S.gestion,dis=ro?" disabled":"";
+/* Datos tributarios y de contacto: salen del RUT; el archivo nunca se guarda. */
+const TRIB=[["declarante","Declarante de renta",["","si","no"]],["iva","Responsable de IVA",["","si","no"]],["simple","Régimen simple",["","si","no"]],["autorret","Autorretenedor",["","si","no"]],["gran","Gran contribuyente",["","si","no"]]];
+const SINO={"":"Por confirmar",si:"Sí",no:"No"};
+const CONTACTO=[["dv","DV",1],["actividad","Actividad (CIIU)",0],["municipio","Municipio",0],["direccion","Dirección",0],["telefono","Teléfono",0],["correo","Correo",0]];
+const BANCOS=["Bancolombia","Banco de Bogotá","Davivienda","BBVA","Banco de Occidente","Banco Popular","Banco AV Villas","Banco Caja Social","Scotiabank Colpatria","Banco Agrario","Banco Itaú","Banco GNB Sudameris","Banco Falabella","Banco Pichincha","Bancoomeva","Banco W","Bancamía","Banco Finandina","Banco Serfinanza","Lulo Bank","Nu","Nequi","Daviplata","Confiar","Cotrafa","JFK Cooperativa"];
+function dlgProv(id,pre){const d=id?provs().get(id):{nombre:"",tipo:""},c=id?ctas().get(id)||{}:{},ro=!S.gestion,dis=ro?" disabled":"";
  abrir(id?esc(d.nombre):"Nuevo proveedor",`
+ ${ro?"":`<div class="leer"><button type="button" class="btn sm" id="rut-b">Leer RUT (PDF)</button>${S.verCuentas?'<button type="button" class="btn sm" id="cert-b">Leer certificado bancario (PDF)</button>':""}
+  <input type="file" id="rut-f" accept="application/pdf,.pdf" hidden><input type="file" id="cert-f" accept="application/pdf,.pdf" hidden>
+  <span class="muted small">Se leen los datos y el archivo no se guarda.</span></div><div id="leido"></div>`}
  <h4 class="sec">Datos del proveedor</h4>
  <div class="fgrid">
   <label class="f">NIT o cédula<input id="p-nit" inputmode="numeric" value="${esc(id||"")}"${id?" disabled":dis} autocomplete="off"><span class="hint">Sin dígito de verificación</span></label>
   <label class="f">Tipo de persona<select id="p-tipo"${dis}><option value="">Por confirmar</option><option value="J"${d.tipo==="J"?" selected":""}>Jurídica</option><option value="N"${d.tipo==="N"?" selected":""}>Natural</option></select></label>
   <label class="f wide">Razón social o nombre<input id="p-nom" value="${esc(d.nombre)}"${dis}></label>
-  <label class="f wide">Nota<input id="p-nota" value="${esc(d.nota||"")}"${dis} placeholder="Opcional"></label>
  </div>
+ <h4 class="sec">Datos tributarios <span class="muted small" style="font-weight:400">${d.fechaRut?"según RUT del "+esc(d.fechaRut):"sin RUT leído"}</span></h4>
+ <div class="fgrid">${TRIB.map(([k,l,o])=>`<label class="f">${l}<select id="t-${k}"${dis}>${o.map(v=>`<option value="${v}"${(d[k]||"")===v?" selected":""}>${SINO[v]}</option>`).join("")}</select></label>`).join("")}</div>
+ <details class="mas"${d.direccion||d.correo||d.telefono?" open":""}><summary>Contacto y ubicación</summary>
+ <div class="fgrid">${CONTACTO.map(([k,l])=>`<label class="f${k==="direccion"||k==="correo"?" wide":""}">${l}<input id="k-${k}" value="${esc(d[k]||"")}"${dis}${k==="dv"||k==="telefono"?' inputmode="numeric"':""}${k==="correo"?' type="email"':""}></label>`).join("")}</div></details>
+ <label class="f" style="margin-top:12px">Nota<input id="p-nota" value="${esc(d.nota||"")}"${dis} placeholder="Opcional"></label>
  ${S.verCuentas?`<h4 class="sec">Cuenta bancaria</h4>
  <div class="fgrid">
   <label class="f">Número de cuenta<input id="c-num" inputmode="numeric" value="${esc(c.numero||"")}"${dis}></label>
   <label class="f">Banco<input id="c-banco" value="${esc(c.banco||"")}"${dis} list="bancos"></label>
   <label class="f">Tipo de cuenta<select id="c-tipo"${dis}><option value="">Por confirmar</option>${["Ahorros","Corriente"].map(t=>`<option${c.tipoCuenta===t?" selected":""}>${t}</option>`).join("")}</select></label>
- </div><datalist id="bancos">${["Bancolombia","Banco de Bogotá","Davivienda","BBVA","Banco de Occidente","Banco Popular","Banco AV Villas","Banco Caja Social","Scotiabank Colpatria","Banco Agrario","Banco Itaú","Nequi","Daviplata","Confiar","Cotrafa"].map(b=>`<option value="${b}">`).join("")}</datalist>
+ </div><datalist id="bancos">${BANCOS.map(b=>`<option value="${b}">`).join("")}</datalist>
  ${S.gestion&&id&&c.numero?'<p class="muted small">Si cambias la cuenta, la app te pedirá confirmar y el cambio queda en el historial con tu nombre.</p>':""}`:""}
  ${ro?'<p class="ro-note" style="margin-top:14px">Solo Compras puede modificar proveedores.</p>':""}`,
  ro?'<button class="btn" data-cerrar>Cerrar</button>':'<button class="btn" data-cerrar>Cancelar</button><button class="btn pri" id="p-ok">Guardar</button>');
  if(ro)return;
+ let fechaRut=d.fechaRut||"";
+ const poner=(sel,v)=>{const el=$(sel);if(!el||v==null||v==="")return false;if(el.value!==String(v)){el.value=v;el.dataset.r="ok"}return true};
+ const aplicarRut=r=>{const ok=[],no=[];const marca=(n,b)=>(b?ok:no).push(n);
+  if(!id)marca("NIT",poner("#p-nit",r.nit));else if(r.nit&&r.nit!==id)return mostrar(`<div class="sug"><b>Este RUT es de otro NIT (${esc(r.nit)}).</b> No se aplicó. Revisa que sea el del proveedor ${esc(d.nombre)}.</div>`);
+  marca("dígito de verificación",poner("#k-dv",r.dv));marca("razón social",poner("#p-nom",r.nombre));marca("tipo de persona",poner("#p-tipo",r.tipo));
+  for(const[k,l]of TRIB)marca(l.toLowerCase(),poner("#t-"+k,r[k]));
+  for(const[k,l]of CONTACTO.slice(1))marca(l.toLowerCase(),poner("#k-"+k,r[k]));
+  if(r.fecha)fechaRut=r.fecha;$("details.mas").open=true;
+  mostrar(`<div class="leido ok"><b>RUT leído${r.fecha?" (generado el "+esc(r.fecha)+")":""}.</b> Se llenaron: ${ok.join(", ")||"—"}.${no.length?` <span class="muted">No se encontró: ${no.join(", ")}.</span>`:""} Revisa los campos marcados en verde antes de guardar.</div>`)};
+ const mostrar=h=>{$("#leido").innerHTML=h};
+ const leer=async(input,fn)=>{const f=input.files[0];input.value="";if(!f)return;mostrar('<p class="muted small">Leyendo el PDF…</p>');
+  try{fn(await textoPDF(f))}catch(e){mostrar(`<div class="sug">${esc(e.message||"No se pudo leer el PDF.")}</div>`)}};
+ $("#rut-b").onclick=()=>$("#rut-f").click();
+ $("#rut-f").onchange=e=>leer(e.target,t=>{const r=leerRUT(t);
+  if(!id&&r.nit&&provs().has(r.nit)){toast("Ese proveedor ya existe; se abrió su ficha para actualizarlo.",5000);dlgProv(r.nit,{rut:r});return}aplicarRut(r)});
+ if($("#cert-b")){$("#cert-b").onclick=()=>$("#cert-f").click();
+  $("#cert-f").onchange=e=>leer(e.target,t=>{const r=leerCertificado(t,id||soloDig($("#p-nit").value));const ok=[];
+   if(poner("#c-num",r.numero))ok.push("número");if(poner("#c-banco",r.banco))ok.push("banco");if(poner("#c-tipo",r.tipo))ok.push("tipo de cuenta");
+   mostrar(`<div class="leido${r.numero?" ok":""}"><b>${r.numero?"Certificado leído.":"No encontré el número de cuenta."}</b> ${ok.length?"Se llenó: "+ok.join(", ")+".":"Escríbelo a mano."}
+    ${r.titularOk===false?'<br><b style="color:var(--bad)">Ojo: el NIT del proveedor no aparece en el certificado.</b> Verifica que la cuenta sea suya.':r.titularOk?" El certificado es del mismo NIT.":""}</div>`)})}
+ if(pre&&pre.rut)aplicarRut(pre.rut);
  $("#p-ok").onclick=e=>guardando(e.target,async()=>{
   const nit=id||soloDig($("#p-nit").value),nom=$("#p-nom").value.trim().replace(/\s+/g," ");
   if(!nit||nit.length<5)throw{message:"Escribe el NIT o la cédula (solo números)."};
   if(!nom)throw{message:"Escribe la razón social o el nombre."};
   if(!id&&provs().has(nit))throw{message:`Ese NIT ya existe: ${provs().get(nit).nombre}.`};
-  const nd={...d,nombre:nom.toUpperCase(),tipo:$("#p-tipo").value};const nota=$("#p-nota").value.trim();if(nota)nd.nota=nota;else delete nd.nota;
-  if(S.verCuentas){const num=$("#c-num").value.replace(/\s+/g,""),banco=$("#c-banco").value.trim(),tc=$("#c-tipo").value;
+  const dvTxt=$("#k-dv").value.trim();if(dvTxt&&dvTxt!==String(dvNit(nit)))throw{message:`El dígito de verificación no corresponde al NIT (debería ser ${dvNit(nit)}).`};
+  const nd={nombre:nom.toUpperCase(),tipo:$("#p-tipo").value};
+  const pon=(k,v)=>{v=String(v??"").trim();if(v)nd[k]=v};
+  for(const[k]of TRIB)pon(k,$("#t-"+k).value);for(const[k]of CONTACTO)pon(k,$("#k-"+k).value);
+  pon("nota",$("#p-nota").value);pon("fechaRut",fechaRut);
+  if(S.verCuentas){const num=$("#c-num").value.replace(/[\s.\-]+/g,""),banco=$("#c-banco").value.trim(),tc=$("#c-tipo").value;
+   if(num&&!/^\d{5,20}$/.test(num))throw{message:"El número de cuenta solo debe tener dígitos."};
    const nc={};if(num)nc.numero=num;if(banco)nc.banco=banco;if(tc)nc.tipoCuenta=tc;
    const prev={};if(c.numero)prev.numero=c.numero;if(c.banco)prev.banco=c.banco;if(c.tipoCuenta)prev.tipoCuenta=c.tipoCuenta;
    const cambio=JSON.stringify(nc)!==JSON.stringify(prev);
    if(cambio&&c.numero&&nc.numero!==c.numero&&!confirm(`Vas a cambiar la cuenta bancaria de ${nom}:\n\nAntes: ${c.numero}\nAhora: ${nc.numero||"(sin cuenta)"}\n\nVerifica con el certificado bancario del proveedor. ¿Guardar?`))return;
    if(cambio)await DB.set(COL.cta,nit,nc)}
-  await DB.set(COL.prov,nit,nd);dlg.close();toast(id?"Proveedor actualizado.":"Proveedor creado.");render()})}
+  if(JSON.stringify(nd)!==JSON.stringify(d)||!id)await DB.set(COL.prov,nit,nd);
+  dlg.close();toast(id?"Proveedor actualizado.":"Proveedor creado.");render()})}
+
+/* ---------- Lectura de PDF (RUT y certificado bancario) ---------- */
+let pdfP=null;
+const cargarPDF=()=>pdfP||(pdfP=new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+ s.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";res(window.pdfjsLib)};s.onerror=()=>{pdfP=null;rej({message:"No se pudo cargar el lector de PDF. Revisa la conexión."})};document.head.appendChild(s)}));
+async function textoPDF(file){if(file.size>15e6)throw{message:"El PDF es muy pesado (más de 15 MB)."};const L=await cargarPDF();
+ const doc=await L.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;let t="";
+ for(let i=1;i<=Math.min(doc.numPages,6);i++){const c=await(await doc.getPage(i)).getTextContent();for(const it of c.items)t+=it.str+(it.hasEOL?"\n":" ")}
+ t=t.replace(/[ \t]+/g," ");if(t.replace(/\s/g,"").length<40)throw{message:"Este PDF parece una foto o un escaneo y no tiene texto para leer. Pide el PDF original (descargado de la DIAN o del banco) o escribe los datos a mano."};return t}
+function dvNit(n){const w=[3,7,13,17,19,23,29,37,41,43,47,53,59,67,71];const d=String(n).split("").reverse();let s=0;d.forEach((x,i)=>s+=(+x)*w[i]);const r=s%11;return r>1?11-r:r}
+const junta=t=>t.replace(/\b\d(?: \d\b)+/g,m=>m.replace(/ /g,""));
+function leerRUT(t0){const t=junta(t0),N=norm(t),r={};
+ /* NIT: el primer número de 6 a 10 dígitos después de "(NIT)" cuyo dígito de verificación cuadra */
+ const ini=Math.max(0,t.search(/Tributaria\s*\(NIT\)/i));const cands=[...t.slice(ini).matchAll(/\b(\d{6,10})\b(?:\s*(\d)\b)?/g)];
+ for(const m of cands){if(m[2]!=null&&+m[2]===dvNit(m[1])){r.nit=m[1];r.dv=m[2];break}if(m[1].length===10&&+m[1][9]===dvNit(m[1].slice(0,9))){r.nit=m[1].slice(0,9);r.dv=m[1][9];break}}
+ const tras=(re,stop=/\s\d{2,3}\.\s|\n/)=>{const m=t.match(re);if(!m)return"";const rest=t.slice(m.index+m[0].length);const k=rest.search(stop);return(k<0?rest:rest.slice(0,k)).trim()};
+ let nom=tras(/35\.\s*Raz[oó]n social\s*/i);
+ if(!nom||/^\d|^36\./.test(nom)){const ap=[tras(/31\.\s*Primer apellido\s*/i),tras(/32\.\s*Segundo apellido\s*/i),tras(/33\.\s*Primer nombre\s*/i),tras(/34\.\s*Otros nombres\s*/i)].filter(x=>x&&!/^\d/.test(x));if(ap.length>=2)nom=ap.join(" ")}
+ if(nom&&!/^\d/.test(nom))r.nombre=nom.toUpperCase();
+ if(/persona jur[ií]dica/i.test(t))r.tipo="J";else if(/persona natural/i.test(t))r.tipo="N";
+ if(/regimen simple/.test(N))r.simple="si";
+ if(/autorretenedor/.test(N))r.autorret="si";
+ if(/gran contribuyente/.test(N))r.gran="si";
+ if(/no responsable de iva/.test(N))r.iva="no";else if(/impuesto sobre las ventas|ventas iva/.test(N))r.iva="si";
+ if(/renta y compl|regimen ordinario/.test(N))r.declarante="si";
+ if(r.simple!=="si")r.simple=r.simple||"no";if(!r.autorret)r.autorret="no";if(!r.gran)r.gran="no";
+ const act=t.match(/(?:46\.\s*C[oó]digo|Actividad principal)[^\d]{0,40}(\d{4})\b/i);if(act)r.actividad=act[1];
+ const mun=tras(/40\.\s*Ciudad\/?\s*Municipio\s*/i);if(mun&&!/^\d/.test(mun))r.municipio=mun.replace(/\s*\d+$/,"");
+ const dir=tras(/41\.\s*Direcci[oó]n principal\s*/i);if(dir)r.direccion=dir;
+ const mail=(t.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g)||[]).find(m=>!/dian\.gov\.co/i.test(m));if(mail)r.correo=mail.toLowerCase();
+ const tel=t.match(/44\.\s*Tel[eé]fono 1\s*(\d{7,10})/i)||t.match(/\b(3\d{9}|60\d{8})\b/);if(tel)r.telefono=tel[1];
+ const f=t.match(/Fecha generaci[oó]n documento PDF:?\s*(\d{2})[-/](\d{2})[-/](\d{4})/i);if(f)r.fecha=`${f[1]}/${f[2]}/${f[3]}`;
+ return r}
+function leerCertificado(t0,nit){const t=junta(t0),N=norm(t),r={};
+ for(const b of BANCOS){const k=norm(b).replace(/^banco /,"");if(k.length>2&&N.includes(k)){r.banco=b;break}}
+ if(/ahorro/.test(N))r.tipo="Ahorros";else if(/corriente/.test(N))r.tipo="Corriente";
+ const m=t.match(/(?:cuenta|cta\.?)\b[^0-9]{0,80}?(?:n[uú]mero|n[oº°.]+|#)?\s*:?\s*(\d[\d .\-]{4,24}\d)/i);
+ if(m){const num=m[1].replace(/[ .\-]/g,"");if(num!==nit&&num.length>=6&&num.length<=20)r.numero=num}
+ if(nit&&nit.length>=5)r.titularOk=soloDig(t).includes(nit)||t.replace(/[.\s-]/g,"").includes(nit);
+ return r}
 
 /* ---------- Carga de la base de proveedores desde Excel ---------- */
 let xlsxP=null;const cargarXLSX=()=>xlsxP||(xlsxP=new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=()=>res(window.XLSX);s.onerror=()=>{xlsxP=null;rej({message:"No se pudo cargar el lector de Excel. Revisa la conexión."})};document.head.appendChild(s)}));
