@@ -849,9 +849,13 @@ function adjBox(st,redraw){S.adjRedraw=redraw;const req=st.tipo==="tratamiento";
  else ctl=el("div",{class:"row",style:"margin-top:10px"},el("button",{class:"btn",type:"button",onclick:()=>pick(true)},"Tomar foto"),el("button",{class:"btn",type:"button",onclick:()=>pick(false)},"Subir foto o PDF"));
  return el("div",{class:"adj-box"+(req&&!st.adjuntos.length?" falta":"")},el("div",{style:"font-weight:600;font-size:.9rem;margin-bottom:8px",text:title}),st.adjuntos.length||st.subiendo?list:null,ctl,
   req?el("p",{class:"small muted",style:"margin:8px 0 0",text:"El original firmado queda físicamente en la finca; aquí queda la copia digital para consulta y auditoría."}):null)}
+/* Fotos: se reducen a máx. 1600 px y se bajan de calidad hasta quedar cerca de 250 KB (legibles para fórmulas e informes). */
 async function comprimir(f){let bmp;try{bmp=await createImageBitmap(f)}catch{if(["image/jpeg","image/png","image/webp"].includes(f.type))return{blob:f,type:f.type};throw{code:"decode"}}
- const s=Math.min(1,2000/Math.max(bmp.width,bmp.height));const c=document.createElement("canvas");c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
- const blob=await new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej({code:"decode"}),"image/jpeg",.82));return{blob,type:"image/jpeg"}}
+ const META=250*1024;const toJpg=(c,q)=>new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej({code:"decode"}),"image/jpeg",q));let blob=null;
+ for(const lado of [1600,1280]){const s=Math.min(1,lado/Math.max(bmp.width,bmp.height));const c=document.createElement("canvas");c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);
+  const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);g.drawImage(bmp,0,0,c.width,c.height);
+  for(const q of [.72,.6,.5]){blob=await toJpg(c,q);if(blob.size<=META)return{blob,type:"image/jpeg"}}}
+ return{blob,type:"image/jpeg"}}
 async function subir(files,st,redraw){if(!S.assets)return;for(const f of files.slice(0,6)){st.subiendo=(st.subiendo||0)+1;redraw();
   try{let blob=f,type=f.type,nombre=f.name||"archivo";
    if(type==="application/pdf"||/\.pdf$/i.test(nombre))type="application/pdf";
@@ -1293,7 +1297,7 @@ function route(){if(/access_token|error_description|type=recovery/.test(location
 window.addEventListener("hashchange",route);
 $("#mas").addEventListener("click",()=>$("#sheet").classList.add("open"));$("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet"||e.target.tagName==="A")$("#sheet").classList.remove("open")});
 $("#cambiarMod").addEventListener("click",()=>showModulos());
-$("#msalir").addEventListener("click",async()=>{if(OB.list.length&&!confirm(`Hay ${OB.list.length} registros sin enviar en este teléfono. Si cierras sesión se enviarán cuando vuelvas a entrar. ¿Cerrar sesión?`))return;await sb.auth.signOut();location.hash="";location.reload()});
+$("#msalir").addEventListener("click",async()=>{if(OB.list.length&&!confirm(`Hay ${OB.list.length} registros sin enviar en este teléfono. Si cierras sesión se enviarán cuando vuelvas a entrar. ¿Cerrar sesión?`))return;await sb.auth.signOut();IDB.borrar();location.hash="";location.reload()});
 $("#pend").addEventListener("click",async()=>{toast("Reintentando envío…");const ok=await flush();toast(ok?"Todo enviado.":"Aún sin conexión con el servidor; se seguirá intentando.")});
 let rz,lastW=window.innerWidth;window.addEventListener("resize",()=>{if(Math.abs(window.innerWidth-lastW)<40)return;lastW=window.innerWidth;clearTimeout(rz);rz=setTimeout(()=>{if(S.ready&&["lotes","comparar","temporadas"].includes(S.view)&&S.editLote==null)render()},250)});
 const QUIETAS=["diario","evento","ajustes","claude"];
@@ -1306,14 +1310,31 @@ const CONFIG={url:"https://fzqrckirrydtrshvnaxc.supabase.co",anonKey:"sb_publish
 let sb=null;
 const dbErr=e=>{const m=String(e?.message||e||"");const c=String(e?.code||"");
  return{code:c==="42501"||/row-level security|permission denied/i.test(m)?"not_granted":/jwt|token|auth/i.test(m)?"auth":/fetch|network|Failed|Load failed|timeout/i.test(m)?"unavailable":"upstream_error",message:m}};
-function makeDb(sb){const cols=new Map(),CK="sanidad:cache:",saveT={};
+/* Caché local en IndexedDB (cabe mucho más que localStorage). Se borra al cerrar sesión. */
+const IDB={p:null,open(){return this.p||(this.p=new Promise((res,rej)=>{const r=indexedDB.open("belmira",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))},
+ async get(k){try{const d=await this.open();return await new Promise((res,rej)=>{const q=d.transaction("kv").objectStore("kv").get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}catch{return null}},
+ async set(k,v){try{const d=await this.open();await new Promise((res,rej)=>{const t=d.transaction("kv","readwrite");t.objectStore("kv").put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error)})}catch{}},
+ borrar(){try{this.p=null;indexedDB.deleteDatabase("belmira")}catch{}try{for(const k of Object.keys(localStorage))if(k.startsWith("sanidad:cache:"))localStorage.removeItem(k)}catch{}}};
+function makeDb(sb){const cols=new Map(),CK="cache:",saveT={};
  const snapOf=(c,fromCache)=>({docs:[...c.docs].map(([id,data])=>({id,data:()=>data,exists:true})),metadata:{fromCache}});
- const saveCache=name=>{clearTimeout(saveT[name]);saveT[name]=setTimeout(()=>{try{localStorage.setItem(CK+name,JSON.stringify([...cols.get(name).docs]))}catch{}},2000)};
+ const saveCache=name=>{clearTimeout(saveT[name]);saveT[name]=setTimeout(()=>{const c=cols.get(name);IDB.set(CK+name,{u:S.me.id,t:c.t||null,docs:[...c.docs]})},2000)};
  const emit=(name,fromCache=false)=>{const c=cols.get(name);if(!c)return;for(const f of c.subs)try{f(snapOf(c,fromCache))}catch(e){console.error(e)}if(!fromCache)saveCache(name)};
- async function fetchAll(name){const out=[];for(let from=0;;from+=1000){const{data,error}=await sb.from("documentos").select("id,data").eq("coleccion",name).range(from,from+999);if(error)throw dbErr(error);out.push(...data);if(data.length<1000)break}return out}
- async function load(name){const c=cols.get(name);try{const rows=await withTimeout(fetchAll(name),25000);c.docs=new Map(rows.map(r=>[r.id,r.data]));c.loaded=true;emit(name,false)}
-  catch(e){if(c.loaded)return;let cached=null;try{cached=JSON.parse(localStorage.getItem(CK+name)||"null")}catch{}
-   if(cached){c.docs=new Map(cached);c.loaded=true;emit(name,true);if(!S.avisoOffline){S.avisoOffline=true;toast("Sin conexión: se muestran los últimos datos guardados en este teléfono.",6000)}setTimeout(()=>load(name),30000)}
+ /* Lecturas paginadas. "actualizado" lo pone la base de datos en cada cambio. */
+ async function pages(q){const out=[];for(let from=0;;from+=1000){const{data,error}=await q().range(from,from+999);if(error)throw dbErr(error);out.push(...data);if(data.length<1000)break}return out}
+ const fetchAll=name=>pages(()=>sb.from("documentos").select("id,data,actualizado").eq("coleccion",name));
+ const fetchSince=(name,t)=>pages(()=>sb.from("documentos").select("id,data,actualizado").eq("coleccion",name).gte("actualizado",t));
+ const fetchIds=name=>pages(()=>sb.from("documentos").select("id").eq("coleccion",name));
+ async function fetchByIds(name,ids){const out=[];for(let i=0;i<ids.length;i+=100){const{data,error}=await sb.from("documentos").select("id,data,actualizado").eq("coleccion",name).in("id",ids.slice(i,i+100));if(error)throw dbErr(error);out.push(...data)}return out}
+ const marca=(c,rows)=>{for(const r of rows)if(r.actualizado&&(!c.t||r.actualizado>c.t))c.t=r.actualizado};
+ /* Al abrir: muestra lo guardado en el teléfono y baja solo lo que cambió desde la última vez. */
+ async function load(name){const c=cols.get(name);
+  if(!c.loaded&&!c.cacheLeido){c.cacheLeido=true;const k=await IDB.get(CK+name);if(k&&k.u===S.me.id&&Array.isArray(k.docs)){c.docs=new Map(k.docs);c.t=k.t;c.loaded=true;emit(name,true)}}
+  try{if(c.t){const[ch,ids]=await withTimeout(Promise.all([fetchSince(name,c.t),fetchIds(name)]),25000);const vivos=new Set(ids.map(r=>r.id));
+    for(const k of [...c.docs.keys()])if(!vivos.has(k))c.docs.delete(k);for(const r of ch)c.docs.set(r.id,r.data);marca(c,ch);
+    const faltan=[...vivos].filter(i=>!c.docs.has(i));if(faltan.length){const fx=await withTimeout(fetchByIds(name,faltan),25000);for(const r of fx)c.docs.set(r.id,r.data);marca(c,fx)}}
+   else{const rows=await withTimeout(fetchAll(name),25000);c.docs=new Map(rows.map(r=>[r.id,r.data]));marca(c,rows)}
+   c.loaded=true;emit(name,false)}
+  catch(e){if(c.loaded){if(!S.avisoOffline){S.avisoOffline=true;toast("Sin conexión: se muestran los últimos datos guardados en este teléfono.",6000)}setTimeout(()=>load(name),30000)}
    else for(const f of c.errs)f(dbErr(e))}}
  function col(name){let c=cols.get(name);if(!c){c={docs:new Map(),subs:new Set(),errs:new Set(),loaded:false};cols.set(name,c);load(name)}return c}
  sb.channel("documentos").on("postgres_changes",{event:"*",schema:"public",table:"documentos"},p=>{const r=p.eventType==="DELETE"?p.old:p.new;const c=cols.get(r?.coleccion);if(!c)return;
@@ -1357,7 +1378,7 @@ function showLogin(modo,msg){const box=$("#lbody");box.textContent="";$("#login"
 function cuentaCard(){const nom=el("input",{value:S.me.name||""}),p1=el("input",{type:"password",autocomplete:"new-password",placeholder:"Nueva contraseña"});
  return card("Mi cuenta",el("p",{class:"small muted",style:"margin-top:-6px",text:`Entraste como ${S.me.email||""}${S.canWrite?"":" (solo lectura)"}.`}),
   el("div",{class:"fgrid"},el("label",{class:"f"},"Nombre que aparece en los registros",nom),el("label",{class:"f"},"Cambiar contraseña",p1)),
-  el("div",{class:"row",style:"margin-top:12px"},el("button",{class:"btn danger",onclick:async()=>{if(OB.list.length&&!confirm(`Hay ${OB.list.length} registros sin enviar en este teléfono. Si cierras sesión se enviarán cuando vuelvas a entrar. ¿Cerrar sesión?`))return;await sb.auth.signOut();location.hash="";location.reload()}},"Cerrar sesión"),el("span",{class:"spacer"}),
+  el("div",{class:"row",style:"margin-top:12px"},el("button",{class:"btn danger",onclick:async()=>{if(OB.list.length&&!confirm(`Hay ${OB.list.length} registros sin enviar en este teléfono. Si cierras sesión se enviarán cuando vuelvas a entrar. ¿Cerrar sesión?`))return;await sb.auth.signOut();IDB.borrar();location.hash="";location.reload()}},"Cerrar sesión"),el("span",{class:"spacer"}),
    el("button",{class:"btn pri",onclick:async()=>{const upd={};const n=nom.value.trim();if(n&&n!==S.me.name)upd.data={nombre:n};if(p1.value){if(!claveOk(p1.value))return toast(CLAVE_REGLA,6000);upd.password=p1.value}
     if(!Object.keys(upd).length)return toast("No hay cambios");const{error}=await sb.auth.updateUser(upd);if(error)return toast("No se pudo guardar: "+error.message,6000);if(upd.data){S.me.name=n;if(!LS.get("resp","")){S.resp=n}}p1.value="";toast("Cuenta actualizada")}},"Guardar")))}
 
