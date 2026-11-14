@@ -238,6 +238,9 @@ details.mas summary{color:var(--accent);font-weight:700;padding:8px 0;font-size:
 .who{font-size:.8rem;color:var(--ink-2);margin-left:auto;text-align:right;line-height:1.2}
 .who b{display:block;color:var(--ink);font-size:.86rem}
 .who+.modbtn{margin-left:8px}
+.bell{position:relative;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:99px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);cursor:pointer;margin-left:8px;flex:none}.bell[hidden]{display:none}.bell svg{width:20px;height:20px}
+.bell b{position:absolute;top:-6px;right:-7px;background:var(--bad);color:#fff;font-size:.7rem;font-weight:700;border-radius:99px;padding:1px 6px;line-height:1.45;min-width:20px;text-align:center}.bell+.modbtn{margin-left:8px}
+.pend-lista{padding-top:4px}
 .tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
 .tools .inp{flex:1 1 260px}
 .tools select.inp{flex:0 1 190px}
@@ -347,7 +350,7 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 .cot-l{margin:8px 0;padding-left:18px}.cot-l li{margin-bottom:6px}
 dialog.dlg.doc{width:min(900px,98vw);height:92vh}dialog.dlg.doc .doc-f{width:100%;height:calc(92vh - 60px);border:0;background:#fff}
 .hrow{margin-bottom:12px}
-@media (max-width:760px){.tools select.inp{flex:1 1 100%}.hrow h2{flex:1 1 100%}.hrow .spacer{display:none}.hrow .btn{flex:1}.modbtn{margin-left:auto!important}}
+@media (max-width:760px){.tools select.inp{flex:1 1 100%}.hrow h2{flex:1 1 100%}.hrow .spacer{display:none}.hrow .btn{flex:1}.modbtn{margin-left:auto!important}.bell:not([hidden]){margin-left:auto}.bell:not([hidden])+.modbtn{margin-left:8px!important}}
 </style>
 <script>try{const t=JSON.parse(localStorage.getItem("sanidad:tema"));if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
@@ -355,6 +358,7 @@ dialog.dlg.doc{width:min(900px,98vw);height:92vh}dialog.dlg.doc .doc-f{width:100
 <header class="top"><div class="top-in">
   <h1><span class="logo-wrap"><img class="logo logo-claro" src="logo.svg" alt="Truchas Belmira" width="628" height="203"><img class="logo logo-oscuro" src="logo-blanco.svg" alt="" aria-hidden="true" width="628" height="203"></span><span class="app-t">Compras</span></h1>
   <div class="who" id="who"></div>
+  <button type="button" class="bell" id="bell" hidden aria-label="Tus pendientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><b id="bell-n"></b></button>
   <a class="modbtn" href="index.html" title="Cambiar de módulo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Módulos</span></a>
   <nav class="desk" id="navd" aria-label="Secciones"></nav>
 </div></header>
@@ -441,7 +445,7 @@ const vistas=()=>VISTAS.filter(v=>!v.solo||S.gestion);
 function pintarNav(){const V=vistas();$("#navm").style.gridTemplateColumns=`repeat(${V.length},1fr)`;
  $("#navd").innerHTML=V.map(v=>`<a href="#${v.id}"${S.vista===v.id?' aria-current="page"':""}>${v.t}</a>`).join("");
  $("#navm").innerHTML=V.map(v=>`<a href="#${v.id}"${S.vista===v.id?' aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">${v.ic}</svg>${v.tm||v.t}</a>`).join("")}
-function ir(){if(dlg.open)dlg.close();let h=location.hash.slice(1);if(/^ORD-\d+$/.test(h)){S.abrir=h;history.replaceState(null,"","#inicio");h="inicio"}S.vista=vistas().some(v=>v.id===h)?h:"inicio";pintarNav();render();window.scrollTo(0,0)}
+function ir(){if(dlg.open)dlg.close();let h=location.hash.slice(1);if(/^ORD-\d+$/.test(h)){S.abrir=h;history.replaceState(null,"","#inicio");h="inicio"}if(h==="pendientes"){S.verPend=true;history.replaceState(null,"","#inicio");h="inicio"}S.vista=vistas().some(v=>v.id===h)?h:"inicio";pintarNav();render();window.scrollTo(0,0)}
 window.addEventListener("hashchange",ir);
 
 /* ---------- Datos derivados ---------- */
@@ -466,7 +470,15 @@ function render(){const v=$("#view");
  else if(S.vista==="correcciones")v.innerHTML=vCorr();
  else if(S.vista==="evaluacion")v.innerHTML=vEval();
  else v.innerHTML=vCentros();
- enlazar()}
+ enlazar();campana()}
+/* Aviso de pendientes: campana en el encabezado, número en la pestaña y en el ícono de la app (si el teléfono lo permite) */
+function campana(){const b=$("#bell");if(!b||!DB||!DB.listo(COL.ord))return;const P=pendientes().mios,n=P.length;
+ b.hidden=!n;$("#bell-n").textContent=n>99?"99+":String(n);b.title=n?`Tienes ${n} pendiente${n>1?"s":""}`:"";
+ document.title=(n?`(${n}) `:"")+"Belmira · Compras";try{n?navigator.setAppBadge?.(n):navigator.clearAppBadge?.()}catch(e){}
+ if(S.verPend){S.verPend=false;verPendientes()}}
+function verPendientes(){const P=pendientes().mios;if(!P.length)return;if(P.length===1){dlgOrden(P[0][0]);return}
+ const d=$("#dlg2");d.innerHTML=`<div class="dlg-h"><h3>Tus pendientes (${P.length})</h3></div><div class="dlg-b pend-lista">${P.map(([id,t])=>{const o=ords().get(id);return`<button class="pend-it" data-pend="${id}"><b>${id}</b><span>${esc(t)}</span><span class="muted small">${esc(quien(o))} · ${esc(ccNom(o.cc))}</span></button>`}).join("")}</div><div class="dlg-f"><button class="btn" id="pl-c">Cerrar</button></div>`;
+ $("#pl-c").onclick=()=>d.close();d.querySelectorAll("[data-pend]").forEach(x=>x.onclick=()=>{d.close();dlgOrden(x.dataset.pend)});d.showModal()}
 function vInicio(){const np=provs().size,na=[...arts().values()].filter(d=>!d.unido).length,nc=centros().filter(c=>c.activo!==false).length;
  return`<div class="stack">
  <div class="panel"><h2 style="color:var(--brand)">Pedidos</h2>
@@ -532,6 +544,8 @@ const EST={ "por-aprobar":["Por aprobar","warn",1],"rechazado":["Rechazado","bad
  "con-novedad":["Con novedad","bad",8],"recibido":["Recibido","ok",9],"novedad-resuelta":["Novedad resuelta","ok",9],"cerrado":["Cerrado","",10],"anulado":["Anulado","",11]};
 const TOPE_GERENCIA=1000000;
 const TIPODOC=["Factura electrónica","Cuenta de cobro","Documento soporte"];
+/* Documento de compra: OC de World Office o cotización del proveedor (Laura usa uno u otro). Se guarda en it.oc; it.ocTipo="cot" si es cotización. */
+const docCompra=it=>it.oc?(it.ocTipo==="cot"?"Cotización ":"OC ")+it.oc:"";
 const ME=()=>String(S.me.email||"").toLowerCase();
 const persona=e=>S.equipo.get(e)?.nombre||e||"—";
 const quien=o=>o.sol?persona(o.sol):(o.solNom||"—");
@@ -570,7 +584,7 @@ function pendientes(){const me=ME(),L=[],C=[];
   if(e==="por-aprobar"&&o.jefe===me)L.push([id,"Aprobar el pedido"]);
   if(e==="por-aprobar-gerencia"&&S.rol==="admin")L.push([id,"Aprobar el gasto (más de $1.000.000)"]);
   if(S.rol==="admin"&&activos(o).some(i=>i.cambio?.estado==="pendiente"))L.push([id,"Aprobar cambio de precio"]);
-  if(S.gestion){if(e==="aprobado")C.push([id,"Cotizar"]);else if(e==="en-cotizacion")C.push([id,"Terminar cotización"]);else if(e==="cotizado")C.push([id,"Comprar: escribir la OC"]);else if(e==="con-novedad")C.push([id,"Resolver la novedad"]);
+  if(S.gestion){if(e==="aprobado")C.push([id,"Cotizar"]);else if(e==="en-cotizacion")C.push([id,"Terminar cotización"]);else if(e==="cotizado")C.push([id,"Comprar: OC o cotización"]);else if(e==="con-novedad")C.push([id,"Resolver la novedad"]);
    if(["comprado","despachado","recibido","novedad-resuelta"].includes(e)&&factura(o)!=="ok")C.push([id,"Registrar factura"]);
    if(!["anulado","rechazado","por-aprobar"].includes(e)&&["pend","parcial"].includes(pago(o))&&["comprado","despachado","recibido","novedad-resuelta","cerrado","con-novedad"].includes(e))C.push([id,"Pago pendiente"])}
   if(o.sol===me&&["comprado","despachado"].includes(e))L.push([id,"Confirmar que llegó"]);
@@ -596,7 +610,7 @@ function vPedidos(){const w=cargando(COL.ord,COL.art,COL.cfg,COL.prov);if(w)retu
  ${PC.length?`<div class="panel bandeja eq"><button class="eq-t" data-acc="ver-pc" aria-expanded="${!!S.verPC}"><span><b>Compras (Laura) tiene ${fmtN(PC.length)} pendiente${PC.length>1?"s":""}</b>${(n=>n?` · <span style="color:var(--bad)">${n} novedad${n>1?"es":""} sin resolver</span>`:"")(PC.filter(x=>x[1]==="Resolver la novedad").length)}</span><span class="muted small">${S.verPC?"Ocultar":"Ver"}</span></button>
   ${S.verPC?PC.slice(0,40).map(([id,t])=>`<button class="pend-it" data-ord="${id}"><b>${id}</b><span>${esc(t)}</span><span class="muted small">${esc(quien(ords().get(id)))} · ${esc(ccNom(ords().get(id).cc))}</span></button>`).join("")+(PC.length>40?`<p class="muted small">y ${PC.length-40} más en la lista.</p>`:""):""}</div>`:""}
  <div class="filtros">${FILTROS.map(([k,t])=>`<button class="fbtn${f.est===k?" on":""}" data-fest="${k}">${t} <b>${cnt(k)}</b></button>`).join("")}</div>
- <div class="tools"><input class="inp" type="search" id="qord" placeholder="Número, artículo, proveedor, OC, factura…" value="${esc(f.q)}" aria-label="Buscar pedido">
+ <div class="tools"><input class="inp" type="search" id="qord" placeholder="Número, artículo, proveedor, OC o cotización, factura…" value="${esc(f.q)}" aria-label="Buscar pedido">
   <select class="inp" id="ford-cc" aria-label="Centro de costos"><option value="">Todos los centros</option>${centros().map(c=>`<option value="${c.id}"${f.cc===c.id?" selected":""}>${esc(c.nombre)}</option>`).join("")}</select>
   ${provsUsados.length?`<select class="inp" id="ford-prov" aria-label="Proveedor"><option value="">Todos los proveedores</option>${provsUsados.map(([n,t])=>`<option value="${n}"${f.prov===n?" selected":""}>${esc(t)}</option>`).join("")}</select>`:""}</div>
  <p class="count">${fmtN(total)} pedido${total===1?"":"s"}${S.gestion||S.me.app_metadata?.ver_todo||S.rol==="admin"?"":" (los tuyos y los que te toca aprobar)"}</p>
@@ -639,7 +653,7 @@ function leerCotizacion(t,o){const r={items:[]};const N=t.replace(/\$\s*/g,"");
 /* ---------- Orden de pedido al proveedor (documento para enviar) ---------- */
 function docProveedor(id,o,nit){const E=empresa(),p=provs().get(nit)||{nombre:nit},its=activos(o).filter(i=>i.prov===nit);
  const k=[...new Set(activos(o).map(i=>i.prov).filter(Boolean))].indexOf(nit);const num=id+(k>0?"-"+String.fromCharCode(65+k):"");
- const cc=centros().find(c=>c.id===o.cc)||{};const cots=[...new Set(its.map(i=>i.cot).filter(Boolean))],ocs=[...new Set(its.map(i=>i.oc).filter(Boolean))];
+ const cc=centros().find(c=>c.id===o.cc)||{};const cots=[...new Set(its.map(i=>i.cot).filter(Boolean))],ocs=[...new Set(its.filter(i=>i.ocTipo!=="cot").map(i=>i.oc).filter(Boolean))],cotC=[...new Set(its.filter(i=>i.ocTipo==="cot").map(i=>i.oc).filter(Boolean))];
  let sub=0,iva=0;const filas=its.map(it=>{const a=it.art?arts().get(it.art):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad;const fac=up?a.factor:1;
   const q=+(it.cant*fac).toFixed(3),u=up?a.unidadPrecio:it.u,pu=(+it.precio||0)/fac,st=q*pu,iv=st*(+it.iva||0)/100;sub+=st;iva+=iv;
   return`<tr><td>${esc(artNom(it))}${it.nota?`<br><small>${esc(it.nota)}</small>`:""}${up?`<br><small>Pedido: ${fmtN(it.cant)} ${esc(it.u)}</small>`:""}</td><td class="n">${fmtN(q)}</td><td>${esc(u)}</td><td class="n">${"$"+new Intl.NumberFormat("es-CO",{maximumFractionDigits:2}).format(pu)}</td><td class="n">${it.iva||0} %</td><td class="n">${peso(st+iv)}</td></tr>`}).join("");
@@ -651,7 +665,7 @@ function docProveedor(id,o,nit){const E=empresa(),p=provs().get(nit)||{nombre:ni
  .box div{background:#F4F6F3;border-radius:6px;padding:10px}.tot{margin-left:auto;width:280px;margin-top:10px}.tot td{border:0;padding:3px 8px}.tot tr:last-child td{font-weight:700;font-size:15px;border-top:2px solid #2D4E7F}
  .pie{margin-top:24px;font-size:11px;color:#5A6A70}.no{margin-top:16px}@media print{.no{display:none}body{margin:12mm}}</style></head><body>
  <div class="top"><div><img src="${lg}" alt="Truchas Belmira"><div style="margin-top:6px"><b>${esc(E.nombre)}</b> · NIT ${esc(E.nit)}${E.direccion?"<br>"+esc(E.direccion):""}${E.telefono?" · Tel. "+esc(E.telefono):""}${E.correo?"<br>"+esc(E.correo):""}</div></div>
- <div style="text-align:right"><h1>ORDEN DE PEDIDO</h1><b style="font-size:16px">${esc(num)}</b><br>Fecha: ${fecha(hoy())}${ocs.length?"<br>OC World Office: "+esc(ocs.join(", ")):""}${cots.length?"<br>Su cotización: <b>"+esc(cots.join(", "))+"</b>":""}</div></div>
+ <div style="text-align:right"><h1>ORDEN DE PEDIDO</h1><b style="font-size:16px">${esc(num)}</b><br>Fecha: ${fecha(hoy())}${ocs.length?"<br>OC World Office: "+esc(ocs.join(", ")):""}${(cotC.length||cots.length)?"<br>Su cotización: <b>"+esc([...new Set([...cotC,...cots])].join(", "))+"</b>":""}</div></div>
  <div class="box"><div><b>Proveedor</b><br>${esc(p.nombre)}<br>NIT ${esc(nit)}${p.dv?"-"+esc(p.dv):""}${p.direccion?"<br>"+esc(p.direccion):""}${p.municipio?" · "+esc(p.municipio):""}${p.telefono?"<br>Tel. "+esc(p.telefono):""}${p.correo?"<br>"+esc(p.correo):""}</div>
  <div><b>Entregar en</b><br>${esc(cc.nombre||ccNom(o.cc))}${cc.direccion?"<br>"+esc(cc.direccion):""}<br>Solicitó: ${esc(quien(o))}${o.nota?"<br><small>"+esc(o.nota)+"</small>":""}</div></div>
  <table><thead><tr><th>Artículo</th><th class="n">Cantidad</th><th>Unidad</th><th class="n">Precio unitario sin IVA</th><th class="n">IVA</th><th class="n">Total</th></tr></thead><tbody>${filas}</tbody></table>
@@ -817,19 +831,20 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
    ${it.anulado?'<span class="chip">Anulado</span>':it.rec?(it.rec.estado==="ok"?'<span class="chip ok">Recibido</span>':`<span class="chip bad">Novedad</span>`):""}</div>
   ${G&&!it.anulado&&EST[e][2]>=2&&e!=="anulado"?`<div class="fgrid oi-f">
    ${!it.art?`<label class="f wide">Artículo del catálogo<input class="inp" data-i="${i}" data-k="artTxt" list="arts-l2" placeholder="Elige uno existente o créalo en Artículos"><span class="hint">Pedido como: ${esc(it.txt)}</span></label>`:""}
-   ${lk?`<p class="lock wide">🔒 Precio aprobado${it.oc?" (OC "+esc(it.oc)+")":" por Gerencia"}: proveedor, precio e IVA ya no se editan.${it.cambio?.estado==="pendiente"?"":` <button type="button" class="linkbtn" data-cambio="${i}">Solicitar cambio de precio</button>`}</p>`:`<div class="wide row" style="gap:8px"><button type="button" class="btn sm" data-comp="${i}">Comparar cotizaciones${nc?` (${nc})`:""}</button></div>`}
+   ${lk?`<p class="lock wide">🔒 Precio aprobado${it.oc?" ("+esc(docCompra(it))+")":" por Gerencia"}: proveedor, precio e IVA ya no se editan.${it.cambio?.estado==="pendiente"?"":` <button type="button" class="linkbtn" data-cambio="${i}">Solicitar cambio de precio</button>`}</p>`:`<div class="wide row" style="gap:8px"><button type="button" class="btn sm" data-comp="${i}">Comparar cotizaciones${nc?` (${nc})`:""}</button></div>`}
    <label class="f wide">Proveedor<input class="inp" data-i="${i}" data-k="provTxt" list="provs-l" value="${esc(pr?pr.nombre+" · "+it.prov:"")}" placeholder="Busca por nombre o NIT"${dl}></label>
    <label class="f">Cotización<input class="inp" data-i="${i}" data-k="cot" value="${esc(it.cot||"")}" placeholder="ctz…"></label>
    <label class="f">Precio sin IVA por ${esc(up||it.u)}<input class="inp" data-i="${i}" data-k="pUni" type="number" min="0" step="any" value="${+it.precio>0?+(it.precio/(up?fac:1)).toFixed(2):""}"${dl}>${up?`<span class="hint">1 ${esc(it.u)} = ${fmtN(fac)} ${esc(up)}</span>`:""}</label>
    <label class="f">IVA<select class="inp" data-i="${i}" data-k="iva"${dl}>${[0,5,19].map(v=>`<option value="${v}"${(+it.iva||0)===v?" selected":""}>${v} %</option>`).join("")}</select></label>
    <label class="f">o total con IVA<input class="inp" data-i="${i}" data-k="tot" type="number" min="0" step="any" placeholder="Calcula el precio"${dl}></label>
-   <label class="f">OC World Office<input class="inp" data-i="${i}" data-k="oc" value="${esc(it.oc||"")}"></label>
+   <label class="f">Documento de compra<select class="inp" data-i="${i}" data-k="ocTipo"${lk&&it.oc?" disabled":""}><option value="">OC World Office</option><option value="cot"${it.ocTipo==="cot"?" selected":""}>Cotización del proveedor</option></select></label>
+   <label class="f">${it.ocTipo==="cot"?"N.º de cotización":"N.º de OC"}<input class="inp" data-i="${i}" data-k="oc" value="${esc(it.oc||"")}"></label>
    <label class="f">Remisión<input class="inp" data-i="${i}" data-k="rem" value="${esc(it.rem||"")}"></label>
    <label class="f">Documento<select class="inp" data-i="${i}" data-k="facTipo">${TIPODOC.map(t=>`<option${(it.facTipo||TIPODOC[0])===t?" selected":""}>${t}</option>`).join("")}</select></label>
    <label class="f">Número de factura<input class="inp" data-i="${i}" data-k="fac" value="${esc(it.fac||"")}" placeholder="FE-…"></label>
    ${it.rec?.estado==="nov"?`<label class="f wide">Solución de la novedad<select class="inp" data-i="${i}" data-k="solTipo"><option value="">Sin resolver</option>${["Reenvío","Nota crédito","Devolución","Se acepta así"].map(t=>`<option${it.sol?.tipo===t?" selected":""}>${t}</option>`).join("")}</select><input class="inp" data-i="${i}" data-k="solTxt" value="${esc(it.sol?.txt||"")}" placeholder="Detalle de la solución" style="margin-top:6px"></label>`:""}
   </div>`:`<dl class="oi-d">${pr?`<dt>Proveedor</dt><dd>${esc(pr.nombre)}</dd>`:""}${it.cot?`<dt>Cotización</dt><dd>${esc(it.cot)}</dd>`:""}${+it.precio>0?`<dt>Precio</dt><dd>${peso(it.precio)} + IVA ${it.iva||0} % por ${esc(it.u)}</dd>`:""}
-   ${it.oc?`<dt>OC</dt><dd>${esc(it.oc)}</dd>`:""}${it.rem?`<dt>Remisión</dt><dd>${esc(it.rem)}</dd>`:""}${it.fac?`<dt>${esc(it.facTipo||"Factura")}</dt><dd>${esc(it.fac)}</dd>`:""}${it.sol?`<dt>Solución</dt><dd>${esc(it.sol.tipo)}${it.sol.txt?": "+esc(it.sol.txt):""}</dd>`:""}</dl>`}
+   ${it.oc?`<dt>${it.ocTipo==="cot"?"Cotización (compra)":"OC"}</dt><dd>${esc(it.oc)}</dd>`:""}${it.rem?`<dt>Remisión</dt><dd>${esc(it.rem)}</dd>`:""}${it.fac?`<dt>${esc(it.facTipo||"Factura")}</dt><dd>${esc(it.fac)}</dd>`:""}${it.sol?`<dt>Solución</dt><dd>${esc(it.sol.tipo)}${it.sol.txt?": "+esc(it.sol.txt):""}</dd>`:""}</dl>`}
   ${it.rec?`<p class="small muted" style="margin:6px 0 0">Recepción ${fecha(it.rec.fecha)} por ${esc(persona(it.rec.por))}${it.rec.estado==="nov"?`: <b style="color:var(--bad)">${esc(it.rec.nota||"")}</b>`:": completo."}</p>`:""}
   ${dueno&&!it.anulado&&!it.rec&&it.oc?`<div class="row" style="margin-top:8px"><button class="btn sm" data-rec="${i}" data-v="ok">Llegó completo</button><button class="btn sm danger" data-rec="${i}" data-v="nov">Llegó con novedad</button></div>`:""}
   ${(G||puedeEditarPedido)&&!it.anulado&&!it.oc&&activos(o).length>1?`<button class="linkbtn small" data-anit="${i}">Quitar este artículo</button>`:""}</div>`};
@@ -874,6 +889,7 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
    const at=lk?null:val(i,"artTxt");if(at){const c=(at.match(/·\s*(A\d+)\s*$/)||[])[1];if(!c||!arts().has(c))throw{message:`Artículo ${i+1}: elige un artículo del catálogo.`};it.art=c;delete it.txt}
    const a=it.art?arts().get(it.art):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad,fac=a?.factor||1;
    const ocAntes=it.oc;for(const k of["cot","oc","rem","fac"]){const v=val(i,k);if(v)it[k]=v;else if(!(lk&&k==="oc"))delete it[k]}
+   if(!(lk&&ocAntes)){const ot=val(i,"ocTipo");if(ot==="cot")it.ocTipo="cot";else if(ot!==null)delete it.ocTipo}
    if(it.oc&&!ocAntes){it.ocFecha=hoy();if(it.art&&!ultimoPrecio(it.art,id)&&(it.cots||[]).length<3&&!it.sin3)sin3.push(i)}
    if(!lk){const pu=+String(val(i,"pUni")||"").replace(",",".");if(pu>0){const p=up?pu*fac:pu;
     const ult=ultimoPrecio(it.art,id);
@@ -885,7 +901,7 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
   for(const i of sin3){const m=await pedir(`${artNom(n.items[i])}: artículo nuevo con menos de 3 cotizaciones`,"El procedimiento pide 3 cotizaciones para lo nuevo. ¿Por qué se compra así? (queda registrado)");if(!m)return false;n.items[i].sin3={motivo:m,por:me,fecha:hoy()}}
   if(alzas.length){const dec=await decidirAlzas(alzas,n);if(!dec)return false;
    for(const a of alzas){const it=n.items[a.i];if(dec[a.i]==="ok")it.alza={ant:+a.ant.toFixed(2),nuevo:+a.nuevo.toFixed(2),pct:+a.pct.toFixed(1),de:a.de,por:me,fecha:hoy()};else{delete it.precio;delete it.alza;it.recotizar={fecha:hoy(),por:me,ant:+a.ant.toFixed(2),cot:it.cot||""};delete it.cot}}}
-  if(totOrden(n)>=TOPE_GERENCIA&&!n.ger?.ok&&n.items.some(it=>!it.anulado&&it.oc&&!o0.items[n.items.indexOf(it)]?.oc))throw{message:"Este pedido pasa de $1.000.000: Gerencia debe aprobar el gasto antes de escribir la OC."};
+  if(totOrden(n)>=TOPE_GERENCIA&&!n.ger?.ok&&n.items.some(it=>!it.anulado&&it.oc&&!o0.items[n.items.indexOf(it)]?.oc))throw{message:"Este pedido pasa de $1.000.000: Gerencia debe aprobar el gasto antes de comprar (OC o cotización)."};
   const P={...(n.pagos||{})};dlg.querySelectorAll("[data-pago]").forEach(x=>{const nit=x.dataset.pago;P[nit]=P[nit]||{};if(x.value)P[nit][x.dataset.k]=x.value;else delete P[nit][x.dataset.k]});
   for(const k of Object.keys(P))if(!P[k].estado||P[k].estado==="pend"&&!P[k].comp&&!P[k].fecha)delete P[k];if(Object.keys(P).length)n.pagos=P;else delete n.pagos},"Pedido actualizado.");
   if(avisos.length)setTimeout(()=>toast("Ojo: "+avisos.join("; "),8000),300)});
@@ -893,6 +909,8 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
  dlg.querySelectorAll("[data-comp]").forEach(b=>b.onclick=async()=>{const i=+b.dataset.comp,r=await comparar(o.items[i],o,id);if(!r)return;cotsPend[i]=r.cots;const c=r.cots[r.eleg];
   const q=(k,v)=>{const el=dlg.querySelector(`[data-i="${i}"][data-k="${k}"]`);if(el&&v!=null&&v!==""){el.value=v;el.dataset.r="ok"}};
   q("provTxt",(provs().get(c.prov)?.nombre||c.prov)+" · "+c.prov);q("pUni",c.pu);q("iva",c.iva);q("cot",c.cot);b.textContent=`Comparar cotizaciones (${r.cots.length})`;toast("Cotización elegida. Pulsa Guardar.",4000)});
+ dlg.querySelectorAll('[data-k="ocTipo"]').forEach(sel=>sel.onchange=()=>{const i=sel.dataset.i,n=dlg.querySelector(`[data-i="${i}"][data-k="oc"]`),c=dlg.querySelector(`[data-i="${i}"][data-k="cot"]`);
+  n.closest("label").firstChild.textContent=sel.value==="cot"?"N.º de cotización":"N.º de OC";if(sel.value==="cot"&&!n.value&&c?.value)n.value=c.value;n.focus()});
  dlg.querySelectorAll("[data-cambio]").forEach(b=>b.onclick=async()=>{const i=+b.dataset.cambio,it=o.items[i],a=it.art?arts().get(it.art):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad,fac=up?a.factor:1;
   const r=await pedirPrecio(`Cambiar precio: ${artNom(it)}`,`Nuevo precio sin IVA por ${up?a.unidadPrecio:it.u}`,+(it.precio/fac).toFixed(2));if(!r)return;
   guardando(b,()=>guardar(n=>{n.items[i].cambio={ant:+n.items[i].precio,nuevo:+(r.precio*fac).toFixed(4),motivo:r.motivo,por:me,fecha:hoy(),estado:"pendiente"}},"Cambio enviado a Gerencia para aprobación."))});
@@ -1195,7 +1213,7 @@ async function ccActivo(i){const L=centros().map(c=>({...c}));const c=L[i];if(c.
 
 /* ---------- Inicio ---------- */
 function rolDe(u){const am=u?.app_metadata||{};return am.rol==="admin"?"admin":(am.modulos&&am.modulos.compras)||""}
-async function init(){
+async function init(){$("#bell").onclick=verPendientes;
  if(!window.supabase){$("#view").innerHTML='<div class="panel empty">No se pudo cargar la conexión. Revisa la señal y recarga la página.</div>';return}
  const sb=supabase.createClient(CONFIG.url,CONFIG.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
  const{data}=await sb.auth.getSession();
