@@ -329,6 +329,14 @@ dialog.dlg.chico{width:min(460px,94vw);height:auto;max-height:90vh}
 .it-row:first-child{border-top:0}.it-row .it-msg{grid-column:1/-1;margin-top:-4px}.it-row .x{margin-bottom:4px}
 @media (max-width:760px){.it-row{grid-template-columns:1fr 1fr 36px}.it-row .a,.it-row .n{grid-column:1/-1}.it-row .x{grid-row:1;grid-column:3}.it-row .a{grid-column:1/3}}
 .warn-t{color:var(--warn);font-weight:600}
+.lock{margin:0;padding:8px 10px;border-radius:8px;background:var(--soft,rgba(0,0,0,.04));font-size:.85rem}.lock .linkbtn{margin-left:4px}
+.cambio-ap{display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%;padding:8px 0;border-bottom:1px solid var(--line)}.cambio-ap span{flex:1 1 260px;min-width:0}
+.cmp{display:grid;grid-template-columns:auto 2fr 1fr 1fr .7fr;gap:8px;align-items:end;padding:10px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px}.cmp.min{border-color:var(--ok,#2e7d32);box-shadow:inset 3px 0 0 var(--ok,#2e7d32)}
+.cmp>*{min-width:0}.cmp .inp{width:100%}.inp:disabled{background:var(--soft,rgba(0,0,0,.05));color:var(--muted,#666);cursor:not-allowed;opacity:1}
+.cmp-e{display:inline-flex;gap:6px;align-items:center;padding-bottom:10px;white-space:nowrap}.cmp-t{grid-column:2/-1}
+@media(max-width:700px){.cmp{grid-template-columns:1fr 1fr}.cmp-e,.cmp .f:nth-child(2),.cmp-t{grid-column:1/-1}.cmp-e{padding-bottom:0}}
+.crit{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--line)}.crit>span{flex:1 1 220px;min-width:0}.pts{gap:10px}
+.ev-res{margin:12px 0}.tabs{display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap}.tab{border:1px solid var(--line);background:none;border-radius:999px;padding:6px 14px;cursor:pointer;color:inherit;font:inherit}.tab.on{background:var(--brand);border-color:var(--brand);color:#fff}
 .alza{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:10px}.seg2{display:flex;gap:14px;flex-wrap:wrap}.seg2 label{display:inline-flex;gap:6px;align-items:center;font-weight:600}
 .oi-t .chip{margin-top:4px;white-space:normal}
 a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center;color:inherit}a.btn.pri{color:var(--brand-ink)}
@@ -366,7 +374,7 @@ const soloDig=s=>String(s??"").replace(/\D/g,"");
 const fmtN=n=>new Intl.NumberFormat("es-CO").format(n);
 function toast(m,ms=3400){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display="none",ms)}
 const S={equipo:new Map(),me:null,rol:"",gestion:false,verCuentas:false,vista:"inicio",q:{prov:"",art:""},filtro:{prov:"",art:""},lim:{prov:100,art:100}};
-const COL={prov:"compras_proveedores",cta:"compras_cuentas",art:"compras_articulos",cfg:"compras_config",ord:"compras_ordenes"};
+const COL={prov:"compras_proveedores",cta:"compras_cuentas",art:"compras_articulos",cfg:"compras_config",ord:"compras_ordenes",eva:"compras_evaluaciones"};
 const TIPOS={J:"Jurídica",N:"Natural"};
 const UNIDADES=["unidad","kg","g","bulto","litro","galón","garrafa","caneca","caja","paquete","rollo","metro","par","juego","servicio"];
 const ROLN={admin:"Administrador",compras:"Gestión de compras",aprobador:"Aprueba",solicitante:"Solicita"};
@@ -426,6 +434,7 @@ const VISTAS=[
  {id:"proveedores",t:"Proveedores",ic:'<path d="M3 21h18M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/>'},
  {id:"articulos",t:"Artículos",ic:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/>'},
  {id:"centros",t:"Centros de costos",tm:"Centros",ic:'<circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/>'},
+ {id:"evaluacion",t:"Evaluación",ic:'<path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/>',solo:"gestion"},
  {id:"correcciones",t:"Correcciones",ic:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/>',solo:"gestion"}];
 const vistas=()=>VISTAS.filter(v=>!v.solo||S.gestion);
 function pintarNav(){const V=vistas();$("#navm").style.gridTemplateColumns=`repeat(${V.length},1fr)`;
@@ -454,6 +463,7 @@ function render(){const v=$("#view");
  else if(S.vista==="proveedores")v.innerHTML=vProv();
  else if(S.vista==="articulos")v.innerHTML=vArt();
  else if(S.vista==="correcciones")v.innerHTML=vCorr();
+ else if(S.vista==="evaluacion")v.innerHTML=vEval();
  else v.innerHTML=vCentros();
  enlazar()}
 function vInicio(){const np=provs().size,na=[...arts().values()].filter(d=>!d.unido).length,nc=centros().filter(c=>c.activo!==false).length;
@@ -479,7 +489,7 @@ function vProv(){const w=cargando(COL.prov,...(S.verCuentas?[COL.cta]:[]));if(w)
   ${S.verCuentas?`<option value="ccta"${f==="ccta"?" selected":""}>Con cuenta bancaria</option><option value="scta"${f==="scta"?" selected":""}>Sin cuenta bancaria</option>`:""}</select></div>
  <p class="count">${fmtN(total)} de ${fmtN(provs().size)} proveedores</p>
  ${total?`<div class="panel scroll lista" style="padding:0"><table><thead><tr><th>NIT o cédula</th><th>Razón social</th><th>Tipo</th>${S.verCuentas?"<th>Cuenta bancaria</th>":""}</tr></thead><tbody>
- ${rows.map(([id,d])=>`<tr data-prov="${esc(id)}"><td class="mono">${esc(id)}</td><td>${esc(d.nombre)}${d.nota?`<span class="sub">${esc(d.nota)}</span>`:""}</td><td>${d.tipo?TIPOS[d.tipo]:'<span class="chip warn">Sin tipo</span>'}</td>${S.verCuentas?`<td class="mono">${cta(id)}</td>`:""}</tr>`).join("")}
+ ${rows.map(([id,d])=>`<tr data-prov="${esc(id)}"><td class="mono">${esc(id)}</td><td>${esc(d.nombre)}${d.nota?`<span class="sub">${esc(d.nota)}</span>`:""}</td><td>${d.tipo?TIPOS[d.tipo]:'<span class="chip warn">Sin tipo</span>'}${d.evaluacion?` <span class="chip ${EVR[d.evaluacion.resultado]?.[1]||""}" title="Evaluación ${d.evaluacion.anio}">${EVR[d.evaluacion.resultado]?.[0]||""}</span>`:""}</td>${S.verCuentas?`<td class="mono">${cta(id)}</td>`:""}</tr>`).join("")}
  </tbody></table></div>
  <div class="cards">${rows.map(([id,d])=>`<button class="card-it" data-prov="${esc(id)}"><b>${esc(d.nombre)}</b><span class="row"><span class="mono">${esc(id)}</span>· ${d.tipo?TIPOS[d.tipo]:"Sin tipo"}${S.verCuentas&&C.has(id)?" · con cuenta":""}</span></button>`).join("")}</div>
  ${total>rows.length?`<button class="btn mas" data-acc="mas-prov">Ver más (${fmtN(total-rows.length)})</button>`:""}`
@@ -558,6 +568,7 @@ function pendientes(){const me=ME(),L=[];
  for(const[id,o]of ords()){const e=estado(o);
   if(e==="por-aprobar"&&o.jefe===me)L.push([id,"Aprobar el pedido"]);
   if(e==="por-aprobar-gerencia"&&S.rol==="admin")L.push([id,"Aprobar el gasto (más de $1.000.000)"]);
+  if(S.rol==="admin"&&activos(o).some(i=>i.cambio?.estado==="pendiente"))L.push([id,"Aprobar cambio de precio"]);
   if(S.gestion){if(e==="aprobado")L.push([id,"Cotizar"]);else if(e==="en-cotizacion")L.push([id,"Terminar cotización"]);else if(e==="cotizado")L.push([id,"Comprar: escribir la OC"]);else if(e==="con-novedad")L.push([id,"Resolver la novedad"]);
    if(["comprado","despachado","recibido","novedad-resuelta"].includes(e)&&factura(o)!=="ok")L.push([id,"Registrar factura"]);
    if(!["anulado","rechazado","por-aprobar"].includes(e)&&["pend","parcial"].includes(pago(o))&&["comprado","despachado","recibido","novedad-resuelta","cerrado","con-novedad"].includes(e))L.push([id,"Pago pendiente"])}
@@ -695,24 +706,118 @@ function decidirAlzas(alzas,n){return new Promise(res=>{const d=$("#dlg2");const
  let r=null;$("#al-no").onclick=()=>d.close();$("#al-si").onclick=()=>{for(const a of alzas){const v=d.querySelector(`input[name="al-${a.i}"]:checked`);if(!v){toast("Elige confirmar o recotizar en cada artículo.");return}dec[a.i]=v.value}r=dec;d.close()};
  d.onclose=()=>res(r);d.showModal()})}
 /* ---------- Detalle de la orden ---------- */
+/* Candado: con OC escrita o gasto aprobado por Gerencia, proveedor/precio/IVA quedan fijos. Solo Gerencia los cambia (o aprueba la solicitud). */
+const bloqueado=(o,it)=>S.rol!=="admin"&&!!(it.oc||(o.ger?.ok&&!o.legado));
+function pedirPrecio(titulo,label,actual){return new Promise(res=>{const d=$("#dlg2");d.innerHTML=`<div class="dlg-h"><h3>${esc(titulo)}</h3></div><div class="dlg-b">
+ <p class="muted small" style="margin-top:0">Precio aprobado hoy: <b>${peso(actual)}</b>. El cambio queda pendiente hasta que Gerencia lo apruebe; mientras tanto se paga el precio aprobado.</p>
+ <label class="f">${esc(label)}<input class="inp" id="pp-v" type="number" min="0" step="any"></label><label class="f">Motivo del cambio<textarea id="pp-m" placeholder="Ej.: el proveedor actualizó la lista el día del pago"></textarea></label></div>
+ <div class="dlg-f"><button class="btn" id="pp-no">Cancelar</button><button class="btn pri" id="pp-si">Enviar a Gerencia</button></div>`;let r=null;
+ $("#pp-no").onclick=()=>d.close();$("#pp-si").onclick=()=>{const v=+$("#pp-v").value,m=$("#pp-m").value.trim();if(!(v>0)){$("#pp-v").focus();return}if(!m){$("#pp-m").focus();return}if(Math.abs(v-actual)<0.005){toast("Es el mismo precio aprobado.");return}r={precio:v,motivo:m};d.close()};d.onclose=()=>res(r);d.showModal();$("#pp-v").focus()})}
+/* Comparador de cotizaciones (mínimo 3 para artículos nuevos). Devuelve {cots, eleg}. */
+function comparar(it,o,id){return new Promise(res=>{const d=$("#dlg2"),a=it.art?arts().get(it.art):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad?a.unidadPrecio:it.u,fac=a?.unidadPrecio&&a.unidadPrecio!==a.unidad?a.factor||1:1;
+ const L=(it.cots||[]).map(c=>({...c}));while(L.length<3)L.push({});const ult=ultimoPrecio(it.art,id);
+ const fila=(c,k)=>`<div class="cmp" data-f="${k}"><label class="cmp-e"><input type="radio" name="cmp-e" value="${k}"${c.eleg?" checked":""}> Elegir</label>
+  <label class="f">Proveedor<input class="inp" data-c="prov" list="provs-l" value="${esc(c.prov?(provs().get(c.prov)?.nombre||c.prov)+" · "+c.prov:"")}" placeholder="Nombre o NIT"></label>
+  <label class="f">N.º cotización<input class="inp" data-c="cot" value="${esc(c.cot||"")}"></label>
+  <label class="f">Precio sin IVA por ${esc(up)}<input class="inp" data-c="pu" type="number" min="0" step="any" value="${c.pu??""}"></label>
+  <label class="f">IVA<select class="inp" data-c="iva">${[0,5,19].map(v=>`<option value="${v}"${+(c.iva??it.iva??0)===v?" selected":""}>${v} %</option>`).join("")}</select></label>
+  <span class="cmp-t muted small"></span></div>`;
+ d.style.width="min(900px,96vw)";d.style.maxWidth="96vw";
+ d.innerHTML=`<div class="dlg-h"><h3>Comparar cotizaciones: ${esc(artNom(it))}</h3></div><div class="dlg-b">
+  <p class="muted small" style="margin-top:0">${esc(fmtN(+it.cant||0))} ${esc(it.u)}${ult?` · última compra ${peso(ult.precio/fac)} por ${esc(up)} (${esc(ult.id)})`:" · artículo nuevo: el procedimiento pide 3 cotizaciones"}. Marca la que se elige; la más barata se resalta.</p>
+  <div id="cmp-l">${L.map(fila).join("")}</div><button type="button" class="linkbtn" id="cmp-mas">+ Otra cotización</button>
+  <label class="f" id="cmp-why" hidden>¿Por qué no se elige la más barata?<input class="inp" id="cmp-mot" value="${esc(it.cotsMotivo||"")}"></label></div>
+  <div class="dlg-f"><button class="btn" id="cmp-no">Cancelar</button><button class="btn pri" id="cmp-si">Usar la elegida</button></div>`;
+ const leer=()=>[...d.querySelectorAll(".cmp")].map(f=>{const g=k=>f.querySelector(`[data-c="${k}"]`).value.trim(),pt=g("prov");return{provTxt:pt,prov:(pt.match(/·\s*(\d+)\s*$/)||[])[1]||soloDig(pt),cot:g("cot"),pu:+g("pu")||0,iva:+g("iva"),eleg:f.querySelector("[name=cmp-e]").checked}});
+ const pintar=()=>{const R=leer(),ok=R.filter(r=>r.pu>0),min=ok.length?Math.min(...ok.map(r=>r.pu*(1+r.iva/100))):0;
+  d.querySelectorAll(".cmp").forEach((f,k)=>{const r=R[k],t=r.pu*(1+r.iva/100)*fac*(+it.cant||0);f.classList.toggle("min",ok.length>1&&r.pu>0&&r.pu*(1+r.iva/100)===min);f.querySelector(".cmp-t").textContent=r.pu>0?"Total con IVA "+peso(t):""});
+  const e=R.find(r=>r.eleg);$("#cmp-why").hidden=!(e&&e.pu>0&&ok.length>1&&e.pu*(1+e.iva/100)>min)};
+ const ligar=()=>d.querySelectorAll(".cmp input,.cmp select").forEach(x=>x.oninput=x.onchange=pintar);ligar();pintar();
+ $("#cmp-mas").onclick=()=>{const R=leer();$("#cmp-l").insertAdjacentHTML("beforeend",fila({},R.length));ligar()};
+ let r=null;$("#cmp-no").onclick=()=>d.close();
+ $("#cmp-si").onclick=()=>{const R=leer().filter(x=>x.provTxt||x.pu);for(const x of R){if(!provs().has(x.prov)){toast(`Proveedor no encontrado: ${x.provTxt||"(vacío)"}. Elígelo de la lista o créalo en Proveedores.`,5000);return}if(!(x.pu>0)){toast("Falta el precio de "+(provs().get(x.prov)?.nombre||x.prov)+".",4000);return}}
+  const eleg=R.findIndex(x=>x.eleg);if(eleg<0){toast("Marca la cotización elegida.");return}
+  if(!$("#cmp-why").hidden&&!$("#cmp-mot").value.trim()){$("#cmp-mot").focus();toast("Escribe por qué no se elige la más barata.");return}
+  r={eleg,cots:R.map(x=>{const c={prov:x.prov,pu:x.pu,iva:x.iva,fecha:hoy()};if(x.cot)c.cot=x.cot;if(x.eleg)c.eleg=true;if(x.eleg&&!$("#cmp-why").hidden)c.motivo=$("#cmp-mot").value.trim();return c})};d.close()};
+ d.onclose=()=>{d.style.width=d.style.maxWidth="";res(r)};d.showModal()})}
+
+/* ---------- Evaluación anual de proveedores y recotización semestral ---------- */
+const EVR={aprobado:["Aprobado","ok"],condicionado:["Condicionado","warn"],rechazado:["Rechazado","bad"]};
+const CRIT=[["calidad","Calidad del producto o servicio"],["entrega","Cumplimiento en tiempos y cantidades"],["precio","Precio frente al mercado"],["servicio","Atención y respuesta a novedades"],["docs","Documentos al día (factura, RUT, certificados)"]];
+const resultadoEv=p=>p>=4?"aprobado":p>=3?"condicionado":"rechazado";
+const diasEntre=(a,b)=>Math.round((new Date(b)-new Date(a))/864e5);
+function metricas(anio){const M=new Map();
+ for(const[oid,o]of ords()){if(o.anulada||!String(o.fecha||"").startsWith(anio))continue;
+  for(const it of activos(o)){if(!it.prov)continue;const m=M.get(it.prov)||M.set(it.prov,{ped:new Set(),monto:0,rec:0,nov:0,dias:[],alzas:0,sin3:0}).get(it.prov);
+   m.ped.add(oid);m.monto+=totItem(it);if(it.rec){m.rec++;if(it.rec.estado==="nov")m.nov++;const ini=it.ocFecha||o.fecha;if(it.rec.fecha&&ini)m.dias.push(Math.max(0,diasEntre(ini,it.rec.fecha)))}if(it.alza)m.alzas++;if(it.sin3)m.sin3++}}
+ for(const m of M.values()){m.nped=m.ped.size;m.diasProm=m.dias.length?Math.round(m.dias.reduce((a,b)=>a+b,0)/m.dias.length):null;m.pctNov=m.rec?Math.round(100*m.nov/m.rec):0}
+ return M}
+/* Sugerencia de puntaje con los datos de la app: entrega según novedades */
+const sugEntrega=m=>!m.rec?"":m.pctNov===0?5:m.pctNov<=10?4:m.pctNov<=25?3:m.pctNov<=50?2:1;
+function recotizar(){const hoyD=hoy(),R=[];
+ for(const[k,a]of arts()){if(a.unido)continue;const u=ultimoPrecio(k,null);let f=u?.fecha||"",ref="compra",o=u?ords().get(u.id):null;let prov=o?activos(o).find(i=>i.art===k&&+i.precio>0)?.prov:"";
+  if(a.cotRef?.fecha&&a.cotRef.fecha>f){f=a.cotRef.fecha;ref="cotización";prov=a.cotRef.prov}
+  if(!f)continue;const d=diasEntre(f,hoyD);if(d>182)R.push({k,a,f,d,ref,prov,precio:u?.precio})}
+ return R.sort((x,y)=>y.d-x.d)}
+function vEval(){const w=cargando(COL.ord,COL.prov,COL.art,COL.eva);if(w)return w;
+ const f=S.ev||(S.ev={anio:String(new Date().getFullYear()),tab:"eval"}),M=metricas(f.anio),E=DB.docs(COL.eva);
+ const anios=[...new Set([...ords().values()].map(o=>String(o.fecha||"").slice(0,4)).filter(Boolean)),String(new Date().getFullYear())].sort().reverse();
+ const filas=[...M].map(([n,m])=>[n,m,E.get(n+"-"+f.anio)]).sort((a,b)=>b[1].monto-a[1].monto);
+ const hechos=filas.filter(x=>x[2]).length,RC=recotizar();
+ const tabs=`<div class="tabs"><button class="tab${f.tab==="eval"?" on":""}" data-evtab="eval">Evaluación anual</button><button class="tab${f.tab==="recot"?" on":""}" data-evtab="recot">Recotización (${fmtN(RC.length)})</button></div>`;
+ if(f.tab==="recot")return`<div class="row hrow"><h2 style="color:var(--brand)">Evaluación de proveedores</h2></div>${tabs}
+  <p class="ro-note">Artículos cuya última compra o cotización tiene más de 6 meses. Pide precio de nuevo y regístralo; así sale de la lista.</p>
+  <div class="panel">${RC.length?RC.map(r=>`<div class="res"><span class="chip warn">${fmtN(r.d)} días</span><div class="res-t"><b>${esc(r.a.nombre)}</b><span class="sub">Última ${r.ref}: ${fecha(r.f)}${r.prov?" · "+esc(provs().get(r.prov)?.nombre||r.prov):""}${r.ref==="compra"&&r.precio?" · "+peso(r.precio)+" por "+esc(r.a.unidad):""}${r.ref==="cotización"&&r.a.cotRef?.pu?" · "+peso(r.a.cotRef.pu)+" sin IVA":""}</span></div><button class="btn sm" data-recot="${esc(r.k)}">Registrar cotización</button></div>`).join(""):'<p class="muted">Todo está cotizado en los últimos 6 meses.</p>'}</div>`;
+ return`<div class="row hrow"><h2 style="color:var(--brand)">Evaluación de proveedores</h2></div>${tabs}
+ <p class="ro-note">Cada año se evalúa a los proveedores a los que se les compró. La app trae los datos de los pedidos; tú calificas de 1 a 5. Resultado: Aprobado (4 o más), Condicionado (3 a 3,9) o Rechazado (menos de 3).</p>
+ <div class="tools"><select class="inp" id="ev-anio" aria-label="Año">${anios.map(a=>`<option${a===f.anio?" selected":""}>${a}</option>`).join("")}</select><span class="count">${fmtN(hechos)} de ${fmtN(filas.length)} evaluados</span></div>
+ <div class="panel">${filas.length?filas.map(([n,m,ev])=>`<div class="res">${ev?`<span class="chip ${EVR[ev.resultado][1]}">${EVR[ev.resultado][0]} ${String(ev.puntaje).replace(".",",")}</span>`:'<span class="chip">Por evaluar</span>'}<div class="res-t"><b>${esc(provs().get(n)?.nombre||n)}</b>
+  <span class="sub">${fmtN(m.nped)} pedido${m.nped>1?"s":""} · ${peso(m.monto)} · ${m.rec?fmtN(m.rec)+" entregas, "+m.pctNov+" % con novedad":"sin entregas registradas"}${m.diasProm!=null?" · "+m.diasProm+" días promedio en llegar":""}${m.alzas?" · "+m.alzas+" alza"+(m.alzas>1?"s":"")+" de precio":""}</span></div><button class="btn sm" data-eval="${esc(n)}">${ev?"Ver o ajustar":"Evaluar"}</button></div>`).join(""):'<p class="muted">No hay compras con proveedor en este año.</p>'}</div>`}
+function dlgEval(nit){const anio=S.ev.anio,m=metricas(anio).get(nit),id=nit+"-"+anio,ev=DB.docs(COL.eva).get(id)||{},p=provs().get(nit)||{nombre:nit};
+ const pre={...(ev.notas||{})};if(pre.entrega==null&&m)pre.entrega=sugEntrega(m);
+ abrir(`Evaluación ${anio}: ${esc(p.nombre)}`,`<div class="o-info"><div><span>Pedidos</span><b>${fmtN(m?.nped||0)}</b></div><div><span>Comprado</span><b>${peso(m?.monto||0)}</b></div><div><span>Entregas con novedad</span><b>${m?.rec?m.pctNov+" % ("+m.nov+" de "+m.rec+")":"—"}</b></div><div><span>Días en llegar (promedio)</span><b>${m?.diasProm??"—"}</b></div><div><span>Alzas de precio</span><b>${fmtN(m?.alzas||0)}</b></div><div><span>Compras sin 3 cotizaciones</span><b>${fmtN(m?.sin3||0)}</b></div></div>
+  <h4 class="sec">Calificación (1 = malo, 5 = excelente)</h4>${CRIT.map(([k,t])=>`<div class="crit"><span>${t}${k==="entrega"&&m?.rec?' <span class="muted small">(sugerido por novedades)</span>':""}</span><div class="seg2 pts">${[1,2,3,4,5].map(v=>`<label><input type="radio" name="ev-${k}" value="${v}"${+pre[k]===v?" checked":""}> ${v}</label>`).join("")}</div></div>`).join("")}
+  <p class="ev-res" id="ev-res"></p><label class="f">Observaciones y compromisos<textarea id="ev-obs">${esc(ev.obs||"")}</textarea></label>
+  ${ev.por?`<p class="muted small">Última evaluación: ${esc(persona(ev.por))}, ${fecha(ev.fecha)}.</p>`:""}`,'<button class="btn" data-cerrar>Cancelar</button><button class="btn pri" id="ev-ok">Guardar evaluación</button>');
+ const calc=()=>{const v=CRIT.map(([k])=>+(dlg.querySelector(`[name="ev-${k}"]:checked`)?.value||0));if(v.some(x=>!x))return null;const pt=Math.round(10*v.reduce((a,b)=>a+b,0)/v.length)/10;return{v,pt,r:resultadoEv(pt)}};
+ const pint=()=>{const c=calc();$("#ev-res").innerHTML=c?`Puntaje <b>${String(c.pt).replace(".",",")}</b> · <span class="chip ${EVR[c.r][1]}">${EVR[c.r][0]}</span>`:'<span class="muted small">Califica los 5 criterios para ver el resultado.</span>'};
+ dlg.querySelectorAll(".crit input").forEach(x=>x.onchange=pint);pint();
+ $("#ev-ok").onclick=ev2=>guardando(ev2.target,async()=>{const c=calc();if(!c)throw{message:"Califica los 5 criterios."};
+  const notas={};CRIT.forEach(([k],i)=>notas[k]=c.v[i]);const doc={nit,anio,notas,puntaje:c.pt,resultado:c.r,obs:$("#ev-obs").value.trim(),por:ME(),fecha:hoy(),
+   datos:m?{pedidos:m.nped,monto:Math.round(m.monto),entregas:m.rec,novedades:m.nov,dias:m.diasProm,alzas:m.alzas}:{}};
+  await DB.set(COL.eva,id,doc);
+  const cur=provs().get(nit);if(cur&&(!cur.evaluacion||cur.evaluacion.anio<=anio))await DB.set(COL.prov,nit,{...cur,evaluacion:{anio,puntaje:c.pt,resultado:c.r}});
+  dlg.close();toast("Evaluación guardada.");render()})}
+function dlgRecot(k){const a=arts().get(k),up=a.unidadPrecio&&a.unidadPrecio!==a.unidad?a.unidadPrecio:a.unidad;
+ abrir(`Nueva cotización: ${esc(a.nombre)}`,`<p class="muted small" style="margin-top:0">Registra el precio que te dieron. No crea pedido; solo deja la referencia de precio y la fecha.</p><div class="fgrid">
+  <label class="f wide">Proveedor<input class="inp" id="rc-p" list="provs-r" placeholder="Nombre o NIT"></label><datalist id="provs-r">${[...provs()].map(([n,d])=>`<option value="${esc(d.nombre)} · ${n}">`).join("")}</datalist>
+  <label class="f">Precio sin IVA por ${esc(up)}<input class="inp" id="rc-v" type="number" min="0" step="any"></label><label class="f">N.º cotización<input class="inp" id="rc-c"></label></div>`,'<button class="btn" data-cerrar>Cancelar</button><button class="btn pri" id="rc-ok">Guardar</button>');
+ $("#rc-ok").onclick=e=>guardando(e.target,async()=>{const pt=$("#rc-p").value.trim(),nit=(pt.match(/·\s*(\d+)\s*$/)||[])[1]||soloDig(pt),v=+$("#rc-v").value;
+  if(!provs().has(nit))throw{message:"Elige un proveedor de la lista."};if(!(v>0))throw{message:"Escribe el precio."};
+  const c={prov:nit,pu:v,fecha:hoy(),por:ME()};if($("#rc-c").value.trim())c.cot=$("#rc-c").value.trim();await DB.set(COL.art,k,{...a,cotRef:c});dlg.close();toast("Cotización registrada.");render()})}
+
 async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.parse(JSON.stringify(o0)),e=estado(o),me=ME();
  const G=S.gestion,dueno=o.sol===me,esJefe=o.jefe===me,ger=S.rol==="admin";
  const puedeEditarPedido=dueno&&e==="por-aprobar";
  const pv=[...new Set(activos(o).map(i=>i.prov).filter(Boolean))];
  const inp=(k,i,v,attrs="")=>`<input class="inp" data-i="${i}" data-k="${k}" value="${esc(v??"")}" ${attrs}>`;
  const itemHTML=(it,i)=>{const a=it.art?arts().get(it.art):null,pr=it.prov?provs().get(it.prov):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad?a.unidadPrecio:"",fac=a?.factor||1;
+  const lk=bloqueado(o,it),dl=lk?" disabled":"",nuevoArt=it.art&&!it.oc&&!ultimoPrecio(it.art,id),nc=(it.cots||[]).length;
   return`<div class="oi${it.anulado?" anulado":""}"><div class="oi-h"><span class="oi-n">${i+1}</span><div class="oi-t"><b>${esc(artNom(it))}</b>${!it.art?' <span class="chip warn">Nuevo, no está en el catálogo</span>':""}
    <span class="sub">${fmtN(it.cant)} ${esc(it.u)}${it.nota?" · "+esc(it.nota):""}${+it.precio>0?` · ${peso(totItem(it))} con IVA`:""}</span>
    ${it.alza?`<span class="chip warn" title="Confirmó ${esc(persona(it.alza.por))} el ${fecha(it.alza.fecha)}">Subió ${fmtN(it.alza.pct)} % (${peso(it.alza.ant)} → ${peso(it.alza.nuevo)}) · confirmado</span>`:""}
-   ${it.recotizar&&!(+it.precio>0)?`<span class="chip info">Por recotizar (antes ${peso(it.recotizar.ant)})</span>`:""}${it.provPend&&!it.prov?`<span class="chip warn">Proveedor por crear: ${esc(it.provPend)}</span>`:""}</div>
+   ${it.recotizar&&!(+it.precio>0)?`<span class="chip info">Por recotizar (antes ${peso(it.recotizar.ant)})</span>`:""}${it.provPend&&!it.prov?`<span class="chip warn">Proveedor por crear: ${esc(it.provPend)}</span>`:""}
+   ${nuevoArt?`<span class="chip ${nc>=3?"ok":"warn"}">Artículo nuevo: ${nc}/3 cotizaciones</span>`:""}${it.sin3?`<span class="chip" title="${esc(it.sin3.motivo)}">Comprado sin 3 cotizaciones</span>`:""}
+   ${it.cambio?.estado==="pendiente"?`<span class="chip warn">Cambio de precio por aprobar: ${peso(it.cambio.ant)} → ${peso(it.cambio.nuevo)} · ${esc(it.cambio.motivo)}</span>`:it.cambio?`<span class="chip ${it.cambio.estado==="aprobado"?"ok":"bad"}">Cambio de precio ${it.cambio.estado} por ${esc(persona(it.cambio.aprobo||""))}</span>`:""}</div>
    ${it.anulado?'<span class="chip">Anulado</span>':it.rec?(it.rec.estado==="ok"?'<span class="chip ok">Recibido</span>':`<span class="chip bad">Novedad</span>`):""}</div>
   ${G&&!it.anulado&&EST[e][2]>=2&&e!=="anulado"?`<div class="fgrid oi-f">
    ${!it.art?`<label class="f wide">Artículo del catálogo<input class="inp" data-i="${i}" data-k="artTxt" list="arts-l2" placeholder="Elige uno existente o créalo en Artículos"><span class="hint">Pedido como: ${esc(it.txt)}</span></label>`:""}
-   <label class="f wide">Proveedor<input class="inp" data-i="${i}" data-k="provTxt" list="provs-l" value="${esc(pr?pr.nombre+" · "+it.prov:"")}" placeholder="Busca por nombre o NIT"></label>
+   ${lk?`<p class="lock wide">🔒 Precio aprobado${it.oc?" (OC "+esc(it.oc)+")":" por Gerencia"}: proveedor, precio e IVA ya no se editan.${it.cambio?.estado==="pendiente"?"":` <button type="button" class="linkbtn" data-cambio="${i}">Solicitar cambio de precio</button>`}</p>`:`<div class="wide row" style="gap:8px"><button type="button" class="btn sm" data-comp="${i}">Comparar cotizaciones${nc?` (${nc})`:""}</button></div>`}
+   <label class="f wide">Proveedor<input class="inp" data-i="${i}" data-k="provTxt" list="provs-l" value="${esc(pr?pr.nombre+" · "+it.prov:"")}" placeholder="Busca por nombre o NIT"${dl}></label>
    <label class="f">Cotización<input class="inp" data-i="${i}" data-k="cot" value="${esc(it.cot||"")}" placeholder="ctz…"></label>
-   <label class="f">Precio sin IVA por ${esc(up||it.u)}<input class="inp" data-i="${i}" data-k="pUni" type="number" min="0" step="any" value="${+it.precio>0?+(it.precio/(up?fac:1)).toFixed(2):""}">${up?`<span class="hint">1 ${esc(it.u)} = ${fmtN(fac)} ${esc(up)}</span>`:""}</label>
-   <label class="f">IVA<select class="inp" data-i="${i}" data-k="iva">${[0,5,19].map(v=>`<option value="${v}"${(+it.iva||0)===v?" selected":""}>${v} %</option>`).join("")}</select></label>
-   <label class="f">o total con IVA<input class="inp" data-i="${i}" data-k="tot" type="number" min="0" step="any" placeholder="Calcula el precio"></label>
+   <label class="f">Precio sin IVA por ${esc(up||it.u)}<input class="inp" data-i="${i}" data-k="pUni" type="number" min="0" step="any" value="${+it.precio>0?+(it.precio/(up?fac:1)).toFixed(2):""}"${dl}>${up?`<span class="hint">1 ${esc(it.u)} = ${fmtN(fac)} ${esc(up)}</span>`:""}</label>
+   <label class="f">IVA<select class="inp" data-i="${i}" data-k="iva"${dl}>${[0,5,19].map(v=>`<option value="${v}"${(+it.iva||0)===v?" selected":""}>${v} %</option>`).join("")}</select></label>
+   <label class="f">o total con IVA<input class="inp" data-i="${i}" data-k="tot" type="number" min="0" step="any" placeholder="Calcula el precio"${dl}></label>
    <label class="f">OC World Office<input class="inp" data-i="${i}" data-k="oc" value="${esc(it.oc||"")}"></label>
    <label class="f">Remisión<input class="inp" data-i="${i}" data-k="rem" value="${esc(it.rem||"")}"></label>
    <label class="f">Documento<select class="inp" data-i="${i}" data-k="facTipo">${TIPODOC.map(t=>`<option${(it.facTipo||TIPODOC[0])===t?" selected":""}>${t}</option>`).join("")}</select></label>
@@ -724,6 +829,7 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
   ${dueno&&!it.anulado&&!it.rec&&it.oc?`<div class="row" style="margin-top:8px"><button class="btn sm" data-rec="${i}" data-v="ok">Llegó completo</button><button class="btn sm danger" data-rec="${i}" data-v="nov">Llegó con novedad</button></div>`:""}
   ${(G||puedeEditarPedido)&&!it.anulado&&!it.oc&&activos(o).length>1?`<button class="linkbtn small" data-anit="${i}">Quitar este artículo</button>`:""}</div>`};
  const acciones=[];
+ if(ger&&(o.items||[]).some(x=>x.cambio?.estado==="pendiente"))acciones.push((o.items||[]).map((x,i)=>x.cambio?.estado==="pendiente"?`<div class="cambio-ap"><span><b>${esc(artNom(x))}</b>: cambio de precio ${peso(x.cambio.ant)} → ${peso(x.cambio.nuevo)} por ${esc(x.u)} (${esc(persona(x.cambio.por))}: ${esc(x.cambio.motivo)})</span><button class="btn pri sm" data-cap="${i}" data-v="1">Aprobar cambio</button><button class="btn danger sm" data-cap="${i}" data-v="0">No aprobar</button></div>`:"").join(""));
  if(e==="por-aprobar"&&(esJefe||ger))acciones.push('<button class="btn pri" data-ap="1">Aprobar</button><button class="btn danger" data-ap="0">Rechazar</button>');
  if(e==="por-aprobar-gerencia"&&ger)acciones.push('<button class="btn pri" data-gap="1">Aprobar el gasto</button><button class="btn danger" data-gap="0">No aprobar</button>');
  const puedeAnular=!["anulado","cerrado"].includes(e)&&(G||(dueno&&e==="por-aprobar"));
@@ -757,24 +863,35 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
  dlg.querySelectorAll('[data-k="tot"]').forEach(t=>t.oninput=()=>{const i=+t.dataset.i,it=o.items[i],a=it.art?arts().get(it.art):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad,fac=a?.factor||1;
   const iva=+dlg.querySelector(`[data-i="${i}"][data-k="iva"]`).value,tot=+t.value;if(tot>0&&+it.cant>0){const pu=tot/(1+iva/100)/it.cant;dlg.querySelector(`[data-i="${i}"][data-k="pUni"]`).value=+(up?pu/fac:pu).toFixed(2)}});
  if($("#o-ok"))$("#o-ok").onclick=ev=>guardando(ev.target,async()=>{const val=(i,k)=>dlg.querySelector(`[data-i="${i}"][data-k="${k}"]`)?.value?.trim()??null;const avisos=[];
-  await guardar(async n=>{const alzas=[];n.items.forEach((it,i)=>{if(it.anulado||val(i,"cot")===null)return;
-   const pt=val(i,"provTxt");if(pt!==null){const nit=(pt.match(/·\s*(\d+)\s*$/)||[])[1]||soloDig(pt);if(pt&&!provs().has(nit))throw{message:`Artículo ${i+1}: elige un proveedor de la lista (o créalo en Proveedores).`};if(pt)it.prov=nit;else delete it.prov}
-   const at=val(i,"artTxt");if(at){const c=(at.match(/·\s*(A\d+)\s*$/)||[])[1];if(!c||!arts().has(c))throw{message:`Artículo ${i+1}: elige un artículo del catálogo.`};it.art=c;delete it.txt}
+  await guardar(async n=>{const alzas=[],sin3=[];n.items.forEach((it,i)=>{if(it.anulado||val(i,"cot")===null)return;const lk=bloqueado(n,it);
+   if(cotsPend[i])it.cots=cotsPend[i];
+   const pt=lk?null:val(i,"provTxt");if(pt!==null){const nit=(pt.match(/·\s*(\d+)\s*$/)||[])[1]||soloDig(pt);if(pt&&!provs().has(nit))throw{message:`Artículo ${i+1}: elige un proveedor de la lista (o créalo en Proveedores).`};if(pt)it.prov=nit;else delete it.prov}
+   const at=lk?null:val(i,"artTxt");if(at){const c=(at.match(/·\s*(A\d+)\s*$/)||[])[1];if(!c||!arts().has(c))throw{message:`Artículo ${i+1}: elige un artículo del catálogo.`};it.art=c;delete it.txt}
    const a=it.art?arts().get(it.art):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad,fac=a?.factor||1;
-   for(const k of["cot","oc","rem","fac"]){const v=val(i,k);if(v)it[k]=v;else delete it[k]}
-   const pu=+String(val(i,"pUni")||"").replace(",",".");if(pu>0){const p=up?pu*fac:pu;
+   const ocAntes=it.oc;for(const k of["cot","oc","rem","fac"]){const v=val(i,k);if(v)it[k]=v;else if(!(lk&&k==="oc"))delete it[k]}
+   if(it.oc&&!ocAntes){it.ocFecha=hoy();if(it.art&&!ultimoPrecio(it.art,id)&&(it.cots||[]).length<3&&!it.sin3)sin3.push(i)}
+   if(!lk){const pu=+String(val(i,"pUni")||"").replace(",",".");if(pu>0){const p=up?pu*fac:pu;
     const ult=ultimoPrecio(it.art,id);
     if(ult&&p>ult.precio*1.05&&!(it.alza&&Math.abs(it.alza.nuevo-p)<.01))alzas.push({i,ant:ult.precio,nuevo:p,pct:(p-ult.precio)/ult.precio*100,de:ult.id});
     else if(ult&&p<ult.precio*.7)avisos.push(`${artNom(it)}: bajó ${Math.round((ult.precio-p)/ult.precio*100)} % frente a la última compra (${peso(ult.precio)}); revisa que la unidad esté bien`);
     if(it.alza&&Math.abs(it.alza.nuevo-p)>=.01)delete it.alza;it.precio=+p.toFixed(4)}else{delete it.precio;delete it.alza}
-   it.iva=+val(i,"iva");if(it.fac)it.facTipo=val(i,"facTipo");else delete it.facTipo;
+   it.iva=+val(i,"iva")}if(it.fac)it.facTipo=val(i,"facTipo");else delete it.facTipo;
    const st=val(i,"solTipo");if(st)it.sol={tipo:st,txt:val(i,"solTxt")||"",fecha:it.sol?.fecha||hoy(),por:it.sol?.por||me};else if(st==="")delete it.sol});
+  for(const i of sin3){const m=await pedir(`${artNom(n.items[i])}: artículo nuevo con menos de 3 cotizaciones`,"El procedimiento pide 3 cotizaciones para lo nuevo. ¿Por qué se compra así? (queda registrado)");if(!m)return false;n.items[i].sin3={motivo:m,por:me,fecha:hoy()}}
   if(alzas.length){const dec=await decidirAlzas(alzas,n);if(!dec)return false;
    for(const a of alzas){const it=n.items[a.i];if(dec[a.i]==="ok")it.alza={ant:+a.ant.toFixed(2),nuevo:+a.nuevo.toFixed(2),pct:+a.pct.toFixed(1),de:a.de,por:me,fecha:hoy()};else{delete it.precio;delete it.alza;it.recotizar={fecha:hoy(),por:me,ant:+a.ant.toFixed(2),cot:it.cot||""};delete it.cot}}}
   if(totOrden(n)>=TOPE_GERENCIA&&!n.ger?.ok&&n.items.some(it=>!it.anulado&&it.oc&&!o0.items[n.items.indexOf(it)]?.oc))throw{message:"Este pedido pasa de $1.000.000: Gerencia debe aprobar el gasto antes de escribir la OC."};
   const P={...(n.pagos||{})};dlg.querySelectorAll("[data-pago]").forEach(x=>{const nit=x.dataset.pago;P[nit]=P[nit]||{};if(x.value)P[nit][x.dataset.k]=x.value;else delete P[nit][x.dataset.k]});
   for(const k of Object.keys(P))if(!P[k].estado||P[k].estado==="pend"&&!P[k].comp&&!P[k].fecha)delete P[k];if(Object.keys(P).length)n.pagos=P;else delete n.pagos},"Pedido actualizado.");
   if(avisos.length)setTimeout(()=>toast("Ojo: "+avisos.join("; "),8000),300)});
+ const cotsPend={};
+ dlg.querySelectorAll("[data-comp]").forEach(b=>b.onclick=async()=>{const i=+b.dataset.comp,r=await comparar(o.items[i],o,id);if(!r)return;cotsPend[i]=r.cots;const c=r.cots[r.eleg];
+  const q=(k,v)=>{const el=dlg.querySelector(`[data-i="${i}"][data-k="${k}"]`);if(el&&v!=null&&v!==""){el.value=v;el.dataset.r="ok"}};
+  q("provTxt",(provs().get(c.prov)?.nombre||c.prov)+" · "+c.prov);q("pUni",c.pu);q("iva",c.iva);q("cot",c.cot);b.textContent=`Comparar cotizaciones (${r.cots.length})`;toast("Cotización elegida. Pulsa Guardar.",4000)});
+ dlg.querySelectorAll("[data-cambio]").forEach(b=>b.onclick=async()=>{const i=+b.dataset.cambio,it=o.items[i],a=it.art?arts().get(it.art):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad,fac=up?a.factor:1;
+  const r=await pedirPrecio(`Cambiar precio: ${artNom(it)}`,`Nuevo precio sin IVA por ${up?a.unidadPrecio:it.u}`,+(it.precio/fac).toFixed(2));if(!r)return;
+  guardando(b,()=>guardar(n=>{n.items[i].cambio={ant:+n.items[i].precio,nuevo:+(r.precio*fac).toFixed(4),motivo:r.motivo,por:me,fecha:hoy(),estado:"pendiente"}},"Cambio enviado a Gerencia para aprobación."))});
+ dlg.querySelectorAll("[data-cap]").forEach(b=>b.onclick=()=>{const i=+b.dataset.cap,ok=b.dataset.v==="1";guardando(b,()=>guardar(n=>{const c=n.items[i].cambio;c.estado=ok?"aprobado":"rechazado";c.aprobo=me;c.fechaAprob=hoy();if(ok)n.items[i].precio=c.nuevo},ok?"Cambio de precio aprobado.":"Cambio de precio no aprobado."))});
  dlg.querySelectorAll("[data-docp]").forEach(b=>b.onclick=()=>abrirDoc(docProveedor(id,ords().get(id),b.dataset.docp),"Orden de pedido "+id));
  if($("#cot-b")){$("#cot-b").onclick=()=>$("#cot-f").click();$("#cot-f").onchange=async ev=>{const f=ev.target.files[0];ev.target.value="";if(!f)return;const R=$("#cot-r");R.innerHTML='<p class="muted small">Leyendo la cotización…</p>';
   try{const r=leerCotizacion(await textoPDF(f),o);const pr=r.prov?provs().get(r.prov):null;
@@ -849,6 +966,10 @@ function enlazar(){
  const qc=$("#qcorr");if(qc){qc.oninput=()=>{S.corr.q=qc.value;S.corr.rev="";repintar("#qcorr")};$("#tcorr").onchange=e=>{S.corr.tipo=e.target.value;render()}}
  document.querySelectorAll("[data-rev]").forEach(b=>b.onclick=()=>{S.corr.rev=S.corr.rev===b.dataset.rev?"":b.dataset.rev;render()});
  document.querySelectorAll("[data-cc-act]").forEach(b=>b.onclick=()=>ccActivo(+b.dataset.ccAct));
+ document.querySelectorAll("[data-evtab]").forEach(b=>b.onclick=()=>{S.ev.tab=b.dataset.evtab;render()});
+ if($("#ev-anio"))$("#ev-anio").onchange=e=>{S.ev.anio=e.target.value;render()};
+ document.querySelectorAll("[data-eval]").forEach(b=>b.onclick=()=>dlgEval(b.dataset.eval));
+ document.querySelectorAll("[data-recot]").forEach(b=>b.onclick=()=>dlgRecot(b.dataset.recot));
 }
 function repintar(sel){const el=$(sel),pos=el.selectionStart;render();const n=$(sel);n.focus();try{n.setSelectionRange(pos,pos)}catch{}}
 
@@ -1080,7 +1201,7 @@ async function init(){
  $("#who").innerHTML=`<b>${esc(u.user_metadata?.nombre||u.email)}</b>${esc(ROLN[S.rol]||S.rol)}${u.app_metadata?.ver_todo&&!S.gestion?" · ve todo":""}`;
  DB=makeDb(sb);
  try{const{data:eq}=await sb.rpc("equipo");for(const x of eq||[])S.equipo.set(x.email.toLowerCase(),{...x,email:x.email.toLowerCase(),jefe:(x.jefe||"").toLowerCase()})}catch{}
- for(const c of [COL.ord,COL.prov,COL.art,COL.cfg,...(S.verCuentas?[COL.cta]:[])])DB.on(c,()=>{if(!dlg.open)render();abrirPendiente()});
+ for(const c of [COL.ord,COL.prov,COL.art,COL.cfg,...(S.verCuentas?[COL.cta]:[]),...(S.gestion?[COL.eva]:[])])DB.on(c,()=>{if(!dlg.open)render();abrirPendiente()});
  ir();abrirPendiente()}
 function abrirPendiente(){if(S.abrir&&DB&&DB.listo(COL.ord)&&DB.listo(COL.art)&&DB.listo(COL.prov)){const id=S.abrir;S.abrir=null;if(ords().has(id))dlgOrden(id);else toast(`No encontré el pedido ${id} o no tienes acceso a él.`,5000)}}
 init();
