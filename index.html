@@ -250,6 +250,19 @@ details.mas summary{color:var(--accent);font-weight:700;padding:8px 0;font-size:
 .modbtn{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font:600 .82rem var(--font);color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);border-radius:99px;padding:5px 12px;cursor:pointer}
 .modbtn[hidden]{display:none}.modbtn svg{width:16px;height:16px}.modbtn:hover{color:var(--brand);border-color:var(--accent)}
 @media (max-width:760px){.modbtn span{display:none}.modbtn{padding:6px 8px}.mod-it{padding:14px;gap:12px}.mod-ic{width:44px;height:44px}.mod-rol{display:none}}
+.tb-h{margin-bottom:14px}.tb-tit{font-family:var(--display);font-size:1.8rem;margin:0;color:var(--brand,var(--ink))}
+.tb-tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin:0 0 16px}.tb-tab-b{background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;padding:10px 18px;font:inherit;font-weight:700;font-size:1.05rem;color:var(--ink-2);cursor:pointer;min-height:44px}.tb-tab-b[aria-selected="true"]{color:var(--brand,var(--ink));border-bottom-color:var(--brand,var(--ink))}
+.tb-res{margin-bottom:16px}.tb-sec{font-family:var(--display);font-size:1.45rem;margin:26px 0 10px;color:var(--brand,var(--ink))}
+.tb-res h3{margin:0 0 8px}.tb-res ul{margin:0;padding-left:18px}.tb-res li{margin:4px 0}.tb-malo{border-left:4px solid var(--bad)}.tb-bueno{border-left:4px solid var(--ok)}
+.tb-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+.tb-k{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tb-kt{font-size:.8rem;color:var(--ink-2);font-weight:600}.tb-k b{font-family:var(--display);font-size:1.7rem;line-height:1.1}.tb-ks{font-size:.8rem;color:var(--ink-2)}
+.tb-d{font-weight:700;font-size:.8rem;white-space:nowrap}.tb-d.mal,.tb-mal{color:var(--bad)}.tb-d.bien{color:var(--ok)}
+.tb-tab{margin-bottom:16px}.tb-tab .scroll{overflow-x:auto}.tb-tab td,.tb-tab th{white-space:nowrap}
+.tb-ul{list-style:none;margin:0;padding:0}.tb-ul li{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line)}.tb-ul li:first-child{border-top:0}.tb-ul li span{min-width:0}.tb-ul li>b{white-space:nowrap}
+.tb-ol{margin:0;padding-left:20px}.tb-ol li{margin:5px 0}
+body.en-tablero .grid2{margin-bottom:16px}body.en-tablero #nav,body.en-tablero #mnav{display:none!important}
+@media (max-width:760px){body.en-tablero main{padding-bottom:30px}.tb-tit{font-size:1.5rem}.tb-k b{font-size:1.4rem}}
 </style>
 <script>try{const t=JSON.parse(localStorage.getItem("sanidad:tema"));if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
@@ -353,11 +366,12 @@ function sv(tag,a,...kids){const e=document.createElementNS(SVGNS,tag);if(a)for(
    {"rol":"admin"} = administrador de todo; {"modulos":{"sanidad":"registro","compras":"solicitante"}} = por módulo.
    Usuarios antiguos sin "modulos" conservan Sanidad con su "rol" de siempre. */
 const MODS={
+ tablero:{n:"Dashboard",d:"Lo más importante de Sanidad y Compras: lo bueno, lo que preocupa e indicadores.",ic:"M4 20V11|M10 20V5|M16 20v-6|M21 20H3"},
  sanidad:{n:"Sanidad",d:"Agua y clima, eventos sanitarios, lotes y alertas de las fincas.",ic:"M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z|M8 11h.01"},
  compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261113d"}};
 const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras"};
 function modulosDe(u){const am=u?.app_metadata||{};const m=am.modulos&&typeof am.modulos==="object"?{...am.modulos}:{sanidad:am.rol||"registro"};
- if(am.rol==="admin")for(const k of Object.keys(MODS))m[k]="admin";for(const k of Object.keys(m))if(!MODS[k])delete m[k];return m}
+ if(am.rol==="admin")for(const k of Object.keys(MODS))m[k]="admin";if(am.tablero&&!m.tablero)m.tablero="lector";for(const k of Object.keys(m))if(!MODS[k])delete m[k];return m}
 function modIcon(d){return sv("svg",{viewBox:"0 0 24 24",fill:"none",stroke:"currentColor","stroke-width":"2","stroke-linecap":"round","stroke-linejoin":"round","aria-hidden":"true"},d.split("|").map(p=>sv("path",{d:p})))}
 function toast(m,ms=3400){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display="none",ms)}
 function pearson(xs,ys){const n=xs.length;if(n<3)return null;let mx=0,my=0;for(let i=0;i<n;i++){mx+=xs[i];my+=ys[i]}mx/=n;my/=n;let sxy=0,sxx=0,syy=0;for(let i=0;i<n;i++){const a=xs[i]-mx,b=ys[i]-my;sxy+=a*b;sxx+=a*a;syy+=b*b}if(!sxx||!syy)return null;return sxy/Math.sqrt(sxx*syy)}
@@ -673,7 +687,7 @@ const chipN={alta:"Alerta",media:"Atención",info:"Aviso",ok:"Normal",sin:"Sin l
 function go(view,opts={}){Object.assign(S,opts.state||{});if(location.hash==="#"+view)render();else location.hash=view}
 function render(){if(!S.M)compute();const v=$("#view");v.textContent="";
  for(const a of document.querySelectorAll("#nav a,#mnav a"))a.getAttribute("href")==="#"+S.view?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current");
- if(!S.canWrite)v.append(el("div",{class:"banner",text:"Tienes acceso de solo lectura: puedes consultar, pero no registrar. Pide al administrador que revise tu usuario."}));
+ if(!S.canWrite&&S.view!=="tablero")v.append(el("div",{class:"banner",text:"Tienes acceso de solo lectura: puedes consultar, pero no registrar. Pide al administrador que revise tu usuario."}));
  try{(V[S.view]||V.inicio)(v)}catch(e){console.error(e);v.textContent="";v.append(card("Algo falló al abrir esta pantalla",el("p",{text:"Recarga la página. Si se repite, avisa al administrador con una captura."})))}}
 
 V.inicio=v=>{const M=S.M,hoy=M.hoy,mes=new Date(hoy*DAY).getUTCMonth();
@@ -1336,7 +1350,7 @@ function exportar(t){const M=S.M;
  bajar(`mortalidad-y-agua-${hoyStr()}.csv`,L)}
 
 /* ===== Arranque ===== */
-function route(){if(/access_token|error_description|type=recovery/.test(location.hash))return;const h=location.hash.slice(1);const prev=S.view;S.view=V[h]?h:"inicio";$("#sheet").classList.remove("open");if(prev==="lotes"&&S.view!=="lotes")S.editLote=null;if(S.ready)render();window.scrollTo(0,0)}
+function route(){if(/access_token|error_description|type=recovery/.test(location.hash))return;const h=location.hash.slice(1);const prev=S.view;S.view=V[h]&&(h!=="tablero"||S.mods?.tablero)?h:"inicio";document.body.classList.toggle("en-tablero",S.view==="tablero");const at=document.querySelector(".app-t");if(at)at.textContent=S.view==="tablero"?"Dashboard":"Sanidad";$("#sheet").classList.remove("open");if(prev==="lotes"&&S.view!=="lotes")S.editLote=null;if(S.ready)render();window.scrollTo(0,0)}
 window.addEventListener("hashchange",route);
 $("#mas").addEventListener("click",()=>$("#sheet").classList.add("open"));$("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet"||e.target.tagName==="A")$("#sheet").classList.remove("open")});
 $("#cambiarMod").addEventListener("click",()=>showModulos());
@@ -1433,13 +1447,146 @@ function start(session){if(S.started)return;if(session.user?.user_metadata?.camb
  S.mods=modulosDe(u);const ks=Object.keys(S.mods);$("#status").style.display="none";
  if(!ks.length){$("#status").style.display="block";$("#status").textContent="Tu usuario aún no tiene módulos asignados. Pide al administrador que lo revise.";return}
  $("#cambiarMod").hidden=ks.length<2;showModulos()}
+/* ===== Dashboard (Gerencia y dueño): lo más importante de cada módulo ===== */
+function cargarCompras(){if(S.C)return;S.C={ord:new Map(),art:new Map(),prov:new Map(),cfg:new Map(),ok:0,err:null};
+ const snap=(col,k)=>S.db.collection(col).onSnapshot(s=>{S.C[k]=new Map(s.docs.map(d=>[d.id,d.data()]));S.C.ok|=({ord:1,art:2,prov:4,cfg:8})[k];if(S.ready&&S.view==="tablero")render()},e=>{S.C.err=e;if(S.ready&&S.view==="tablero")render()});
+ snap("compras_ordenes","ord");snap("compras_articulos","art");snap("compras_proveedores","prov");snap("compras_config","cfg")}
+const TB={
+ act:o=>(o.items||[]).filter(i=>!i.anulado),
+ tot:i=>(+i.cant||0)*(+i.precio||0)*(1+(+i.iva||0)/100),
+ estado(o){if(o.anulada)return"anulado";const it=TB.act(o);if(o.aprob&&o.aprob.ok===false)return"rechazado";if(!o.aprob?.ok)return"por-aprobar";if(!it.length)return"anulado";
+  if(it.every(i=>i.rec)){if(it.some(i=>i.rec.estado==="nov"&&!i.sol))return"con-novedad";return it.every(i=>i.fac)?"cerrado":"recibido"}
+  if(!it.every(i=>i.prov&&+i.precio>0))return"cotizando";const t=it.reduce((s,i)=>s+TB.tot(i),0);
+  if(t>=1e6&&!it.every(i=>i.oc)){if(o.ger?.ok===false)return"rechazado";if(!o.ger?.ok)return"por-aprobar-gerencia"}
+  if(!it.every(i=>i.oc))return"por-comprar";if(it.some(i=>i.rec?.estado==="nov"&&!i.sol))return"con-novedad";return"comprado"},
+ peso:n=>"$"+fmtN(Math.round(n||0)),
+ millones:n=>Math.abs(n)>=1e6?"$"+fmtN(n/1e6,1)+" M":"$"+fmtN(Math.round(n||0)),
+ artNom:i=>i.art?(S.C.art.get(i.art)?.nombre||i.art):(i.txt||"—"),
+ provNom:n=>S.C.prov.get(n)?.nombre||n||"—",
+ ccNom:id=>(S.C.cfg.get("centros")?.lista||[]).find(c=>c.id===id)?.nombre||id||"—",
+ cambio(a,b){if(a==null||b==null||!isFinite(a)||!isFinite(b))return null;if(b===0)return a>0?Infinity:0;return(a-b)/b*100}};
+function tbSanidad(M,P){const hoy=M.hoy,F=[];let vivT=0,muT=0,v0T=0,muP=0,v0P=0;
+ for(const f of FINCAS){const us=M.ubs.filter(u=>u.finca===f.id&&u.activo);let mu=0,v0=0,mp=0,vp=0;const lotes=[];
+  for(const u of us){const ref=u.refDia??hoy,c=ventana(u,ref-P+1,ref),p=ventana(u,ref-2*P+1,ref-P);mu+=c.muertos;v0+=c.vivos0||0;mp+=p.muertos;vp+=p.vivos0||0;
+   if(c.pct!=null&&c.muertos>=5)lotes.push({u,c,p,lim:P===7?u.limSem:null})}
+  const trats=M.eventos.filter(r=>r.finca===f.id&&r.tipo==="tratamiento"),tc=trats.filter(r=>dn(r.fecha)>hoy-P),tp=trats.filter(r=>{const d=dn(r.fecha);return d>hoy-2*P&&d<=hoy-P});
+  let agua=0;for(let d=hoy-P+1;d<=hoy;d++)if(M.envRaw.get(f.id)?.get(d))agua++;
+  const al=M.alertas.filter(a=>a.finca===f.id&&a.nivel==="alta");const pis=M.pisUlt?.[f.id];
+  const vivos=us.reduce((a,u)=>a+(u.vivos||0),0);vivT+=vivos;muT+=mu;v0T+=v0;muP+=mp;v0P+=vp;
+  F.push({f,vivos,mu,pct:v0?mu/v0*100:null,pctP:vp?mp/vp*100:null,tc:tc.length,tp:tp.length,agua,al,atraso:pis!=null?hoy-pis:null,lotes,nLotes:new Set(us.map(u=>u.lote.id)).size})}
+ const ev=M.eventos.filter(r=>dn(r.fecha)>hoy-P),evP=M.eventos.filter(r=>{const d=dn(r.fecha);return d>hoy-2*P&&d<=hoy-P});
+ const cuenta=(arr,fn)=>{const m=new Map();for(const r of arr){const k=fn(r);if(k)m.set(k,(m.get(k)||0)+1)}return[...m].sort((a,b)=>b[1]-a[1])};
+ const diag=cuenta(ev.filter(r=>r.tipo==="necropsia"||r.tipo==="tratamiento"||(r.tipo==="laboratorio"&&norm(r.datos?.resultado)==="positivo")),r=>{const x=r.datos||{};const d=x.diagnostico||x.motivo||x.agente;return d?canon(d):null});
+ const prods=cuenta(ev.filter(r=>r.tipo==="tratamiento"),r=>String(r.datos?.producto||"").split(/\s+\d/)[0].trim()||null);
+ const retiro=M.alertas.filter(a=>/periodo de retiro/.test(a.titulo||""));
+ const top=F.flatMap(x=>x.lotes).sort((a,b)=>b.c.pct-a.c.pct).slice(0,5);
+ return{F,vivT,muT,pct:v0T?muT/v0T*100:null,pctP:v0P?muP/v0P*100:null,trat:ev.filter(r=>r.tipo==="tratamiento").length,tratP:evP.filter(r=>r.tipo==="tratamiento").length,
+  nEv:ev.length,diag,prods,retiro,top,altas:M.alertas.filter(a=>a.nivel==="alta"),medias:M.alertas.filter(a=>a.nivel==="media")}}
+function tbCompras(hoyD,P){const C=S.C,dIn=(f,a,b)=>{const d=dn(f);return d!=null&&d>=a&&d<=b},a0=hoyD-P+1,p0=hoyD-2*P+1,p1=hoyD-P;
+ const R={comprado:0,compradoP:0,nuevos:0,nuevosP:0,abiertos:0,porAprob:[],porGer:0,nov:0,sinFac:0,pagoPend:0,vencidos:[],alzas:[],alzas90:0,sin3:0,cambios:0,cc:new Map(),prov:new Map(),tOC:[],tRec:[],cotiz:0};
+ for(const[id,o]of C.ord){const e=TB.estado(o),it=TB.act(o);
+  if(dIn(o.fecha,a0,hoyD))R.nuevos++;if(dIn(o.fecha,p0,p1))R.nuevosP++;
+  if(!["cerrado","anulado","rechazado"].includes(e))R.abiertos++;
+  if(e==="por-aprobar")R.porAprob.push({id,dias:hoyD-dn(o.fecha)});if(e==="por-aprobar-gerencia")R.porGer++;
+  if(e==="cotizando")R.cotiz++;
+  if(e==="con-novedad")R.nov++;
+  if(["comprado","recibido","con-novedad"].includes(e)&&it.some(i=>i.oc&&!i.fac))R.sinFac++;
+  for(const i of it){const t=TB.tot(i);
+   if(i.oc&&i.ocFecha){if(dIn(i.ocFecha,a0,hoyD)){R.comprado+=t;R.cc.set(o.cc,(R.cc.get(o.cc)||0)+t);if(i.prov)R.prov.set(i.prov,(R.prov.get(i.prov)||0)+t)}if(dIn(i.ocFecha,p0,p1))R.compradoP+=t;
+    if(dn(i.ocFecha)>hoyD-90){const dd=dn(i.ocFecha)-dn(o.fecha);if(dd>=0)R.tOC.push(dd);if(i.rec?.fecha){const dr=dn(i.rec.fecha)-dn(i.ocFecha);if(dr>=0)R.tRec.push(dr)}}
+    if(i.sin3&&dIn(i.ocFecha,a0,hoyD))R.sin3++}
+   if(i.alza){if(dIn(i.alza.fecha,a0,hoyD))R.alzas.push({id,i,o});if(dn(i.alza.fecha)>hoyD-90)R.alzas90++}
+   if(i.cambio?.estado==="pendiente")R.cambios++}
+  const nits=[...new Set(it.filter(i=>i.oc&&i.prov).map(i=>i.prov))];
+  for(const n of nits){const pg=(o.pagos||{})[n]||{};if(pg.estado==="pagado")continue;const sub=it.filter(i=>i.prov===n).reduce((s,i)=>s+TB.tot(i),0);R.pagoPend+=sub;
+   if(pg.fecha&&dn(pg.fecha)<hoyD)R.vencidos.push({id,n,sub,fecha:pg.fecha})}}
+ const prom=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;R.dOC=prom(R.tOC);R.dRec=prom(R.tRec);
+ R.alzas.sort((a,b)=>(b.i.alza.pct||0)-(a.i.alza.pct||0));R.porAprob.sort((a,b)=>b.dias-a.dias);return R}
+function tbResumen(s,c,P){let malo=[],bueno=[];const out={},per=P===7?"la semana anterior":"el mes anterior";
+ for(const x of s.F){if(x.pct==null)continue;const ch=TB.cambio(x.pct,x.pctP);
+  if(ch!=null&&ch>=20&&x.mu>=20)malo.push(`Mortalidad en ${x.f.nombre} subió a ${pct(x.pct)} (${pct(x.pctP)} ${per}).`);
+  else if(ch!=null&&ch<=-20&&x.pctP>0)bueno.push(`Mortalidad en ${x.f.nombre} bajó a ${pct(x.pct)} (${pct(x.pctP)} ${per}).`);
+  if(x.atraso!=null&&x.atraso>2)malo.push(`El informe de Piscis de ${x.f.nombre} tiene ${x.atraso} días de atraso.`)}
+ if(s.altas.length)malo.push(`${s.altas.length} alerta${s.altas.length>1?"s":""} sanitaria${s.altas.length>1?"s":""} en rojo: ${s.altas.slice(0,3).map(a=>a.titulo).join("; ")}${s.altas.length>3?"…":""}.`);
+ else bueno.push("Ninguna alerta sanitaria en rojo.");
+ const sinRojo=s.F.filter(x=>!x.al.length&&x.nLotes).map(x=>x.f.nombre);if(s.altas.length&&sinRojo.length)bueno.push(`Sin alertas en rojo: ${sinRojo.join(", ")}.`);
+ if(s.trat>s.tratP&&s.trat>=2)malo.push(`Más tratamientos: ${s.trat} frente a ${s.tratP} ${per}.`);else if(s.tratP>s.trat)bueno.push(`Menos tratamientos: ${s.trat} frente a ${s.tratP} ${per}.`);
+ out.san={malo,bueno};malo=[];bueno=[];
+ if(c){if(c.alzas.length)malo.push(`${c.alzas.length} alza${c.alzas.length>1?"s":""} de precio de más del 5 %: ${c.alzas.slice(0,3).map(a=>`${TB.artNom(a.i)} +${fmtN(a.i.alza.pct||0,0)} %`).join(", ")}.`);else bueno.push("Sin alzas de precio de más del 5 % en el periodo.");
+  if(c.nov)malo.push(`${c.nov} pedido${c.nov>1?"s":""} con novedad sin resolver.`);else bueno.push("Ningún pedido con novedad sin resolver.");
+  const viejos=c.porAprob.filter(x=>x.dias>3);if(viejos.length)malo.push(`${viejos.length} pedido${viejos.length>1?"s llevan":" lleva"} más de 3 días sin aprobar (${viejos.slice(0,3).map(x=>x.id).join(", ")}).`);
+  if(c.porGer||c.cambios)malo.push(`Te esperan ${[c.porGer?c.porGer+" gasto"+(c.porGer>1?"s":"")+" por aprobar":"",c.cambios?c.cambios+" cambio"+(c.cambios>1?"s":"")+" de precio":""].filter(Boolean).join(" y ")}.`);
+  if(c.vencidos.length)malo.push(`${c.vencidos.length} pago${c.vencidos.length>1?"s":""} vencido${c.vencidos.length>1?"s":""} por ${TB.peso(c.vencidos.reduce((a,x)=>a+x.sub,0))}.`);
+  if(c.dOC!=null&&c.dOC<=3)bueno.push(`Compras escribe la OC en ${fmtN(c.dOC,1)} días en promedio.`);else if(c.dOC!=null&&c.dOC>7)malo.push(`La OC tarda ${fmtN(c.dOC,1)} días en promedio desde el pedido.`);
+  if(c.sin3)malo.push(`${c.sin3} compra${c.sin3>1?"s":""} de artículo nuevo sin 3 cotizaciones.`)}
+ out.com={malo,bueno};return out}
+V.tablero=v=>{if(!S.mods.tablero){v.append(card("Sin acceso",el("p",{text:"El Dashboard es solo para Gerencia."})));return}
+ const M=S.M,P=S.tbP||7,hoy=M.hoy,s=tbSanidad(M,P),cOk=S.C&&(S.C.ok&15)===15,c=cOk?tbCompras(hoy,P):null,R=tbResumen(s,c,P);
+ const flecha=(a,b,malo_sube=true)=>{const ch=TB.cambio(a,b);if(ch==null||(isFinite(ch)&&Math.abs(ch)<5)||(!isFinite(ch)&&!(a>0)))return el("span",{class:"tb-d"},"igual");const sube=ch>0,cls=malo_sube===null?"":sube===malo_sube?"mal":"bien";
+  const txt=!isFinite(ch)?"sube":ch>=100?fmtN(a/b,1)+" veces":fmtN(Math.abs(ch),0)+" %";return el("span",{class:"tb-d "+cls},(sube?"▲ ":"▼ ")+txt)};
+ const kpi=(t,val,sub,d)=>el("div",{class:"tb-k"},el("span",{class:"tb-kt"},t),el("b",{},val),el("span",{class:"tb-ks"},sub||"",d?" ":null,d||null));
+ const per=P===7?"semana anterior":"mes anterior";
+ v.append(el("div",{class:"row tb-h"},el("h2",{class:"tb-tit"},"Dashboard"),el("span",{class:"muted small"},`Al ${fmtF(hoy)} · ${P===7?"últimos 7 días":"últimos 30 días"} frente al periodo anterior`),el("span",{class:"spacer"}),
+  el("div",{class:"seg"},[[7,"Última semana"],[30,"Último mes"]].map(([n,t])=>el("button",{type:"button","aria-pressed":String(P===n),onclick:()=>{S.tbP=n;render()}},t)))));
+ const tab=S.tbTab||"sanidad";
+ v.append(el("div",{class:"tb-tabs",role:"tablist"},[["sanidad","Sanidad"],["compras","Compras"]].map(([k,t])=>el("button",{type:"button",role:"tab",class:"tb-tab-b","aria-selected":String(tab===k),onclick:()=>{S.tbTab=k;render()}},t))));
+ const resumen=X=>el("div",{class:"grid2 tb-res"},
+  el("section",{class:"panel tb-malo"},el("h3",{},"Lo que preocupa"),X.malo.length?el("ul",{},X.malo.map(t=>el("li",{},t))):el("p",{class:"muted"},"Nada para resaltar.")),
+  el("section",{class:"panel tb-bueno"},el("h3",{},"Lo bueno"),X.bueno.length?el("ul",{},X.bueno.map(t=>el("li",{},t))):el("p",{class:"muted"},"Nada para resaltar.")));
+ if(tab==="sanidad"){v.append(resumen(R.san));
+ v.append(el("div",{class:"tb-kpis"},
+  kpi("Peces en las fincas",fmtN(s.vivT),`${fmtN(s.F.reduce((a,x)=>a+x.nLotes,0))} lotes activos`),
+  kpi("Mortalidad",pct(s.pct),`${fmtN(s.muT)} peces · antes ${pct(s.pctP)}`,flecha(s.pct,s.pctP)),
+  kpi("Tratamientos",fmtN(s.trat),`${per}: ${fmtN(s.tratP)}`,flecha(s.trat,s.tratP)),
+  kpi("Alertas en rojo",fmtN(s.altas.length),`${fmtN(s.medias.length)} en amarillo`),
+  kpi("Lotes en retiro",fmtN(s.retiro.length),"No se pueden cosechar")));
+ v.append(el("section",{class:"panel tb-tab"},el("h3",{},"Por finca"),el("div",{class:"scroll"},el("table",{},
+  el("thead",{},el("tr",{},["Finca","Peces","Mortalidad","Antes","Cambio","Tratamientos","Alertas rojas","Agua registrada","Último Piscis"].map(h=>el("th",{},h)))),
+  el("tbody",{},s.F.map(x=>el("tr",{},el("td",{},el("b",{},x.f.nombre)),el("td",{},fmtN(x.vivos)),el("td",{},pct(x.pct)),el("td",{class:"muted"},pct(x.pctP)),el("td",{},flecha(x.pct,x.pctP)),
+   el("td",{},fmtN(x.tc)),el("td",{},x.al.length?el("span",{class:"chip bad"},String(x.al.length)):"0"),el("td",{},`${x.agua} de ${P} días`),
+   el("td",{},x.atraso==null?"—":x.atraso<=1?"Al día":el("span",{class:x.atraso>2?"tb-mal":""},`Hace ${x.atraso} días`)))))))));
+ v.append(el("div",{class:"grid2"},
+  el("section",{class:"panel"},el("h3",{},"Lotes con más mortalidad"),s.top.length?el("ol",{class:"tb-ol"},s.top.map(x=>el("li",{},el("b",{},`Lote ${x.u.lote.codigo}`),` · ${fNom(x.u.finca)}: ${pct(x.c.pct)} (${fmtN(x.c.muertos)} peces)`,
+   x.lim!=null?el("span",{class:x.c.pct>x.lim?"tb-mal":"muted"},` · esperado hasta ${pct(x.lim)}`):null))):el("p",{class:"muted"},"Sin mortalidad relevante.")),
+  el("section",{class:"panel"},el("h3",{},"Diagnósticos y tratamientos"),
+   s.diag.length?el("p",{},el("b",{},"Diagnósticos: "),s.diag.slice(0,5).map(([k,n])=>`${k} (${n})`).join(", ")):el("p",{class:"muted"},"Sin diagnósticos registrados en el periodo."),
+   s.prods.length?el("p",{},el("b",{},"Productos usados: "),s.prods.slice(0,5).map(([k,n])=>`${k} (${n})`).join(", ")):null,
+   el("p",{class:"muted small"},`${fmtN(s.nEv)} eventos sanitarios registrados en el periodo.`))));
+ return}
+ /* Compras */
+ if(!cOk){v.append(card(null,el("p",{class:"muted"},S.C?.err?"No se pudieron cargar los datos de Compras.":"Cargando Compras…")));return}
+ v.append(resumen(R.com));
+ v.append(el("div",{class:"tb-kpis"},
+  kpi("Comprado (con OC)",TB.millones(c.comprado),`${per}: ${TB.millones(c.compradoP)}`,flecha(c.comprado,c.compradoP,null)),
+  kpi("Pedidos nuevos",fmtN(c.nuevos),`${per}: ${fmtN(c.nuevosP)}`),
+  kpi("Pedidos abiertos",fmtN(c.abiertos),`${c.porAprob.length} por aprobar · ${c.cotiz} cotizando`),
+  kpi("Días pedido → OC",c.dOC==null?"—":fmtN(c.dOC,1),"Promedio últimos 90 días"),
+  kpi("Días OC → llegada",c.dRec==null?"—":fmtN(c.dRec,1),"Promedio últimos 90 días"),
+  kpi("Por pagar",TB.millones(c.pagoPend),c.vencidos.length?`${c.vencidos.length} vencido${c.vencidos.length>1?"s":""}`:"Nada vencido")));
+ const lista=(m,fmt)=>[...m].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,t])=>el("li",{},el("span",{},fmt(k)),el("b",{},TB.peso(t))));
+ v.append(el("div",{class:"grid2"},
+  el("section",{class:"panel"},el("h3",{},"Alzas de precio de más del 5 %"),c.alzas.length?el("ul",{class:"tb-ul"},c.alzas.slice(0,8).map(a=>el("li",{},el("span",{},el("b",{},TB.artNom(a.i)),` · ${TB.provNom(a.i.prov)} · ${a.id}`),el("b",{class:"tb-mal"},`+${fmtN(a.i.alza.pct||0,1)} %`)))):el("p",{class:"muted"},"Ninguna en el periodo."),
+   el("p",{class:"muted small"},`En los últimos 90 días: ${fmtN(c.alzas90)}.`)),
+  el("section",{class:"panel"},el("h3",{},"Pendientes de Compras"),el("ul",{class:"tb-ul"},
+   el("li",{},el("span",{},"Con novedad sin resolver"),el("b",{class:c.nov?"tb-mal":""},String(c.nov))),
+   el("li",{},el("span",{},"Gastos por aprobar (Gerencia)"),el("b",{},String(c.porGer))),
+   el("li",{},el("span",{},"Cambios de precio por aprobar"),el("b",{},String(c.cambios))),
+   el("li",{},el("span",{},"Comprados sin factura"),el("b",{},String(c.sinFac))),
+   el("li",{},el("span",{},"Artículos nuevos sin 3 cotizaciones"),el("b",{class:c.sin3?"tb-mal":""},String(c.sin3)))))));
+ v.append(el("div",{class:"grid2"},
+  el("section",{class:"panel"},el("h3",{},"Gasto por centro de costos"),c.cc.size?el("ul",{class:"tb-ul"},lista(c.cc,TB.ccNom)):el("p",{class:"muted"},"Sin OC escritas en el periodo.")),
+  el("section",{class:"panel"},el("h3",{},"Proveedores con más compras"),c.prov.size?el("ul",{class:"tb-ul"},lista(c.prov,TB.provNom)):el("p",{class:"muted"},"Sin OC escritas en el periodo."))));
+ v.append(el("p",{class:"muted small",style:"margin-top:12px"},"Gasto y tiempos de gestión se miden con las OC escritas en la app nueva (las órdenes migradas no tienen fecha de OC)."))};
+
 function showModulos(){/* Si venía de un enlace (por ejemplo un pedido enviado por WhatsApp), vuelve allí después de entrar */
  try{const v=sessionStorage.getItem("belmira:volver");if(v&&S.mods.compras&&/^https:\/\/belmira1993\.github\.io\/sanidad\/compras\.html/.test(v)){sessionStorage.removeItem("belmira:volver");location.href=v;return}}catch(e){}
  const box=$("#mbody");box.textContent="";$("#mhola").textContent="Hola, "+(S.me.name||"").split(" ")[0];$("#mcorreo").textContent=S.me.email||"";
- for(const[k,rol]of Object.entries(S.mods)){const m=MODS[k];box.append(el("button",{type:"button",class:"mod-it",onclick:()=>entrarModulo(k)},
+ for(const[k,rol]of Object.entries(S.mods).sort((x,y)=>(y[0]==="tablero")-(x[0]==="tablero"))){const m=MODS[k];box.append(el("button",{type:"button",class:"mod-it",onclick:()=>entrarModulo(k)},
   el("span",{class:"mod-ic"},modIcon(m.ic)),el("span",{class:"mod-tx"},el("b",{text:m.n}),el("span",{text:m.d})),el("span",{class:"mod-rol",text:ROLN[rol]||rol})))}
  $("#modulos").hidden=false}
-function entrarModulo(k){const m=MODS[k];if(m.url){location.href=m.url;return}$("#modulos").hidden=true;if(k==="sanidad")entrarSanidad()}
+function entrarModulo(k){const m=MODS[k];if(m.url){location.href=m.url;return}$("#modulos").hidden=true;
+ if(k==="tablero"){if(location.hash!=="#tablero")history.replaceState(null,"","#tablero");entrarSanidad();cargarCompras();route();return}
+ if(k==="sanidad"){const on=S.sanidadOn;entrarSanidad();if(on&&S.view==="tablero")location.hash="inicio"}}
 function entrarSanidad(){if(S.sanidadOn)return;S.sanidadOn=true;$("#status").style.display="block";$("#status").textContent="Cargando datos…";
  S.rol=S.mods.sanidad||"registro";S.canWrite=S.rol!=="lector";S.esAdmin=S.rol==="admin";if(S.esAdmin)sb.rpc("uso_bd").then(({data})=>{if(data){S.uso=data;if(S.ready){compute();render()}}},()=>{});S.db=makeDb(sb);S.assets=S.canWrite?makeAssets(sb):null;route();flush();
  const timer=setTimeout(()=>{if(!S.ready)$("#status").textContent="Los datos aún no responden. Revisa la conexión; la app seguirá intentando."},12000);
@@ -1463,3 +1610,4 @@ init();
 </script>
 </body>
 </html>
+
