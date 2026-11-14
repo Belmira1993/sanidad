@@ -377,7 +377,7 @@ const S={equipo:new Map(),me:null,rol:"",gestion:false,verCuentas:false,vista:"i
 const COL={prov:"compras_proveedores",cta:"compras_cuentas",art:"compras_articulos",cfg:"compras_config",ord:"compras_ordenes",eva:"compras_evaluaciones"};
 const TIPOS={J:"Jurídica",N:"Natural"};
 const UNIDADES=["unidad","kg","g","bulto","litro","galón","garrafa","caneca","caja","paquete","rollo","metro","par","juego","servicio"];
-const ROLN={admin:"Administrador",compras:"Gestión de compras",aprobador:"Aprueba",solicitante:"Solicita"};
+const ROLN={admin:"Administrador",compras:"Gestión de compras",aprobador:"Aprueba",solicitante:"Solicita",lector:"Consulta"};
 function dbErr(e){const m=String(e?.message||e||"");if(/row-level security|permission|42501/i.test(m))return{code:"permiso",message:"Tu usuario no tiene permiso para este cambio."};
  if(/fetch|network|timeout/i.test(m))return{code:"red",message:"Sin conexión. Intenta de nuevo cuando vuelva la señal."};return{code:"otro",message:m||"Error inesperado."}}
 const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),ms))]);
@@ -588,7 +588,7 @@ function vPedidos(){const w=cargando(COL.ord,COL.art,COL.cfg,COL.prov);if(w)retu
  const provsUsados=[...new Set([...ords().values()].flatMap(o=>activos(o).map(i=>i.prov)).filter(Boolean))].map(n=>[n,provs().get(n)?.nombre||n]).sort((a,b)=>a[1].localeCompare(b[1],"es"));
  const fila=([id,o])=>{const e=estado(o),pv=[...new Set(activos(o).map(i=>provs().get(i.prov)?.nombre).filter(Boolean))];return{id,o,e,pv}};
  const R=rows.map(fila);
- return`<div class="row hrow"><h2 style="color:var(--brand)">Pedidos</h2><span class="spacer"></span><button class="btn pri" data-acc="nuevo-ped">Nuevo pedido</button></div>
+ return`<div class="row hrow"><h2 style="color:var(--brand)">Pedidos</h2><span class="spacer"></span>${S.rol==="lector"?"":`<button class="btn pri" data-acc="nuevo-ped">Nuevo pedido</button>`}</div>
  ${P.length?`<div class="panel bandeja"><h3>Mis pendientes <span class="chip warn">${P.length}</span></h3>${P.slice(0,12).map(([id,t])=>`<button class="pend-it" data-ord="${id}"><b>${id}</b><span>${esc(t)}</span><span class="muted small">${esc(quien(ords().get(id)))} · ${esc(ccNom(ords().get(id).cc))}</span></button>`).join("")}${P.length>12?`<p class="muted small">y ${P.length-12} más en la lista.</p>`:""}</div>`:`<div class="panel bandeja vacia"><span class="muted">No tienes pendientes. 👍</span></div>`}
  <div class="filtros">${FILTROS.map(([k,t])=>`<button class="fbtn${f.est===k?" on":""}" data-fest="${k}">${t} <b>${cnt(k)}</b></button>`).join("")}</div>
  <div class="tools"><input class="inp" type="search" id="qord" placeholder="Número, artículo, proveedor, OC, factura…" value="${esc(f.q)}" aria-label="Buscar pedido">
