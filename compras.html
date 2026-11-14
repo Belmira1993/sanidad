@@ -489,8 +489,8 @@ function campana(){const b=$("#bell");if(!b||!DB||!DB.listo(COL.ord))return;cons
  b.hidden=false;$("#bell-n").hidden=!n;$("#bell-n").textContent=n>99?"99+":String(n);b.title=n?`Tienes ${n} pendiente${n>1?"s":""}`:"";
  document.title=(n?`(${n}) `:"")+"Belmira · Compras";try{n?navigator.setAppBadge?.(n):navigator.clearAppBadge?.()}catch(e){}
  if(S.verPend){S.verPend=false;verPendientes()}}
-const pendItem=([id,t])=>{const o=ords().get(id),l=!o&&DB.listo(COL.pag)&&lotes().get(id);return`<button class="pend-it" ${o?`data-ord="${id}"`:`data-plote="${id}"`}><b>${id}</b><span>${esc(t)}</span><span class="muted small">${o?esc(quien(o))+" · "+esc(ccNom(o.cc)):l?"Pagos · "+fecha(l.fecha):""}</span></button>`};
-const abrirPend=id=>{if(ords().has(id))dlgOrden(id);else{S.pg.lote=id;S.pg.tab="lotes";if(location.hash==="#pagos")render();else location.hash="pagos"}};
+const pendItem=([id,t])=>{const o=ords().get(id),l=!o&&DB.listo(COL.pag)&&lotes().get(id),esp=id==="RECOT"||id==="EVAL";return`<button class="pend-it" ${o?`data-ord="${id}"`:`data-plote="${id}"`}><b>${esp?(id==="RECOT"?"Recotizar":"Proveedores"):id}</b><span>${esc(t)}</span><span class="muted small">${o?esc(quien(o))+" · "+esc(ccNom(o.cc)):l?"Pagos · "+fecha(l.fecha):esp?"Evaluación de proveedores":""}</span></button>`};
+const abrirPend=id=>{if(id==="RECOT"||id==="EVAL"){S.ev=S.ev||{};S.ev.tab=id==="RECOT"?"recot":"eval";if(location.hash==="#evaluacion")render();else location.hash="evaluacion";return}if(ords().has(id))dlgOrden(id);else{S.pg.lote=id;S.pg.tab="lotes";if(location.hash==="#pagos")render();else location.hash="pagos"}};
 function verPendientes(){const P=pendientes().mios;if(!P.length){toast("No tienes pendientes.");return}if(P.length===1){abrirPend(P[0][0]);return}
  const d=$("#dlg2");d.innerHTML=`<div class="dlg-h"><h3>Tus pendientes (${P.length})</h3></div><div class="dlg-b pend-lista">${P.map(pendItem).join("")}</div><div class="dlg-f"><button class="btn" id="pl-c">Cerrar</button></div>`;
  $("#pl-c").onclick=()=>d.close();d.querySelectorAll("[data-ord],[data-plote]").forEach(x=>x.onclick=()=>{d.close();abrirPend(x.dataset.ord||x.dataset.plote)});d.showModal()}
@@ -506,18 +506,18 @@ function vInicio(){const np=provs().size,na=[...arts().values()].filter(d=>!d.un
  </div></div>`}
 function vProv(){const w=cargando(COL.prov,...(S.verCuentas?[COL.cta]:[]));if(w)return w;
  const q=S.q.prov,f=S.filtro.prov,C=ctas();
- let rows=[...provs()].filter(([id,d])=>coincide(id+" "+d.nombre,q)&&(!f||(f==="sin"?!d.tipo:f==="ccta"?C.has(id):f==="scta"?!C.has(id):d.tipo===f)));
+ const AM=actividad();let rows=[...provs()].filter(([id,d])=>coincide(id+" "+d.nombre,q)&&(!f||(f==="sin"?!d.tipo:f==="ccta"?C.has(id):f==="scta"?!C.has(id):f==="act"?esActivo(id,d,AM):f==="inact"?!esActivo(id,d,AM):f==="sincrit"?esActivo(id,d,AM)&&!d.crit:f.startsWith("c-")?d.crit===f.slice(2):d.tipo===f)));
  rows.sort((a,b)=>a[1].nombre.localeCompare(b[1].nombre,"es"));const total=rows.length;rows=rows.slice(0,S.lim.prov);
  const cta=id=>{const c=C.get(id);return c?esc(c.numero)+(c.banco?`<span class="sub">${esc(c.banco)}${c.tipoCuenta?" · "+esc(c.tipoCuenta):""}</span>`:""):'<span class="muted">—</span>'};
  return`<div class="row hrow"><h2 style="color:var(--brand)">Proveedores</h2><span class="spacer"></span>
   ${S.gestion?`<button class="btn" data-acc="importar">Cargar base desde Excel</button><button class="btn pri" data-acc="nuevo-prov">Nuevo proveedor</button>`:""}</div>
  ${S.gestion?"":`<p class="ro-note">Solo Compras crea y modifica proveedores.${S.verCuentas?"":" Las cuentas bancarias solo las ven Compras y Contabilidad."}</p>`}
  <div class="tools"><input class="inp" type="search" id="qprov" placeholder="Buscar por nombre o NIT" value="${esc(q)}" aria-label="Buscar proveedor">
-  <select class="inp" id="fprov" aria-label="Filtrar"><option value="">Todos</option><option value="J"${f==="J"?" selected":""}>Persona jurídica</option><option value="N"${f==="N"?" selected":""}>Persona natural</option><option value="sin"${f==="sin"?" selected":""}>Sin tipo</option>
+  <select class="inp" id="fprov" aria-label="Filtrar"><option value="">Todos</option><option value="J"${f==="J"?" selected":""}>Persona jurídica</option><option value="N"${f==="N"?" selected":""}>Persona natural</option><option value="sin"${f==="sin"?" selected":""}>Sin tipo</option><option value="act"${f==="act"?" selected":""}>Activos</option><option value="inact"${f==="inact"?" selected":""}>Inactivos</option><option value="sincrit"${f==="sincrit"?" selected":""}>Activos sin criticidad</option>${Object.entries(CRITS).map(([k,[t]])=>`<option value="c-${k}"${f==="c-"+k?" selected":""}>Criticidad ${t}</option>`).join("")}
   ${S.verCuentas?`<option value="ccta"${f==="ccta"?" selected":""}>Con cuenta bancaria</option><option value="scta"${f==="scta"?" selected":""}>Sin cuenta bancaria</option>`:""}</select></div>
  <p class="count">${fmtN(total)} de ${fmtN(provs().size)} proveedores</p>
  ${total?`<div class="panel scroll lista" style="padding:0"><table><thead><tr><th>NIT o cédula</th><th>Razón social</th><th>Tipo</th>${S.verCuentas?"<th>Cuenta bancaria</th>":""}</tr></thead><tbody>
- ${rows.map(([id,d])=>`<tr data-prov="${esc(id)}"><td class="mono">${esc(id)}</td><td>${esc(d.nombre)}${d.nota?`<span class="sub">${esc(d.nota)}</span>`:""}</td><td>${d.tipo?TIPOS[d.tipo]:'<span class="chip warn">Sin tipo</span>'}${d.evaluacion?` <span class="chip ${EVR[d.evaluacion.resultado]?.[1]||""}" title="Evaluación ${d.evaluacion.anio}">${EVR[d.evaluacion.resultado]?.[0]||""}</span>`:""}</td>${S.verCuentas?`<td class="mono">${cta(id)}</td>`:""}</tr>`).join("")}
+ ${rows.map(([id,d])=>`<tr data-prov="${esc(id)}"><td class="mono">${esc(id)}</td><td>${esc(d.nombre)}${d.nota?`<span class="sub">${esc(d.nota)}</span>`:""}</td><td>${d.tipo?TIPOS[d.tipo]:'<span class="chip warn">Sin tipo</span>'}${d.crit?` <span class="chip ${CRITS[d.crit][1]}">${CRITS[d.crit][0]}</span>`:""}${esActivo(id,d,AM)?"":' <span class="chip">Inactivo</span>'}${d.evaluacion?` <span class="chip ${EVR[d.evaluacion.resultado]?.[1]||""}" title="Evaluación ${d.evaluacion.fecha||d.evaluacion.anio}">${EVR[d.evaluacion.resultado]?.[0]||""}</span>`:""}</td>${S.verCuentas?`<td class="mono">${cta(id)}</td>`:""}</tr>`).join("")}
  </tbody></table></div>
  <div class="cards">${rows.map(([id,d])=>`<button class="card-it" data-prov="${esc(id)}"><b>${esc(d.nombre)}</b><span class="row"><span class="mono">${esc(id)}</span>· ${d.tipo?TIPOS[d.tipo]:"Sin tipo"}${S.verCuentas&&C.has(id)?" · con cuenta":""}</span></button>`).join("")}</div>
  ${total>rows.length?`<button class="btn mas" data-acc="mas-prov">Ver más (${fmtN(total-rows.length)})</button>`:""}`
@@ -609,7 +609,11 @@ function pendientes(){const me=ME(),L=[],C=[];
   if(Ls.some(x=>x.estado==="diferencia"&&x.dif?.estado!=="por-aprobar")&&(S.pagos||S.gestion))(S.pagos&&!S.gestion?L:C).push([lid,"Conciliar diferencia de pago"]);
   if(S.rol==="admin"&&Ls.some(x=>x.dif?.estado==="por-aprobar"))L.push([lid,"Aprobar conciliación de pago"]);
   const av=Ls.filter(x=>x.pago&&!x.avisado).length;if(av&&S.gestion)C.push([lid,`Avisar ${av} pago${av>1?"s":""} al proveedor`])}
- const ord=X=>X.sort((a,b)=>b[0].localeCompare(a[0]));
+ if(S.rol==="compras"&&DB.listo(COL.art)&&DB.listo(COL.prov)&&DB.listo(COL.cfg)){const RC=recotizar(),pr=RC.filter(r=>r.pend),venc=pr.some(r=>r.vencido);
+  if(pr.length&&(venc||new Date().getDay()===1))C.push(["RECOT",`Recotizar ${pr.length} artículo${pr.length>1?"s":""} con otro proveedor`]);
+  const AM=actividad();let ne=0,nc=0;for(const[n,p]of provs()){const e=estadoEval(n,p,AM);if(e.k==="vencida")ne++;if(e.k==="sinclas")nc++}
+  if(ne)C.push(["EVAL",`Evaluar ${ne} proveedor${ne>1?"es":""}`]);if(nc&&new Date().getDay()===1)C.push(["EVAL",`Clasificar ${nc} proveedor${nc>1?"es":""} activo${nc>1?"s":""} (criticidad)`])}
+ const ord=X=>X.sort((a,b)=>(a[0]==="RECOT"||a[0]==="EVAL"?1:0)-(b[0]==="RECOT"||b[0]==="EVAL"?1:0)||b[0].localeCompare(a[0]));
  /* Gerencia ve aparte el trabajo de Compras (Laura); a Compras se le suma a su lista */
  if(S.rol==="admin")return{mios:ord(L),compras:ord(C)};return{mios:ord(L.concat(C)),compras:[]}}
 const FILTROS=[["","Todas"],["abiertas","Abiertas"],["por-aprobar","Por aprobar"],["por-cotizar","Por cotizar"],["cotizado","Por comprar"],["en-camino","Comprado / en camino"],["con-novedad","Con novedad"],["sin-factura","Sin factura"],["pago-pend","Pago pendiente"],["cerrado","Cerradas"],["anulado","Anuladas o rechazadas"]];
@@ -793,47 +797,79 @@ function metricas(anio){const M=new Map();
  return M}
 /* Sugerencia de puntaje con los datos de la app: entrega según novedades */
 const sugEntrega=m=>!m.rec?"":m.pctNov===0?5:m.pctNov<=10?4:m.pctNov<=25?3:m.pctNov<=50?2:1;
-function recotizar(){const hoyD=hoy(),R=[];
- for(const[k,a]of arts()){if(a.unido)continue;const u=ultimoPrecio(k,null);let f=u?.fecha||"",ref="compra",o=u?ords().get(u.id):null;let prov=o?activos(o).find(i=>i.art===k&&+i.precio>0)?.prov:"";
-  if(a.cotRef?.fecha&&a.cotRef.fecha>f){f=a.cotRef.fecha;ref="cotización";prov=a.cotRef.prov}
-  if(!f)continue;const d=diasEntre(f,hoyD);if(d>182)R.push({k,a,f,d,ref,prov,precio:u?.precio})}
- return R.sort((x,y)=>y.d-x.d)}
-function vEval(){const w=cargando(COL.ord,COL.prov,COL.art,COL.eva);if(w)return w;
- const f=S.ev||(S.ev={anio:String(new Date().getFullYear()),tab:"eval"}),M=metricas(f.anio),E=DB.docs(COL.eva);
- const anios=[...new Set([...ords().values()].map(o=>String(o.fecha||"").slice(0,4)).filter(Boolean)),String(new Date().getFullYear())].sort().reverse();
- const filas=[...M].map(([n,m])=>[n,m,E.get(n+"-"+f.anio)]).sort((a,b)=>b[1].monto-a[1].monto);
- const hechos=filas.filter(x=>x[2]).length,RC=recotizar();
- const tabs=`<div class="tabs"><button class="tab${f.tab==="eval"?" on":""}" data-evtab="eval">Evaluación anual</button><button class="tab${f.tab==="recot"?" on":""}" data-evtab="recot">Recotización (${fmtN(RC.length)})</button></div>`;
- if(f.tab==="recot")return`<div class="row hrow"><h2 style="color:var(--brand)">Evaluación de proveedores</h2></div>${tabs}
-  <p class="ro-note">Artículos cuya última compra o cotización tiene más de 6 meses. Pide precio de nuevo y regístralo; así sale de la lista.</p>
-  <div class="panel">${RC.length?RC.map(r=>`<div class="res"><span class="chip warn">${fmtN(r.d)} días</span><div class="res-t"><b>${esc(r.a.nombre)}</b><span class="sub">Última ${r.ref}: ${fecha(r.f)}${r.prov?" · "+esc(provs().get(r.prov)?.nombre||r.prov):""}${r.ref==="compra"&&r.precio?" · "+peso(r.precio)+" por "+esc(r.a.unidad):""}${r.ref==="cotización"&&r.a.cotRef?.pu?" · "+peso(r.a.cotRef.pu)+" sin IVA":""}</span></div><button class="btn sm" data-recot="${esc(r.k)}">Registrar cotización</button></div>`).join(""):'<p class="muted">Todo está cotizado en los últimos 6 meses.</p>'}</div>`;
- return`<div class="row hrow"><h2 style="color:var(--brand)">Evaluación de proveedores</h2></div>${tabs}
- <p class="ro-note">Cada año se evalúa a los proveedores a los que se les compró. La app trae los datos de los pedidos; tú calificas de 1 a 5. Resultado: Aprobado (4 o más), Condicionado (3 a 3,9) o Rechazado (menos de 3).</p>
- <div class="tools"><select class="inp" id="ev-anio" aria-label="Año">${anios.map(a=>`<option${a===f.anio?" selected":""}>${a}</option>`).join("")}</select><span class="count">${fmtN(hechos)} de ${fmtN(filas.length)} evaluados</span></div>
- <div class="panel">${filas.length?filas.map(([n,m,ev])=>`<div class="res">${ev?`<span class="chip ${EVR[ev.resultado][1]}">${EVR[ev.resultado][0]} ${String(ev.puntaje).replace(".",",")}</span>`:'<span class="chip">Por evaluar</span>'}<div class="res-t"><b>${esc(provs().get(n)?.nombre||n)}</b>
-  <span class="sub">${fmtN(m.nped)} pedido${m.nped>1?"s":""} · ${peso(m.monto)} · ${m.rec?fmtN(m.rec)+" entregas, "+m.pctNov+" % con novedad":"sin entregas registradas"}${m.diasProm!=null?" · "+m.diasProm+" días promedio en llegar":""}${m.alzas?" · "+m.alzas+" alza"+(m.alzas>1?"s":"")+" de precio":""}</span></div><button class="btn sm" data-eval="${esc(n)}">${ev?"Ver o ajustar":"Evaluar"}</button></div>`).join(""):'<p class="muted">No hay compras con proveedor en este año.</p>'}</div>`}
-function dlgEval(nit){const anio=S.ev.anio,m=metricas(anio).get(nit),id=nit+"-"+anio,ev=DB.docs(COL.eva).get(id)||{},p=provs().get(nit)||{nombre:nit};
- const pre={...(ev.notas||{})};if(pre.entrega==null&&m)pre.entrega=sugEntrega(m);
- abrir(`Evaluación ${anio}: ${esc(p.nombre)}`,`<div class="o-info"><div><span>Pedidos</span><b>${fmtN(m?.nped||0)}</b></div><div><span>Comprado</span><b>${peso(m?.monto||0)}</b></div><div><span>Entregas con novedad</span><b>${m?.rec?m.pctNov+" % ("+m.nov+" de "+m.rec+")":"—"}</b></div><div><span>Días en llegar (promedio)</span><b>${m?.diasProm??"—"}</b></div><div><span>Alzas de precio</span><b>${fmtN(m?.alzas||0)}</b></div><div><span>Compras sin 3 cotizaciones</span><b>${fmtN(m?.sin3||0)}</b></div></div>
-  <h4 class="sec">Calificación (1 = malo, 5 = excelente)</h4>${CRIT.map(([k,t])=>`<div class="crit"><span>${t}${k==="entrega"&&m?.rec?' <span class="muted small">(sugerido por novedades)</span>':""}</span><div class="seg2 pts">${[1,2,3,4,5].map(v=>`<label><input type="radio" name="ev-${k}" value="${v}"${+pre[k]===v?" checked":""}> ${v}</label>`).join("")}</div></div>`).join("")}
-  <p class="ev-res" id="ev-res"></p><label class="f">Observaciones y compromisos<textarea id="ev-obs">${esc(ev.obs||"")}</textarea></label>
-  ${ev.por?`<p class="muted small">Última evaluación: ${esc(persona(ev.por))}, ${fecha(ev.fecha)}.</p>`:""}`,'<button class="btn" data-cerrar>Cancelar</button><button class="btn pri" id="ev-ok">Guardar evaluación</button>');
+/* ---------- Criticidad (F-C-05), proveedores activos y evaluación periódica ---------- */
+const CRITS={alta:["Alta","bad"],media:["Media","warn"],baja:["Baja","info"],na:["N/A",""]};
+const EVALM=[[6,"Cada 6 meses"],[12,"Cada año"],[24,"Cada 2 años"],[0,"Al contratar o usar el servicio"]];
+const EVM_DEF={alta:6,media:12,baja:24,na:0};
+const sumaMeses=(f,m)=>{const d=new Date(f+"T12:00:00Z");d.setUTCMonth(d.getUTCMonth()+m);return d.toISOString().slice(0,10)};
+const haceUnAno=()=>sumaMeses(hoy(),-12);
+/* Última compra por proveedor: pedidos de la app y facturas del archivo DIAN */
+function actividad(){const M=new Map(),dn=DB.docs(COL.cfg).get("actividad_dian")?.nits||{};for(const[n,f]of Object.entries(dn))M.set(n,{f,src:"DIAN"});
+ for(const[,o]of ords()){if(o.anulada)continue;for(const i of activos(o))if(i.prov){const f=(i.ocFecha||o.fecha||"").slice(0,10);const e=M.get(i.prov);if(!e||f>e.f)M.set(i.prov,{f,src:"app"})}}return M}
+const esActivo=(nit,p,AM)=>p?.activo===true?true:p?.activo===false?false:((AM||actividad()).get(nit)?.f||"")>=haceUnAno();
+const evalMeses=p=>p?.evalMeses!=null?+p.evalMeses:p?.crit?EVM_DEF[p.crit]:null;
+const ultEval=p=>p?.evaluacion?.fecha||(p?.evaluacion?.anio?p.evaluacion.anio+"-12-31":null);
+function estadoEval(nit,p,AM){const act=esActivo(nit,p,AM),em=evalMeses(p),ue=ultEval(p);
+ if(!act)return{k:"inactivo",act};if(!p.crit)return{k:"sinclas",act};if(!em)return{k:"exento",act};
+ const prox=ue?sumaMeses(ue,em):hoy(),dias=Math.round((Date.parse(prox)-Date.parse(hoy()))/864e5);return{k:dias<=0?"vencida":dias<=60?"proxima":"aldia",prox,dias,ue,em,act}}
+function metricasRango(nit,desde,hasta){const m={ped:new Set(),monto:0,rec:0,nov:0,dias:[],alzas:0,sin3:0};
+ for(const[oid,o]of ords()){if(o.anulada)continue;const f=String(o.fecha||"");if(f<desde||f>hasta)continue;
+  for(const it of activos(o)){if(it.prov!==nit)continue;m.ped.add(oid);m.monto+=totItem(it);if(it.rec){m.rec++;if(it.rec.estado==="nov")m.nov++;const ini=it.ocFecha||o.fecha;if(it.rec.fecha&&ini)m.dias.push(Math.max(0,diasEntre(ini,it.rec.fecha)))}if(it.alza)m.alzas++;if(it.sin3)m.sin3++}}
+ m.nped=m.ped.size;m.diasProm=m.dias.length?Math.round(m.dias.reduce((a,b)=>a+b,0)/m.dias.length):null;m.pctNov=m.rec?Math.round(100*m.nov/m.rec):0;return m}
+/* ---------- Recotización: con otro proveedor; primera ronda hasta el 28 de febrero de 2027 ---------- */
+const RONDA={ini:"2026-11-14",fin:"2027-02-28"};
+const provUltCompra=k=>{const u=ultimoPrecio(k,null);if(!u)return null;const o=ords().get(u.id);return{...u,prov:o?activos(o).find(i=>i.art===k&&+i.precio>0)?.prov:null}};
+function estadoRecot(k,a){const v=a.cotRef?.otro?a.cotRef:a.cotPrev?.otro?a.cotPrev:null,f=v?.fecha||null;
+ const enRonda=!f||f<RONDA.ini,vence=enRonda?RONDA.fin:sumaMeses(f,6),dias=Math.round((Date.parse(vence)-Date.parse(hoy()))/864e5);
+ return{v,f,enRonda,vence,dias,pend:enRonda||dias<=30,vencido:dias<0,soloMismo:a.cotRef&&!a.cotRef.otro}}
+function recotizar(){const R=[];for(const[k,a]of arts()){if(a.unido)continue;const e=estadoRecot(k,a);R.push({k,a,...e,u:provUltCompra(k)})}
+ return R.sort((x,y)=>x.dias-y.dias||x.a.nombre.localeCompare(y.a.nombre,"es"))}
+function vEval(){const w=cargando(COL.ord,COL.prov,COL.art,COL.eva,COL.cfg);if(w)return w;
+ const f=S.ev||(S.ev={tab:"eval"}),AM=actividad(),RC=recotizar(),pendR=RC.filter(r=>r.pend);
+ const L={vencida:[],proxima:[],aldia:[],sinclas:[]};let exentos=0,inact=0;
+ for(const[n,p]of provs()){const e=estadoEval(n,p,AM);if(e.k==="inactivo"){inact++;continue}if(e.k==="exento"){exentos++;continue}L[e.k].push([n,p,e])}
+ for(const k of["vencida","proxima","aldia"])L[k].sort((a,b)=>a[2].dias-b[2].dias);L.sinclas.sort((a,b)=>(AM.get(b[0])?.f||"").localeCompare(AM.get(a[0])?.f||""));
+ const tabs=`<div class="tabs"><button class="tab${f.tab==="eval"?" on":""}" data-evtab="eval">Evaluación (${fmtN(L.vencida.length)} por evaluar)</button><button class="tab${f.tab==="recot"?" on":""}" data-evtab="recot">Recotización (${fmtN(pendR.length)})</button></div>`;
+ const head=`<div class="row hrow"><h2 style="color:var(--brand)">Evaluación de proveedores</h2></div>${tabs}`;
+ if(f.tab==="recot"){const tot=RC.length,ok=RC.filter(r=>!r.enRonda).length,enR=new Date()<=new Date(RONDA.fin+"T23:59:59");
+  return`${head}${enR?`<div class="panel pg-bar"><div><b>Primera ronda: ${fmtN(ok)} de ${fmtN(tot)} artículos con cotización de otro proveedor</b><span class="muted small">Vence el ${fecha(RONDA.fin)}. Después, cada artículo se recotiza 6 meses después de su última cotización válida.</span></div><div class="meter" style="flex:1 1 220px"><i style="width:${tot?Math.round(ok/tot*100):0}%;background:var(--ok)"></i></div></div>`:""}
+  <p class="ro-note">Una recotización solo cuenta si es de un <b>proveedor distinto</b> al de la última compra. Si registras solo el precio del mismo proveedor, queda guardado pero el artículo sigue pendiente.</p>
+  <div class="panel">${pendR.length?pendR.map(r=>`<div class="res"><span class="chip ${r.vencido?"bad":r.enRonda?"warn":"info"}">${r.vencido?"Vencida":r.enRonda?"Ronda":"Vence "+fecha(r.vence)}</span><div class="res-t"><b>${esc(r.a.nombre)}</b>
+   <span class="sub">${r.u?`Última compra: ${esc(provs().get(r.u.prov)?.nombre||r.u.prov||"—")} · ${fecha(r.u.fecha)} · ${peso(r.u.precio)} por ${esc(r.a.unidad)}`:"Sin compras registradas en la app"}</span>
+   ${r.a.cotRef?`<span class="sub${r.soloMismo?" warn-t":""}">Última cotización: ${esc(provs().get(r.a.cotRef.prov)?.nombre||r.a.cotRef.prov)} · ${fecha(r.a.cotRef.fecha)} · ${peso(r.a.cotRef.pu)}${r.soloMismo?" · falta cotización de otro proveedor":""}</span>`:""}</div><button class="btn sm" data-recot="${esc(r.k)}">Registrar cotización</button></div>`).join(""):'<p class="muted">Todo está cotizado con otro proveedor en los últimos 6 meses.</p>'}</div>`}
+ const fila=([n,p,e])=>{const m=metricasRango(n,e.ue||sumaMeses(hoy(),-(e.em||12)),hoy()),ul=AM.get(n);
+  return`<div class="res"><span class="chip ${CRITS[p.crit]?.[1]||""}">${p.crit?"Criticidad "+CRITS[p.crit][0].toLowerCase():"Sin clasificar"}</span><div class="res-t"><b>${esc(p.nombre)}</b>
+  <span class="sub">${e.k==="sinclas"?`Última compra ${fecha(ul?.f)} (${ul?.src==="app"?"app":"facturas DIAN"}). Asigna la criticidad según el F-C-05.`:`${(EVALM.find(x=>x[0]===e.em)||[,""])[1]} · ${e.ue?"última evaluación "+fecha(e.ue)+" · ":"nunca evaluado · "}${e.k==="vencida"?"<b class='bad-t'>por evaluar</b>":"próxima "+fecha(e.prox)}`}</span>
+  ${e.k!=="sinclas"&&m.nped?`<span class="sub">${fmtN(m.nped)} pedido${m.nped>1?"s":""} · ${peso(m.monto)} · ${m.rec?m.rec+(m.rec>1?" entregas, ":" entrega, ")+m.pctNov+" % con novedad":"sin entregas registradas"}${m.diasProm!=null?" · "+m.diasProm+" días en llegar":""}</span>`:""}</div>
+  ${e.k==="sinclas"?`<button class="btn sm" data-prov="${esc(n)}">Clasificar</button>`:`<button class="btn sm${e.k==="vencida"?" pri":""}" data-eval="${esc(n)}">${p.evaluacion?"Evaluar de nuevo":"Evaluar"}</button>`}</div>`};
+ const bloque=(t,arr,vacio)=>`<div class="panel" style="margin-bottom:12px"><h3 style="color:var(--brand);margin-bottom:6px">${t} <span class="chip">${fmtN(arr.length)}</span></h3>${arr.length?arr.map(fila).join(""):`<p class="muted">${vacio}</p>`}</div>`;
+ return`${head}<p class="ro-note">Se evalúan los proveedores <b>activos</b> según su criticidad (F-C-05): Alta cada 6 meses, Media cada año, Baja cada 2 años; N/A solo al contratar o usar el servicio. Un proveedor queda inactivo si no se le ha comprado en 12 meses (pedidos de la app y facturas DIAN), salvo que Compras lo marque a mano.</p>
+ ${bloque("Por evaluar",L.vencida,"No hay evaluaciones vencidas.")}${bloque("Activos sin criticidad",L.sinclas,"Todos los activos tienen criticidad.")}${bloque("Próximas (60 días)",L.proxima,"Ninguna en los próximos 60 días.")}${bloque("Al día",L.aldia,"—")}
+ <p class="muted small">${fmtN(exentos)} activos con criticidad N/A o «al contratar» no requieren evaluación periódica · ${fmtN(inact)} proveedores inactivos.</p>`}
+function dlgEval(nit){const p=provs().get(nit)||{nombre:nit},e=estadoEval(nit,p),desde=e.ue||sumaMeses(hoy(),-(e.em||12)),m=metricasRango(nit,desde,hoy()),id=nit+"-"+hoy(),ev={};
+ const pre={};if(m.rec)pre.entrega=sugEntrega(m);
+ abrir(`Evaluación: ${esc(p.nombre)}`,`<p class="muted small" style="margin-top:0">Criticidad ${esc(CRITS[p.crit]?.[0]||"sin clasificar")} · ${esc((EVALM.find(x=>x[0]===e.em)||[,""])[1])} · periodo evaluado desde ${fecha(desde)}${e.ue?" (última evaluación)":""}.</p>
+  <div class="o-info"><div><span>Pedidos</span><b>${fmtN(m.nped)}</b></div><div><span>Comprado</span><b>${peso(m.monto)}</b></div><div><span>Entregas con novedad</span><b>${m.rec?m.pctNov+" % ("+m.nov+" de "+m.rec+")":"—"}</b></div><div><span>Días en llegar (promedio)</span><b>${m.diasProm??"—"}</b></div><div><span>Alzas de precio</span><b>${fmtN(m.alzas)}</b></div><div><span>Compras sin 3 cotizaciones</span><b>${fmtN(m.sin3)}</b></div></div>
+  <h4 class="sec">Calificación (1 = malo, 5 = excelente)</h4>${CRIT.map(([k,t])=>`<div class="crit"><span>${t}${k==="entrega"&&m.rec?' <span class="muted small">(sugerido por novedades)</span>':""}</span><div class="seg2 pts">${[1,2,3,4,5].map(v=>`<label><input type="radio" name="ev-${k}" value="${v}"${+pre[k]===v?" checked":""}> ${v}</label>`).join("")}</div></div>`).join("")}
+  <p class="ev-res" id="ev-res"></p><label class="f">Observaciones y compromisos<textarea id="ev-obs"></textarea></label>
+  ${p.evaluacion?`<p class="muted small">Evaluación anterior: ${EVR[p.evaluacion.resultado]?.[0]||""} ${String(p.evaluacion.puntaje||"").replace(".",",")}${p.evaluacion.fecha?" el "+fecha(p.evaluacion.fecha):""}.</p>`:""}`,'<button class="btn" data-cerrar>Cancelar</button><button class="btn pri" id="ev-ok">Guardar evaluación</button>');
  const calc=()=>{const v=CRIT.map(([k])=>+(dlg.querySelector(`[name="ev-${k}"]:checked`)?.value||0));if(v.some(x=>!x))return null;const pt=Math.round(10*v.reduce((a,b)=>a+b,0)/v.length)/10;return{v,pt,r:resultadoEv(pt)}};
  const pint=()=>{const c=calc();$("#ev-res").innerHTML=c?`Puntaje <b>${String(c.pt).replace(".",",")}</b> · <span class="chip ${EVR[c.r][1]}">${EVR[c.r][0]}</span>`:'<span class="muted small">Califica los 5 criterios para ver el resultado.</span>'};
  dlg.querySelectorAll(".crit input").forEach(x=>x.onchange=pint);pint();
  $("#ev-ok").onclick=ev2=>guardando(ev2.target,async()=>{const c=calc();if(!c)throw{message:"Califica los 5 criterios."};
-  const notas={};CRIT.forEach(([k],i)=>notas[k]=c.v[i]);const doc={nit,anio,notas,puntaje:c.pt,resultado:c.r,obs:$("#ev-obs").value.trim(),por:ME(),fecha:hoy(),
-   datos:m?{pedidos:m.nped,monto:Math.round(m.monto),entregas:m.rec,novedades:m.nov,dias:m.diasProm,alzas:m.alzas}:{}};
-  await DB.set(COL.eva,id,doc);
-  const cur=provs().get(nit);if(cur&&(!cur.evaluacion||cur.evaluacion.anio<=anio))await DB.set(COL.prov,nit,{...cur,evaluacion:{anio,puntaje:c.pt,resultado:c.r}});
+  const notas={};CRIT.forEach(([k],i)=>notas[k]=c.v[i]);const doc={nit,fecha:hoy(),anio:hoy().slice(0,4),desde,crit:p.crit||null,notas,puntaje:c.pt,resultado:c.r,obs:$("#ev-obs").value.trim(),por:ME(),
+   datos:{pedidos:m.nped,monto:Math.round(m.monto),entregas:m.rec,novedades:m.nov,dias:m.diasProm,alzas:m.alzas}};
+  await DB.set(COL.eva,id,doc);const cur=provs().get(nit);if(cur)await DB.set(COL.prov,nit,{...cur,evaluacion:{fecha:hoy(),anio:doc.anio,puntaje:c.pt,resultado:c.r}});
   dlg.close();toast("Evaluación guardada.");render()})}
-function dlgRecot(k){const a=arts().get(k),up=a.unidadPrecio&&a.unidadPrecio!==a.unidad?a.unidadPrecio:a.unidad;
- abrir(`Nueva cotización: ${esc(a.nombre)}`,`<p class="muted small" style="margin-top:0">Registra el precio que te dieron. No crea pedido; solo deja la referencia de precio y la fecha.</p><div class="fgrid">
+function dlgRecot(k){const a=arts().get(k),up=a.unidadPrecio&&a.unidadPrecio!==a.unidad?a.unidadPrecio:a.unidad,u=provUltCompra(k);
+ abrir(`Nueva cotización: ${esc(a.nombre)}`,`<p class="muted small" style="margin-top:0">Registra el precio que te dio un proveedor. No crea pedido; deja la referencia de precio y la fecha.${u?.prov?` Para que cuente, debe ser de un proveedor distinto a <b>${esc(provs().get(u.prov)?.nombre||u.prov)}</b> (última compra: ${peso(u.precio)} por ${esc(a.unidad)}).`:""}</p><div class="fgrid">
   <label class="f wide">Proveedor<input class="inp" id="rc-p" list="provs-r" placeholder="Nombre o NIT"></label><datalist id="provs-r">${[...provs()].map(([n,d])=>`<option value="${esc(d.nombre)} · ${n}">`).join("")}</datalist>
   <label class="f">Precio sin IVA por ${esc(up)}<input class="inp" id="rc-v" type="number" min="0" step="any"></label><label class="f">N.º cotización<input class="inp" id="rc-c"></label></div>`,'<button class="btn" data-cerrar>Cancelar</button><button class="btn pri" id="rc-ok">Guardar</button>');
  $("#rc-ok").onclick=e=>guardando(e.target,async()=>{const pt=$("#rc-p").value.trim(),nit=(pt.match(/·\s*(\d+)\s*$/)||[])[1]||soloDig(pt),v=+$("#rc-v").value;
   if(!provs().has(nit))throw{message:"Elige un proveedor de la lista."};if(!(v>0))throw{message:"Escribe el precio."};
-  const c={prov:nit,pu:v,fecha:hoy(),por:ME()};if($("#rc-c").value.trim())c.cot=$("#rc-c").value.trim();await DB.set(COL.art,k,{...a,cotRef:c});dlg.close();toast("Cotización registrada.");render()})}
+  const otro=!u?.prov||nit!==u.prov;const c={prov:nit,pu:v,fecha:hoy(),por:ME(),otro};if($("#rc-c").value.trim())c.cot=$("#rc-c").value.trim();
+  const n={...a,cotRef:c};const prevOk=!otro&&!a.cotRef?.otro&&a.cotPrev?.otro;if(prevOk)n.cotPrev=a.cotPrev;else if(a.cotRef)n.cotPrev=a.cotRef;await DB.set(COL.art,k,n);dlg.close();
+  toast(otro?"Cotización registrada.":"Guardada, pero es del mismo proveedor de la última compra: el artículo sigue pendiente de otra cotización.",otro?3000:6000);render()})}
 
 async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.parse(JSON.stringify(o0)),e=estado(o),me=ME();
  const G=S.gestion,dueno=o.sol===me,esJefe=o.jefe===me,ger=S.rol==="admin";
@@ -954,9 +990,10 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
 
 /* ---------- Correcciones y calidad de datos ---------- */
 /* Revisiones de calidad: cada una es un filtro que se puede abrir y corregir. */
-function revisiones(){const P=provs(),C=ctas(),A=arts();const nombres=new Map();
+function revisiones(){const AM=actividad(),P=new Map([...provs()].filter(([id,d])=>esActivo(id,d,AM))),C=ctas(),A=arts();const nombres=new Map();
  for(const[id,d]of P){const k=norm(d.nombre);nombres.set(k,(nombres.get(k)||[]).concat(id))}
  const R=[
+  {id:"sincrit",t:"Proveedores activos sin criticidad",tipo:"prov",f:(id,d)=>!d.crit},
   {id:"sintipo",t:"Proveedores sin tipo de persona",tipo:"prov",f:(id,d)=>!d.tipo},
   {id:"sinrut",t:"Proveedores sin RUT leído",tipo:"prov",f:(id,d)=>!d.fechaRut,info:true},
   {id:"repnit",t:"NIT que venían repetidos en el Excel",tipo:"prov",f:(id,d)=>/También aparece como/.test(d.nota||"")},
@@ -989,7 +1026,7 @@ function vCorr(){const w=cargando(COL.ord,COL.prov,COL.art,COL.cfg,...(S.verCuen
  <div class="tools"><input class="inp" type="search" id="qcorr" placeholder="Pedido, OC, factura, nombre, NIT o cuenta" value="${esc(f.q)}" aria-label="Buscar">
   <select class="inp" id="tcorr" aria-label="Tipo de dato"><option value="">Todo</option><option value="ord"${f.tipo==="ord"?" selected":""}>Pedidos</option><option value="prov"${f.tipo==="prov"?" selected":""}>Proveedores</option><option value="art"${f.tipo==="art"?" selected":""}>Artículos</option><option value="cc"${f.tipo==="cc"?" selected":""}>Centros de costos</option></select></div>
  <div class="grid2">
- <div class="panel"><h3 style="color:var(--brand);margin-bottom:8px">Calidad de datos</h3><p class="muted small" style="margin:0 0 8px">Toca una fila para ver y corregir esos registros.</p>
+ <div class="panel"><h3 style="color:var(--brand);margin-bottom:8px">Calidad de datos</h3><p class="muted small" style="margin:0 0 8px">Solo proveedores activos (con compras en los últimos 12 meses). Toca una fila para ver y corregir esos registros.</p>
   ${R.map(r=>`<button class="revi${f.rev===r.id?" on":""}" data-rev="${r.id}"><span>${esc(r.t)}</span><b class="${r.ids.length?(r.info?"chip info":"chip warn"):"chip ok"}">${fmtN(r.ids.length)}</b></button>`).join("")}</div>
  <div class="panel"><h3 style="color:var(--brand);margin-bottom:8px">${rev?esc(rev.t):"Resultados"}</h3>
   ${rev||q?`<p class="count">${total?fmtN(total)+" encontrado"+(total>1?"s":"")+(total>100?"; se muestran 100":""):"Nada encontrado."}</p>${res.map(item).join("")}${rev?'<button class="btn sm" data-rev="">Quitar filtro</button>':""}`:'<p class="muted">Escribe arriba o elige una revisión de la izquierda.</p>'}</div>
@@ -1215,6 +1252,11 @@ function dlgProv(id,pre){const d=id?provs().get(id):{nombre:"",tipo:""},c=id?cta
  <div class="fgrid">${TRIB.map(([k,l,o])=>`<label class="f">${l}<select id="t-${k}"${dis}>${o.map(v=>`<option value="${v}"${(d[k]||"")===v?" selected":""}>${SINO[v]}</option>`).join("")}</select></label>`).join("")}</div>
  <details class="mas"${d.direccion||d.correo||d.telefono?" open":""}><summary>Contacto y ubicación</summary>
  <div class="fgrid">${CONTACTO.map(([k,l])=>`<label class="f${k==="direccion"||k==="correo"?" wide":""}">${l}<input id="k-${k}" value="${esc(d[k]||"")}"${dis}${k==="dv"||k==="telefono"?' inputmode="numeric"':""}${k==="correo"?' type="email"':""}></label>`).join("")}</div></details>
+ <h4 class="sec">Evaluación y estado</h4>
+ <div class="fgrid"><label class="f">Criticidad (F-C-05)<select id="p-crit"${dis}><option value="">Sin clasificar</option>${Object.entries(CRITS).map(([k,[t]])=>`<option value="${k}"${d.crit===k?" selected":""}>${t}</option>`).join("")}</select></label>
+  <label class="f">Evaluación<select id="p-evm"${dis}><option value="">Según criticidad</option>${EVALM.map(([m,t])=>`<option value="${m}"${d.evalMeses!=null&&+d.evalMeses===m?" selected":""}>${t}</option>`).join("")}</select></label>
+  <label class="f">Estado<select id="p-act"${dis}><option value="">Automático (${id&&esActivo(id,{...d,activo:undefined})?"activo":"inactivo"})</option><option value="si"${d.activo===true?" selected":""}>Activo</option><option value="no"${d.activo===false?" selected":""}>Inactivo</option></select>
+  <span class="hint">${(()=>{const u=id&&actividad().get(id);return u?"Última compra "+fecha(u.f)+(u.src==="app"?" (app)":" (facturas DIAN)"):"Sin compras registradas"})()}</span></label></div>
  <label class="f" style="margin-top:12px">Nota<input id="p-nota" value="${esc(d.nota||"")}"${dis} placeholder="Opcional"></label>
  ${S.verCuentas?`<h4 class="sec">Cuenta bancaria</h4>
  <div class="fgrid">
@@ -1253,7 +1295,9 @@ function dlgProv(id,pre){const d=id?provs().get(id):{nombre:"",tipo:""},c=id?cta
   if(!nom)throw{message:"Escribe la razón social o el nombre."};
   if(!id&&provs().has(nit))throw{message:`Ese NIT ya existe: ${provs().get(nit).nombre}.`};
   const dvTxt=$("#k-dv").value.trim();if(dvTxt&&dvTxt!==String(dvNit(nit)))throw{message:`El dígito de verificación no corresponde al NIT (debería ser ${dvNit(nit)}).`};
-  const nd={nombre:nom.toUpperCase(),tipo:$("#p-tipo").value};
+  const EDIT=new Set(["nombre","tipo","nota","fechaRut","crit","evalMeses","activo",...TRIB.map(x=>x[0]),...CONTACTO.map(x=>x[0])]);
+  const nd={...Object.fromEntries(Object.entries(d).filter(([k])=>!EDIT.has(k))),nombre:nom.toUpperCase(),tipo:$("#p-tipo").value};
+  {const cr=$("#p-crit").value,em=$("#p-evm").value,ac=$("#p-act").value;if(cr)nd.crit=cr;if(em!=="")nd.evalMeses=+em;if(ac)nd.activo=ac==="si"}
   const pon=(k,v)=>{v=String(v??"").trim();if(v)nd[k]=v};
   for(const[k]of TRIB)pon(k,$("#t-"+k).value);for(const[k]of CONTACTO)pon(k,$("#k-"+k).value);
   pon("nota",$("#p-nota").value);pon("fechaRut",fechaRut);
