@@ -263,6 +263,7 @@ details.mas summary{color:var(--accent);font-weight:700;padding:8px 0;font-size:
 .tb-ol{margin:0;padding-left:20px}.tb-ol li{margin:5px 0}
 body.en-tablero .grid2{margin-bottom:16px}body.en-tablero #nav,body.en-tablero #mnav{display:none!important}
 @media (max-width:760px){body.en-tablero main{padding-bottom:30px}.tb-tit{font-size:1.5rem}.tb-k b{font-size:1.4rem}}
+.mod-tx .mod-pend{display:inline-flex;width:auto;align-self:flex-start;margin-top:6px;background:var(--bad);color:#fff;font-size:.76rem;font-weight:700;padding:2px 10px;border-radius:99px}.mod-tx .mod-pend[hidden]{display:none}
 </style>
 <script>try{const t=JSON.parse(localStorage.getItem("sanidad:tema"));if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
@@ -368,7 +369,7 @@ function sv(tag,a,...kids){const e=document.createElementNS(SVGNS,tag);if(a)for(
 const MODS={
  tablero:{n:"Dashboard",d:"Lo más importante de Sanidad y Compras: lo bueno, lo que preocupa e indicadores.",ic:"M4 20V11|M10 20V5|M16 20v-6|M21 20H3"},
  sanidad:{n:"Sanidad",d:"Agua y clima, eventos sanitarios, lotes y alertas de las fincas.",ic:"M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z|M8 11h.01"},
- compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261113d"}};
+ compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261114a"}};
 const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras"};
 function modulosDe(u){const am=u?.app_metadata||{};const m=am.modulos&&typeof am.modulos==="object"?{...am.modulos}:{sanidad:am.rol||"registro"};
  if(am.rol==="admin")for(const k of Object.keys(MODS))m[k]="admin";if(am.tablero&&!m.tablero)m.tablero="lector";for(const k of Object.keys(m))if(!MODS[k])delete m[k];return m}
@@ -1577,18 +1578,46 @@ V.tablero=v=>{if(!S.mods.tablero){v.append(card("Sin acceso",el("p",{text:"El Da
   el("section",{class:"panel"},el("h3",{},"Gasto por centro de costos"),c.cc.size?el("ul",{class:"tb-ul"},lista(c.cc,TB.ccNom)):el("p",{class:"muted"},"Sin OC escritas en el periodo.")),
   el("section",{class:"panel"},el("h3",{},"Proveedores con más compras"),c.prov.size?el("ul",{class:"tb-ul"},lista(c.prov,TB.provNom)):el("p",{class:"muted"},"Sin OC escritas en el periodo."))));
  v.append(el("p",{class:"muted small",style:"margin-top:12px"},"Gasto y tiempos de gestión se miden con las OC escritas en la app nueva (las órdenes migradas no tienen fecha de OC)."))};
+/* ===== Aviso de pendientes de Compras en la pantalla de módulos (misma regla que compras.html) ===== */
+const PC={act:o=>(o.items||[]).filter(i=>!i.anulado),tot:o=>PC.act(o).reduce((s,i)=>s+(+i.cant||0)*(+i.precio||0)*(1+(+i.iva||0)/100),0),
+ estado(o){if(o.anulada)return"anulado";const it=PC.act(o);
+  if(o.aprob&&o.aprob.ok===false)return"rechazado";if(!o.aprob?.ok)return"por-aprobar";if(!it.length)return"anulado";
+  if(it.every(i=>i.rec)){if(it.some(i=>i.rec.estado==="nov"&&!i.sol))return"con-novedad";if(it.every(i=>i.fac))return"cerrado";return it.some(i=>i.sol)?"novedad-resuelta":"recibido"}
+  if(!it.every(i=>i.prov&&+i.precio>0))return it.some(i=>i.prov||i.cot||+i.precio>0)?"en-cotizacion":"aprobado";
+  if(PC.tot(o)>=1000000&&!it.every(i=>i.oc)){if(o.ger?.ok===false)return"rechazado";if(!o.ger?.ok)return"por-aprobar-gerencia"}
+  if(!it.every(i=>i.oc))return"cotizado";
+  if(it.some(i=>i.rec?.estado==="nov"&&!i.sol))return"con-novedad";return it.some(i=>i.rem||i.rec)?"despachado":"comprado"},
+ factura(o){const it=PC.act(o);const n=it.filter(i=>i.fac).length;return!it.length?"":n===it.length?"ok":n?"parcial":"pend"},
+ pago(o){const nits=[...new Set(PC.act(o).map(i=>i.prov).filter(Boolean))];if(!nits.length)return"";const p=o.pagos||{};
+  if(nits.every(n=>p[n]?.estado==="pagado"))return"ok";if(nits.some(n=>p[n]?.estado==="credito"))return"credito";return nits.some(n=>p[n]?.estado==="pagado")?"parcial":"pend"},
+ lista(ords){const me=String(S.me.email||"").toLowerCase(),rol=S.mods.compras,admin=rol==="admin",gest=admin||rol==="compras",L=[];
+  for(const[id,o]of ords){const e=PC.estado(o);
+   if(e==="por-aprobar"&&o.jefe===me)L.push(id);
+   if(admin&&e==="por-aprobar-gerencia")L.push(id);
+   if(admin&&PC.act(o).some(i=>i.cambio?.estado==="pendiente"))L.push(id);
+   if(gest&&!admin){if(["aprobado","en-cotizacion","cotizado","con-novedad"].includes(e))L.push(id);
+    if(["comprado","despachado","recibido","novedad-resuelta"].includes(e)&&PC.factura(o)!=="ok")L.push(id);
+    if(!["anulado","rechazado","por-aprobar"].includes(e)&&["pend","parcial"].includes(PC.pago(o))&&["comprado","despachado","recibido","novedad-resuelta","cerrado","con-novedad"].includes(e))L.push(id)}
+   if(o.sol===me&&["comprado","despachado"].includes(e))L.push(id);
+   if(o.sol===me&&e==="rechazado"&&!o.visto)L.push(id)}
+  return L}};
+function vigilarCompras(){if(!S.mods.compras||S.pcOn)return;S.pcOn=true;S.db=S.db||makeDb(sb);
+ S.db.collection("compras_ordenes").onSnapshot(s=>{S.pcN=PC.lista(s.docs.map(d=>[d.id,d.data()])).length;pintarPendC()},()=>{})}
+function pintarPendC(){const b=document.querySelector('.mod-it[data-mod="compras"] .mod-pend');if(!b)return;const n=S.pcN||0;b.hidden=!n;b.textContent=n===1?"1 pendiente":n+" pendientes";
+ try{n?navigator.setAppBadge?.(n):navigator.clearAppBadge?.()}catch(e){}}
 
 function showModulos(){/* Si venía de un enlace (por ejemplo un pedido enviado por WhatsApp), vuelve allí después de entrar */
  try{const v=sessionStorage.getItem("belmira:volver");if(v&&S.mods.compras&&/^https:\/\/belmira1993\.github\.io\/sanidad\/compras\.html/.test(v)){sessionStorage.removeItem("belmira:volver");location.href=v;return}}catch(e){}
  const box=$("#mbody");box.textContent="";$("#mhola").textContent="Hola, "+(S.me.name||"").split(" ")[0];$("#mcorreo").textContent=S.me.email||"";
- for(const[k,rol]of Object.entries(S.mods).sort((x,y)=>(y[0]==="tablero")-(x[0]==="tablero"))){const m=MODS[k];box.append(el("button",{type:"button",class:"mod-it",onclick:()=>entrarModulo(k)},
-  el("span",{class:"mod-ic"},modIcon(m.ic)),el("span",{class:"mod-tx"},el("b",{text:m.n}),el("span",{text:m.d})),el("span",{class:"mod-rol",text:ROLN[rol]||rol})))}
+ for(const[k,rol]of Object.entries(S.mods).sort((x,y)=>(y[0]==="tablero")-(x[0]==="tablero"))){const m=MODS[k];box.append(el("button",{type:"button",class:"mod-it","data-mod":k,onclick:()=>entrarModulo(k)},
+  el("span",{class:"mod-ic"},modIcon(m.ic)),el("span",{class:"mod-tx"},el("b",{text:m.n}),el("span",{text:m.d}),k==="compras"?el("span",{class:"mod-pend",hidden:true}):null),el("span",{class:"mod-rol",text:ROLN[rol]||rol})))}
+ pintarPendC();vigilarCompras();
  $("#modulos").hidden=false}
-function entrarModulo(k){const m=MODS[k];if(m.url){location.href=m.url;return}$("#modulos").hidden=true;
+function entrarModulo(k){const m=MODS[k];if(m.url){location.href=m.url+(k==="compras"&&S.pcN?"#pendientes":"");return}$("#modulos").hidden=true;
  if(k==="tablero"){if(location.hash!=="#tablero")history.replaceState(null,"","#tablero");entrarSanidad();cargarCompras();route();return}
  if(k==="sanidad"){const on=S.sanidadOn;entrarSanidad();if(on&&S.view==="tablero")location.hash="inicio"}}
 function entrarSanidad(){if(S.sanidadOn)return;S.sanidadOn=true;$("#status").style.display="block";$("#status").textContent="Cargando datos…";
- S.rol=S.mods.sanidad||"registro";S.canWrite=S.rol!=="lector";S.esAdmin=S.rol==="admin";if(S.esAdmin)sb.rpc("uso_bd").then(({data})=>{if(data){S.uso=data;if(S.ready){compute();render()}}},()=>{});S.db=makeDb(sb);S.assets=S.canWrite?makeAssets(sb):null;route();flush();
+ S.rol=S.mods.sanidad||"registro";S.canWrite=S.rol!=="lector";S.esAdmin=S.rol==="admin";if(S.esAdmin)sb.rpc("uso_bd").then(({data})=>{if(data){S.uso=data;if(S.ready){compute();render()}}},()=>{});S.db=S.db||makeDb(sb);S.assets=S.canWrite?makeAssets(sb):null;route();flush();
  const timer=setTimeout(()=>{if(!S.ready)$("#status").textContent="Los datos aún no responden. Revisa la conexión; la app seguirá intentando."},12000);
  const fail=e=>{clearTimeout(timer);$("#status").style.display="block";$("#status").textContent=e.code==="not_granted"?"Tu usuario no tiene acceso a los datos. Pide al administrador que lo revise.":"No se pudieron cargar los datos. Revisa la conexión y recarga la página.";};
  const snap=(col,fn)=>S.db.collection(col).onSnapshot(s=>{fn(s);clearTimeout(timer);changed()},fail);
