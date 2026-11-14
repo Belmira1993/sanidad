@@ -252,7 +252,7 @@ details.mas summary{color:var(--accent);font-weight:700;padding:8px 0;font-size:
 @media (max-width:760px){.modbtn span{display:none}.modbtn{padding:6px 8px}.mod-it{padding:14px;gap:12px}.mod-ic{width:44px;height:44px}.mod-rol{display:none}}
 .tb-h{margin-bottom:14px}.tb-tit{font-family:var(--display);font-size:1.8rem;margin:0;color:var(--brand,var(--ink))}
 .tb-tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin:0 0 16px}.tb-tab-b{background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;padding:10px 18px;font:inherit;font-weight:700;font-size:1.05rem;color:var(--ink-2);cursor:pointer;min-height:44px}.tb-tab-b[aria-selected="true"]{color:var(--brand,var(--ink));border-bottom-color:var(--brand,var(--ink))}
-.tb-res{margin-bottom:16px}.tb-sec{font-family:var(--display);font-size:1.45rem;margin:26px 0 10px;color:var(--brand,var(--ink))}
+.tb-res{margin-bottom:16px}.tb-sub{margin:4px 0 10px;font-size:1.05rem}.tb-sec{font-family:var(--display);font-size:1.45rem;margin:26px 0 10px;color:var(--brand,var(--ink))}
 .tb-res h3{margin:0 0 8px}.tb-res ul{margin:0;padding-left:18px}.tb-res li{margin:4px 0}.tb-malo{border-left:4px solid var(--bad)}.tb-bueno{border-left:4px solid var(--ok)}
 .tb-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
 .tb-k{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -369,7 +369,7 @@ function sv(tag,a,...kids){const e=document.createElementNS(SVGNS,tag);if(a)for(
 const MODS={
  tablero:{n:"Dashboard",d:"Lo más importante de Sanidad y Compras: lo bueno, lo que preocupa e indicadores.",ic:"M4 20V11|M10 20V5|M16 20v-6|M21 20H3"},
  sanidad:{n:"Sanidad",d:"Agua y clima, eventos sanitarios, lotes y alertas de las fincas.",ic:"M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z|M8 11h.01"},
- compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261114a"}};
+ compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261114b"}};
 const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras"};
 function modulosDe(u){const am=u?.app_metadata||{};const m=am.modulos&&typeof am.modulos==="object"?{...am.modulos}:{sanidad:am.rol||"registro"};
  if(am.rol==="admin")for(const k of Object.keys(MODS))m[k]="admin";if(am.tablero&&!m.tablero)m.tablero="lector";for(const k of Object.keys(m))if(!MODS[k])delete m[k];return m}
@@ -603,7 +603,7 @@ function alertas(M){
  const cMin=num(c.consumoMin)||75;
  for(const u of M.ubs){if(!u.activo||!u.consumo)continue;const k=u.consumo;const caida=num(c.consumoCaida)||20;if(k.caida!=null&&k.caida>=caida&&k.pct<cMin)P(k.caida>=caida*1.5?"alta":"media",u.finca,u.lote.id,`Lote ${u.lote.codigo}: el consumo de alimento cayó`,`${fNom(u.finca)}: ${fmtN(k.pct)} % de lo presupuestado en los últimos 3 informes, frente a ${fmtN(k.prev)} % la semana anterior.`,"Un lote que come menos puede estar enfermando: revisar comportamiento, branquias y agua. Si está con alimento medicado, la dosis real es menor a la formulada.")}
  for(const f of FINCAS){const pU=M.pisUlt?.[f.id];if(pU!=null&&hoy-pU>2)P("info",f.id,null,`${fNom(f.id)}: informe de Piscis atrasado`,`El último informe cargado es del ${fmtF(pU)}.`,"Cargar los informes diarios pendientes en Ajustes > Cargar informes.")}
- {const pu=pctUso(S.uso);if(pu)for(const[k,n]of[["bd","La base de datos"],["arch","El espacio de archivos"]])if(pu[k]>=80)P(pu[k]>=95?"alta":"media",null,null,`${n} está al ${fmtN(pu[k])} % del plan gratuito`,"Se acerca al límite de Supabase.","Revisar en Ajustes › Uso de la base de datos; exportar respaldos y considerar el plan Pro de Supabase o depurar archivos antiguos.")}
+
  const ord={alta:0,media:1,info:2};return A.sort((a,b)=>ord[a.nivel]-ord[b.nivel]);
 }
 
@@ -1220,7 +1220,7 @@ ${JSON.stringify(data)}`}
 function aparienciaCard(){const cur=LS.get("tema","auto");const opts=[["auto","Automático"],["light","Claro"],["dark","Oscuro"]];
  const seg=el("div",{class:"seg",role:"group","aria-label":"Apariencia"},opts.map(([k,n])=>el("button",{"aria-pressed":cur===k?"true":"false",onclick:()=>{LS.set("tema",k);if(k==="auto")delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=k;render()}},n)));
  return card("Apariencia",el("p",{class:"small muted",style:"margin-top:-6px",text:"Automático sigue la configuración del celular o computador; muchos teléfonos pasan solos a modo oscuro en la noche. Claro u Oscuro lo dejan fijo en este equipo."}),seg)}
-V.ajustes=v=>{const c={...S.cfg};if(S.esAdmin)v.append(cardUso(),gap());v.append(aparienciaCard(),gap());
+V.ajustes=v=>{const c={...S.cfg};v.append(aparienciaCard(),gap());
  v.append(cuentaCard(),gap());
  v.append(card("Cargar históricos",importBox()));
  v.append(gap(),card("Umbrales para trucha",el("p",{class:"small muted",text:"Valores sugeridos para trucha arcoíris en engorde. Ajústalos con tu médico veterinario según etapa, altitud y estándares de la empresa."}),
@@ -1444,14 +1444,14 @@ function cuentaCard(){const nom=el("input",{value:S.me.name||""}),p1=el("input",
 /* ===== Arranque ===== */
 function start(session){if(S.started)return;if(session.user?.user_metadata?.cambiar_clave){S.recovering=true;showLogin("nueva",["ok","Bienvenido. Por seguridad, crea tu propia contraseña antes de continuar."]);return}S.started=true;$("#login").hidden=true;$("#status").style.display="block";$("#status").textContent="Cargando datos…";
  if(/access_token|type=/.test(location.hash))history.replaceState(null,"",location.pathname+"#inicio");
- const u=session.user;S.me={id:u.id,name:u.user_metadata?.nombre||(u.email||"").split("@")[0],email:u.email};if(!S.resp)S.resp=u.user_metadata?.nombre||"";
+ const u=session.user;S.me={id:u.id,name:u.user_metadata?.nombre||(u.email||"").split("@")[0],email:u.email};S.am=u.app_metadata||{};if(!S.resp)S.resp=u.user_metadata?.nombre||"";
  S.mods=modulosDe(u);const ks=Object.keys(S.mods);$("#status").style.display="none";
  if(!ks.length){$("#status").style.display="block";$("#status").textContent="Tu usuario aún no tiene módulos asignados. Pide al administrador que lo revise.";return}
  $("#cambiarMod").hidden=ks.length<2;showModulos()}
 /* ===== Dashboard (Gerencia y dueño): lo más importante de cada módulo ===== */
-function cargarCompras(){if(S.C)return;S.C={ord:new Map(),art:new Map(),prov:new Map(),cfg:new Map(),ok:0,err:null};
- const snap=(col,k)=>S.db.collection(col).onSnapshot(s=>{S.C[k]=new Map(s.docs.map(d=>[d.id,d.data()]));S.C.ok|=({ord:1,art:2,prov:4,cfg:8})[k];if(S.ready&&S.view==="tablero")render()},e=>{S.C.err=e;if(S.ready&&S.view==="tablero")render()});
- snap("compras_ordenes","ord");snap("compras_articulos","art");snap("compras_proveedores","prov");snap("compras_config","cfg")}
+function cargarCompras(){if(S.C)return;S.C={ord:new Map(),art:new Map(),prov:new Map(),cfg:new Map(),pag:new Map(),ok:0,err:null};
+ const snap=(col,k)=>S.db.collection(col).onSnapshot(s=>{S.C[k]=new Map(s.docs.map(d=>[d.id,d.data()]));S.C.ok|=({ord:1,art:2,prov:4,cfg:8,pag:16})[k]||0;if(S.ready&&S.view==="tablero")render()},e=>{S.C.err=e;if(S.ready&&S.view==="tablero")render()});
+ snap("compras_ordenes","ord");snap("compras_articulos","art");snap("compras_proveedores","prov");snap("compras_config","cfg");snap("compras_pagos","pag")}
 const TB={
  act:o=>(o.items||[]).filter(i=>!i.anulado),
  tot:i=>(+i.cant||0)*(+i.precio||0)*(1+(+i.iva||0)/100),
@@ -1521,6 +1521,21 @@ function tbResumen(s,c,P){let malo=[],bueno=[];const out={},per=P===7?"la semana
   if(c.dOC!=null&&c.dOC<=3)bueno.push(`Compras escribe la OC en ${fmtN(c.dOC,1)} días en promedio.`);else if(c.dOC!=null&&c.dOC>7)malo.push(`La OC tarda ${fmtN(c.dOC,1)} días en promedio desde el pedido.`);
   if(c.sin3)malo.push(`${c.sin3} compra${c.sin3>1?"s":""} de artículo nuevo sin 3 cotizaciones.`)}
  out.com={malo,bueno};return out}
+
+function tbSemana(){const t=new Date(),d=new Date(Date.UTC(t.getFullYear(),t.getMonth(),t.getDate())),day=(d.getUTCDay()+6)%7;d.setUTCDate(d.getUTCDate()-day+3);const y=d.getUTCFullYear(),w1=new Date(Date.UTC(y,0,4));
+ const w=1+Math.round(((d-w1)/864e5-3+((w1.getUTCDay()+6)%7))/7);return`${y}-W${String(w).padStart(2,"0")}`}
+/* Uso de la base de datos: solo Gerencia */
+function tbSistema(v,resumen){const MB=1048576;const box=el("div",{},el("p",{class:"muted"},"Consultando el uso…"));v.append(box);
+ (async()=>{try{const{data,error}=await sb.rpc("uso_bd");if(error)throw error;S.uso=data;box.textContent="";
+  const bd=data.bd_bytes/(500*MB)*100,ar=data.archivos_bytes/(1024*MB)*100,malo=[],bueno=[];
+  for(const[n,p]of[["La base de datos",bd],["El espacio de archivos",ar]])(p>=80?malo:bueno).push(p>=80?`${n} está al ${fmtN(p,0)} % del plan gratuito.`:`${n} está al ${fmtN(p,1)} % del plan gratuito.`);
+  box.append(resumen({malo,bueno}));
+  const fila=(n,usado,lim)=>{const p=usado/lim*100;return el("div",{style:"margin:12px 0"},el("div",{class:"row"},el("b",{},n),el("span",{class:"spacer"}),el("span",{},`${fmtN(usado/MB,1)} MB de ${fmtN(lim/MB)} MB · ${fmtN(p,1)} %`)),el("div",{class:"meter",style:"margin-top:4px"},el("i",{style:`width:${Math.min(100,Math.max(p,0.5))}%;background:${p>=80?"var(--bad)":p>=60?"var(--warn)":"var(--ok)"}`})))};
+  const t=data.tablas||{},mods={Sanidad:0,Compras:0},det=[];for(const[k,b]of Object.entries(t)){mods[/^compras_/.test(k)?"Compras":"Sanidad"]+=b;det.push([k,b])}
+  box.append(el("section",{class:"panel"},el("h3",{},"Uso del plan gratuito de Supabase"),fila("Base de datos",data.bd_bytes,500*MB),fila("Archivos (fórmulas, fotos, comprobantes)",data.archivos_bytes,1024*MB),
+   el("p",{class:"muted small"},`Por módulo: Sanidad ${fmtN(mods.Sanidad/MB,2)} MB · Compras ${fmtN(mods.Compras/MB,2)} MB · historial de cambios ${fmtN((data.historial_bytes||0)/MB,2)} MB · ${fmtN(data.archivos_n||0)} archivos. Los comprobantes de pago se borran solos a los 30 días. La transferencia mensual (5 GB) se revisa en Supabase › Usage.`)),
+   el("section",{class:"panel",style:"margin-top:16px"},el("h3",{},"Detalle por colección"),el("ul",{class:"tb-ul"},det.sort((a,b)=>b[1]-a[1]).map(([k,b])=>el("li",{},el("span",{},k),el("b",{},b>=MB?fmtN(b/MB,2)+" MB":fmtN(b/1024,1)+" KB"))))))}
+ catch(e){box.textContent="";box.append(card(null,el("p",{class:"muted"},"No se pudo consultar el uso de la base de datos.")))}})()}
 V.tablero=v=>{if(!S.mods.tablero){v.append(card("Sin acceso",el("p",{text:"El Dashboard es solo para Gerencia."})));return}
  const M=S.M,P=S.tbP||7,hoy=M.hoy,s=tbSanidad(M,P),cOk=S.C&&(S.C.ok&15)===15,c=cOk?tbCompras(hoy,P):null,R=tbResumen(s,c,P);
  const flecha=(a,b,malo_sube=true)=>{const ch=TB.cambio(a,b);if(ch==null||(isFinite(ch)&&Math.abs(ch)<5)||(!isFinite(ch)&&!(a>0)))return el("span",{class:"tb-d"},"igual");const sube=ch>0,cls=malo_sube===null?"":sube===malo_sube?"mal":"bien";
@@ -1530,10 +1545,11 @@ V.tablero=v=>{if(!S.mods.tablero){v.append(card("Sin acceso",el("p",{text:"El Da
  v.append(el("div",{class:"row tb-h"},el("h2",{class:"tb-tit"},"Dashboard"),el("span",{class:"muted small"},`Al ${fmtF(hoy)} · ${P===7?"últimos 7 días":"últimos 30 días"} frente al periodo anterior`),el("span",{class:"spacer"}),
   el("div",{class:"seg"},[[7,"Última semana"],[30,"Último mes"]].map(([n,t])=>el("button",{type:"button","aria-pressed":String(P===n),onclick:()=>{S.tbP=n;render()}},t)))));
  const tab=S.tbTab||"sanidad";
- v.append(el("div",{class:"tb-tabs",role:"tablist"},[["sanidad","Sanidad"],["compras","Compras"]].map(([k,t])=>el("button",{type:"button",role:"tab",class:"tb-tab-b","aria-selected":String(tab===k),onclick:()=>{S.tbTab=k;render()}},t))));
+ const esAdm=S.mods.tablero==="admin";v.append(el("div",{class:"tb-tabs",role:"tablist"},[["sanidad","Sanidad"],["compras","Compras"],...(esAdm?[["sistema","Sistema"]]:[])].map(([k,t])=>el("button",{type:"button",role:"tab",class:"tb-tab-b","aria-selected":String(tab===k),onclick:()=>{S.tbTab=k;render()}},t))));
  const resumen=X=>el("div",{class:"grid2 tb-res"},
   el("section",{class:"panel tb-malo"},el("h3",{},"Lo que preocupa"),X.malo.length?el("ul",{},X.malo.map(t=>el("li",{},t))):el("p",{class:"muted"},"Nada para resaltar.")),
   el("section",{class:"panel tb-bueno"},el("h3",{},"Lo bueno"),X.bueno.length?el("ul",{},X.bueno.map(t=>el("li",{},t))):el("p",{class:"muted"},"Nada para resaltar.")));
+ if(tab==="sistema"&&esAdm){tbSistema(v,resumen);return}
  if(tab==="sanidad"){v.append(resumen(R.san));
  v.append(el("div",{class:"tb-kpis"},
   kpi("Peces en las fincas",fmtN(s.vivT),`${fmtN(s.F.reduce((a,x)=>a+x.nLotes,0))} lotes activos`),
@@ -1564,6 +1580,10 @@ V.tablero=v=>{if(!S.mods.tablero){v.append(card("Sin acceso",el("p",{text:"El Da
   kpi("Días pedido → OC",c.dOC==null?"—":fmtN(c.dOC,1),"Promedio últimos 90 días"),
   kpi("Días OC → llegada",c.dRec==null?"—":fmtN(c.dRec,1),"Promedio últimos 90 días"),
   kpi("Por pagar",TB.millones(c.pagoPend),c.vencidos.length?`${c.vencidos.length} vencido${c.vencidos.length>1?"s":""}`:"Nada vencido")));
+ {const sw=tbSemana(),pres=(S.C.cfg.get("presupuestos")||{})[sw]?.valor,Ls=[...S.C.pag.values()].filter(l=>l.sem===sw).flatMap(l=>l.lineas||[]),prog=Ls.reduce((a,x)=>a+(+x.valor||0),0),pag=Ls.reduce((a,x)=>a+(+x.pago?.valor||0),0),dif=Ls.filter(x=>x.estado==="diferencia").length;
+  v.append(el("h3",{class:"tb-sub"},"Pagos de esta semana"),el("div",{class:"tb-kpis"},kpi("Presupuesto",pres?TB.millones(pres):"Sin definir",pres?"Lo defines en Compras › Pagos":"Escríbelo en Compras › Pagos"),
+   kpi("Programado",TB.millones(prog),pres?`${fmtN(prog/pres*100,0)} % del presupuesto`:`${Ls.length} pagos`),kpi("Pagado por Contabilidad",TB.millones(pag),`${Ls.filter(x=>x.pago).length} de ${Ls.length} pagos`),
+   kpi("Diferencias por conciliar",fmtN(dif),dif?"Revisar en Compras › Pagos":"Ninguna")))}
  const lista=(m,fmt)=>[...m].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,t])=>el("li",{},el("span",{},fmt(k)),el("b",{},TB.peso(t))));
  v.append(el("div",{class:"grid2"},
   el("section",{class:"panel"},el("h3",{},"Alzas de precio de más del 5 %"),c.alzas.length?el("ul",{class:"tb-ul"},c.alzas.slice(0,8).map(a=>el("li",{},el("span",{},el("b",{},TB.artNom(a.i)),` · ${TB.provNom(a.i.prov)} · ${a.id}`),el("b",{class:"tb-mal"},`+${fmtN(a.i.alza.pct||0,1)} %`)))):el("p",{class:"muted"},"Ninguna en el periodo."),
@@ -1597,12 +1617,20 @@ const PC={act:o=>(o.items||[]).filter(i=>!i.anulado),tot:o=>PC.act(o).reduce((s,
    if(admin&&PC.act(o).some(i=>i.cambio?.estado==="pendiente"))L.push(id);
    if(gest&&!admin){if(["aprobado","en-cotizacion","cotizado","con-novedad"].includes(e))L.push(id);
     if(["comprado","despachado","recibido","novedad-resuelta"].includes(e)&&PC.factura(o)!=="ok")L.push(id);
-    if(!["anulado","rechazado","por-aprobar"].includes(e)&&["pend","parcial"].includes(PC.pago(o))&&["comprado","despachado","recibido","novedad-resuelta","cerrado","con-novedad"].includes(e))L.push(id)}
+   }
    if(o.sol===me&&["comprado","despachado"].includes(e))L.push(id);
    if(o.sol===me&&e==="rechazado"&&!o.visto)L.push(id)}
+  const pag=!!S.am?.pagos&&rol!=="lector";
+  for(const[lid,l]of S.pcLotes||[]){const Ls=l.lineas||[];
+   if(pag&&Ls.some(x=>x.estado==="programado"))L.push(lid);
+   if(Ls.some(x=>x.estado==="diferencia"&&x.dif?.estado!=="por-aprobar")&&((pag&&!gest)||(gest&&!admin)))L.push(lid);
+   if(admin&&Ls.some(x=>x.dif?.estado==="por-aprobar"))L.push(lid);
+   if(gest&&!admin&&Ls.some(x=>x.pago&&!x.avisado))L.push(lid)}
   return L}};
 function vigilarCompras(){if(!S.mods.compras||S.pcOn)return;S.pcOn=true;S.db=S.db||makeDb(sb);
- S.db.collection("compras_ordenes").onSnapshot(s=>{S.pcN=PC.lista(s.docs.map(d=>[d.id,d.data()])).length;pintarPendC()},()=>{})}
+ const re=()=>{if(S.pcOrd){S.pcN=PC.lista(S.pcOrd).length;pintarPendC()}};
+ S.db.collection("compras_ordenes").onSnapshot(s=>{S.pcOrd=s.docs.map(d=>[d.id,d.data()]);re()},()=>{});
+ if(["compras","admin"].includes(S.mods.compras)||S.am?.pagos)S.db.collection("compras_pagos").onSnapshot(s=>{S.pcLotes=s.docs.map(d=>[d.id,d.data()]);re()},()=>{})}
 function pintarPendC(){const b=document.querySelector('.mod-it[data-mod="compras"] .mod-pend');if(!b)return;const n=S.pcN||0;b.hidden=!n;b.textContent=n===1?"1 pendiente":n+" pendientes";
  try{n?navigator.setAppBadge?.(n):navigator.clearAppBadge?.()}catch(e){}}
 
@@ -1617,7 +1645,7 @@ function entrarModulo(k){const m=MODS[k];if(m.url){location.href=m.url+(k==="com
  if(k==="tablero"){if(location.hash!=="#tablero")history.replaceState(null,"","#tablero");entrarSanidad();cargarCompras();route();return}
  if(k==="sanidad"){const on=S.sanidadOn;entrarSanidad();if(on&&S.view==="tablero")location.hash="inicio"}}
 function entrarSanidad(){if(S.sanidadOn)return;S.sanidadOn=true;$("#status").style.display="block";$("#status").textContent="Cargando datos…";
- S.rol=S.mods.sanidad||"registro";S.canWrite=S.rol!=="lector";S.esAdmin=S.rol==="admin";if(S.esAdmin)sb.rpc("uso_bd").then(({data})=>{if(data){S.uso=data;if(S.ready){compute();render()}}},()=>{});S.db=S.db||makeDb(sb);S.assets=S.canWrite?makeAssets(sb):null;route();flush();
+ S.rol=S.mods.sanidad||"registro";S.canWrite=S.rol!=="lector";S.esAdmin=S.rol==="admin";S.db=S.db||makeDb(sb);S.assets=S.canWrite?makeAssets(sb):null;route();flush();
  const timer=setTimeout(()=>{if(!S.ready)$("#status").textContent="Los datos aún no responden. Revisa la conexión; la app seguirá intentando."},12000);
  const fail=e=>{clearTimeout(timer);$("#status").style.display="block";$("#status").textContent=e.code==="not_granted"?"Tu usuario no tiene acceso a los datos. Pide al administrador que lo revise.":"No se pudieron cargar los datos. Revisa la conexión y recarga la página.";};
  const snap=(col,fn)=>S.db.collection(col).onSnapshot(s=>{fn(s);clearTimeout(timer);changed()},fail);
@@ -1639,4 +1667,3 @@ init();
 </script>
 </body>
 </html>
-
