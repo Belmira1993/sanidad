@@ -369,7 +369,7 @@ function sv(tag,a,...kids){const e=document.createElementNS(SVGNS,tag);if(a)for(
 const MODS={
  tablero:{n:"Dashboard",d:"Lo más importante de Sanidad y Compras: lo bueno, lo que preocupa e indicadores.",ic:"M4 20V11|M10 20V5|M16 20v-6|M21 20H3"},
  sanidad:{n:"Sanidad",d:"Agua y clima, eventos sanitarios, lotes y alertas de las fincas.",ic:"M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z|M8 11h.01"},
- compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261114b"}};
+ compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261114c"}};
 const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras"};
 function modulosDe(u){const am=u?.app_metadata||{};const m=am.modulos&&typeof am.modulos==="object"?{...am.modulos}:{sanidad:am.rol||"registro"};
  if(am.rol==="admin")for(const k of Object.keys(MODS))m[k]="admin";if(am.tablero&&!m.tablero)m.tablero="lector";for(const k of Object.keys(m))if(!MODS[k])delete m[k];return m}
@@ -1581,6 +1581,9 @@ V.tablero=v=>{if(!S.mods.tablero){v.append(card("Sin acceso",el("p",{text:"El Da
   kpi("Días OC → llegada",c.dRec==null?"—":fmtN(c.dRec,1),"Promedio últimos 90 días"),
   kpi("Por pagar",TB.millones(c.pagoPend),c.vencidos.length?`${c.vencidos.length} vencido${c.vencidos.length>1?"s":""}`:"Nada vencido")));
  {const sw=tbSemana(),pres=(S.C.cfg.get("presupuestos")||{})[sw]?.valor,Ls=[...S.C.pag.values()].filter(l=>l.sem===sw).flatMap(l=>l.lineas||[]),prog=Ls.reduce((a,x)=>a+(+x.valor||0),0),pag=Ls.reduce((a,x)=>a+(+x.pago?.valor||0),0),dif=Ls.filter(x=>x.estado==="diferencia").length;
+  {const r=EVP.recot(S.C.art),e=EVP.evalu(S.C.prov,S.C.ord,S.C.cfg);v.append(el("h3",{class:"tb-sub"},"Proveedores y precios"),el("div",{class:"tb-kpis"},
+   kpi("Recotización (primera ronda)",`${fmtN(r.ok)} de ${fmtN(r.tot)}`,`artículos con cotización de otro proveedor · vence ${fmtF(EVP.fin)}`),kpi("Recotizaciones vencidas",fmtN(r.venc),r.venc?"Revisar con Compras":"Ninguna"),
+   kpi("Evaluaciones por hacer",fmtN(e.venc),"proveedores activos según criticidad"),kpi("Activos sin criticidad",fmtN(e.sincl),"Compras debe clasificarlos (F-C-05)")))}
   v.append(el("h3",{class:"tb-sub"},"Pagos de esta semana"),el("div",{class:"tb-kpis"},kpi("Presupuesto",pres?TB.millones(pres):"Sin definir",pres?"Lo defines en Compras › Pagos":"Escríbelo en Compras › Pagos"),
    kpi("Programado",TB.millones(prog),pres?`${fmtN(prog/pres*100,0)} % del presupuesto`:`${Ls.length} pagos`),kpi("Pagado por Contabilidad",TB.millones(pag),`${Ls.filter(x=>x.pago).length} de ${Ls.length} pagos`),
    kpi("Diferencias por conciliar",fmtN(dif),dif?"Revisar en Compras › Pagos":"Ninguna")))}
@@ -1620,6 +1623,7 @@ const PC={act:o=>(o.items||[]).filter(i=>!i.anulado),tot:o=>PC.act(o).reduce((s,
    }
    if(o.sol===me&&["comprado","despachado"].includes(e))L.push(id);
    if(o.sol===me&&e==="rechazado"&&!o.visto)L.push(id)}
+  if(rol==="compras"&&S.pcArt&&S.pcProv){const r=EVP.recot(S.pcArt);if(r.pend&&(r.venc||new Date().getDay()===1))L.push("RECOT");const e=EVP.evalu(S.pcProv,ords,S.pcCfg);if(e.venc)L.push("EVAL");if(e.sincl&&new Date().getDay()===1)L.push("EVAL")}
   const pag=!!S.am?.pagos&&rol!=="lector";
   for(const[lid,l]of S.pcLotes||[]){const Ls=l.lineas||[];
    if(pag&&Ls.some(x=>x.estado==="programado"))L.push(lid);
@@ -1630,9 +1634,20 @@ const PC={act:o=>(o.items||[]).filter(i=>!i.anulado),tot:o=>PC.act(o).reduce((s,
 function vigilarCompras(){if(!S.mods.compras||S.pcOn)return;S.pcOn=true;S.db=S.db||makeDb(sb);
  const re=()=>{if(S.pcOrd){S.pcN=PC.lista(S.pcOrd).length;pintarPendC()}};
  S.db.collection("compras_ordenes").onSnapshot(s=>{S.pcOrd=s.docs.map(d=>[d.id,d.data()]);re()},()=>{});
+ if(S.mods.compras==="compras"){S.db.collection("compras_articulos").onSnapshot(s=>{S.pcArt=s.docs.map(d=>[d.id,d.data()]);re()},()=>{});S.db.collection("compras_proveedores").onSnapshot(s=>{S.pcProv=s.docs.map(d=>[d.id,d.data()]);re()},()=>{});S.db.collection("compras_config").onSnapshot(s=>{S.pcCfg=new Map(s.docs.map(d=>[d.id,d.data()]));re()},()=>{})}
  if(["compras","admin"].includes(S.mods.compras)||S.am?.pagos)S.db.collection("compras_pagos").onSnapshot(s=>{S.pcLotes=s.docs.map(d=>[d.id,d.data()]);re()},()=>{})}
 function pintarPendC(){const b=document.querySelector('.mod-it[data-mod="compras"] .mod-pend');if(!b)return;const n=S.pcN||0;b.hidden=!n;b.textContent=n===1?"1 pendiente":n+" pendientes";
  try{n?navigator.setAppBadge?.(n):navigator.clearAppBadge?.()}catch(e){}}
+
+/* Recotización y evaluación de proveedores (misma regla que compras.html) */
+const EVP={ini:"2026-11-14",fin:"2027-02-28",crit:{alta:6,media:12,baja:24,na:0},
+ hoy:()=>{const t=new Date();return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0")},
+ mes:(f,m)=>{const d=new Date(f+"T12:00:00Z");d.setUTCMonth(d.getUTCMonth()+m);return d.toISOString().slice(0,10)},
+ recot(arts){let tot=0,ok=0,pend=0,venc=0;const h=EVP.hoy();for(const[,a]of arts){if(a.unido)continue;tot++;const v=a.cotRef?.otro?a.cotRef:a.cotPrev?.otro?a.cotPrev:null,f=v?.fecha;
+   const enR=!f||f<EVP.ini,vence=enR?EVP.fin:EVP.mes(f,6),dias=Math.round((Date.parse(vence)-Date.parse(h))/864e5);if(!enR)ok++;if(enR||dias<=30){pend++;if(dias<0)venc++}}return{tot,ok,pend,venc}},
+ evalu(provs,ords,cfg){const AM=new Map(Object.entries(cfg?.get("actividad_dian")?.nits||{}));for(const[,o]of ords){if(o.anulada)continue;for(const i of(o.items||[]))if(i.prov&&!i.anulado){const f=(i.ocFecha||o.fecha||"").slice(0,10);if(!AM.has(i.prov)||f>AM.get(i.prov))AM.set(i.prov,f)}}
+  const h=EVP.hoy(),un=EVP.mes(h,-12);let venc=0,sincl=0;for(const[n,p]of provs){const act=p.activo===true||(p.activo!==false&&(AM.get(n)||"")>=un);if(!act)continue;if(!p.crit){sincl++;continue}
+   const em=p.evalMeses!=null?+p.evalMeses:EVP.crit[p.crit];if(!em)continue;const ue=p.evaluacion?.fecha||(p.evaluacion?.anio?p.evaluacion.anio+"-12-31":null);if(!ue||EVP.mes(ue,em)<=h)venc++}return{venc,sincl}}};
 
 function showModulos(){/* Si venía de un enlace (por ejemplo un pedido enviado por WhatsApp), vuelve allí después de entrar */
  try{const v=sessionStorage.getItem("belmira:volver");if(v&&S.mods.compras&&/^https:\/\/belmira1993\.github\.io\/sanidad\/compras\.html/.test(v)){sessionStorage.removeItem("belmira:volver");location.href=v;return}}catch(e){}
