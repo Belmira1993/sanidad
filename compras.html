@@ -332,6 +332,7 @@ dialog.dlg.chico{width:min(460px,94vw);height:auto;max-height:90vh}
 .lock{margin:0;padding:8px 10px;border-radius:8px;background:var(--soft,rgba(0,0,0,.04));font-size:.85rem}.lock .linkbtn{margin-left:4px}
 .cambio-ap{display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%;padding:8px 0;border-bottom:1px solid var(--line)}.cambio-ap span{flex:1 1 260px;min-width:0}
 .cmp{display:grid;grid-template-columns:auto 2fr 1fr 1fr .7fr;gap:8px;align-items:end;padding:10px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px}.cmp.min{border-color:var(--ok,#2e7d32);box-shadow:inset 3px 0 0 var(--ok,#2e7d32)}
+.eq-t{display:flex;width:100%;justify-content:space-between;align-items:center;gap:12px;background:none;border:0;padding:2px 0;cursor:pointer;color:inherit;font:inherit;text-align:left}.bandeja.eq .pend-it:first-of-type{margin-top:8px}
 .cmp>*{min-width:0}.cmp .inp{width:100%}.inp:disabled{background:var(--soft,rgba(0,0,0,.05));color:var(--muted,#666);cursor:not-allowed;opacity:1}
 .cmp-e{display:inline-flex;gap:6px;align-items:center;padding-bottom:10px;white-space:nowrap}.cmp-t{grid-column:2/-1}
 @media(max-width:700px){.cmp{grid-template-columns:1fr 1fr}.cmp-e,.cmp .f:nth-child(2),.cmp-t{grid-column:1/-1}.cmp-e{padding-bottom:0}}
@@ -564,23 +565,25 @@ const IND={ok:["ok","Sí"],parcial:["warn","Parcial"],pend:["","Pendiente"],cred
 const chipInd=(t,v)=>v?`<span class="chip ${IND[v][0]}" title="${t}">${t}: ${IND[v][1]}</span>`:"";
 const ords=()=>DB.docs(COL.ord);
 /* Bandeja: lo que le toca a cada quien */
-function pendientes(){const me=ME(),L=[];
+function pendientes(){const me=ME(),L=[],C=[];
  for(const[id,o]of ords()){const e=estado(o);
   if(e==="por-aprobar"&&o.jefe===me)L.push([id,"Aprobar el pedido"]);
   if(e==="por-aprobar-gerencia"&&S.rol==="admin")L.push([id,"Aprobar el gasto (más de $1.000.000)"]);
   if(S.rol==="admin"&&activos(o).some(i=>i.cambio?.estado==="pendiente"))L.push([id,"Aprobar cambio de precio"]);
-  if(S.gestion){if(e==="aprobado")L.push([id,"Cotizar"]);else if(e==="en-cotizacion")L.push([id,"Terminar cotización"]);else if(e==="cotizado")L.push([id,"Comprar: escribir la OC"]);else if(e==="con-novedad")L.push([id,"Resolver la novedad"]);
-   if(["comprado","despachado","recibido","novedad-resuelta"].includes(e)&&factura(o)!=="ok")L.push([id,"Registrar factura"]);
-   if(!["anulado","rechazado","por-aprobar"].includes(e)&&["pend","parcial"].includes(pago(o))&&["comprado","despachado","recibido","novedad-resuelta","cerrado","con-novedad"].includes(e))L.push([id,"Pago pendiente"])}
+  if(S.gestion){if(e==="aprobado")C.push([id,"Cotizar"]);else if(e==="en-cotizacion")C.push([id,"Terminar cotización"]);else if(e==="cotizado")C.push([id,"Comprar: escribir la OC"]);else if(e==="con-novedad")C.push([id,"Resolver la novedad"]);
+   if(["comprado","despachado","recibido","novedad-resuelta"].includes(e)&&factura(o)!=="ok")C.push([id,"Registrar factura"]);
+   if(!["anulado","rechazado","por-aprobar"].includes(e)&&["pend","parcial"].includes(pago(o))&&["comprado","despachado","recibido","novedad-resuelta","cerrado","con-novedad"].includes(e))C.push([id,"Pago pendiente"])}
   if(o.sol===me&&["comprado","despachado"].includes(e))L.push([id,"Confirmar que llegó"]);
   if(o.sol===me&&e==="rechazado"&&!o.visto)L.push([id,"Fue rechazado: revisa el motivo"])}
- return L.sort((a,b)=>b[0].localeCompare(a[0]))}
+ const ord=X=>X.sort((a,b)=>b[0].localeCompare(a[0]));
+ /* Gerencia ve aparte el trabajo de Compras (Laura); a Compras se le suma a su lista */
+ if(S.rol==="admin")return{mios:ord(L),compras:ord(C)};return{mios:ord(L.concat(C)),compras:[]}}
 const FILTROS=[["","Todas"],["abiertas","Abiertas"],["por-aprobar","Por aprobar"],["por-cotizar","Por cotizar"],["cotizado","Por comprar"],["en-camino","Comprado / en camino"],["con-novedad","Con novedad"],["sin-factura","Sin factura"],["pago-pend","Pago pendiente"],["cerrado","Cerradas"],["anulado","Anuladas o rechazadas"]];
 function pasaFiltro(o,f){const e=estado(o);switch(f){case"":return true;case"abiertas":return!["cerrado","anulado","rechazado"].includes(e);case"por-aprobar":return e==="por-aprobar"||e==="por-aprobar-gerencia";
  case"por-cotizar":return e==="aprobado"||e==="en-cotizacion";case"en-camino":return e==="comprado"||e==="despachado";case"sin-factura":return!["anulado","rechazado","por-aprobar"].includes(e)&&factura(o)!=="ok"&&EST[e][2]>=6;
  case"pago-pend":return EST[e][2]>=6&&e!=="anulado"&&["pend","parcial"].includes(pago(o));case"anulado":return e==="anulado"||e==="rechazado";default:return e===f}}
 function vPedidos(){const w=cargando(COL.ord,COL.art,COL.cfg,COL.prov);if(w)return w;
- const f=S.fo||(S.fo={q:"",est:"abiertas",cc:"",prov:""}),P=pendientes();
+ const f=S.fo||(S.fo={q:"",est:"abiertas",cc:"",prov:""}),PP=pendientes(),P=PP.mios,PC=PP.compras;
  let rows=[...ords()].filter(([id,o])=>pasaFiltro(o,f.est)&&(!f.cc||o.cc===f.cc)&&(!f.prov||activos(o).some(i=>i.prov===f.prov))&&
   (!f.q||coincide(id+" "+quien(o)+" "+ccNom(o.cc)+" "+(o.nota||"")+" "+activos(o).map(i=>artNom(i)+" "+(i.oc||"")+" "+(i.fac||"")+" "+(provs().get(i.prov)?.nombre||"")).join(" "),f.q)));
  rows.sort((a,b)=>b[0].localeCompare(a[0]));const total=rows.length;rows=rows.slice(0,S.lim.ord||100);
@@ -590,6 +593,8 @@ function vPedidos(){const w=cargando(COL.ord,COL.art,COL.cfg,COL.prov);if(w)retu
  const R=rows.map(fila);
  return`<div class="row hrow"><h2 style="color:var(--brand)">Pedidos</h2><span class="spacer"></span>${S.rol==="lector"?"":`<button class="btn pri" data-acc="nuevo-ped">Nuevo pedido</button>`}</div>
  ${P.length?`<div class="panel bandeja"><h3>Mis pendientes <span class="chip warn">${P.length}</span></h3>${P.slice(0,12).map(([id,t])=>`<button class="pend-it" data-ord="${id}"><b>${id}</b><span>${esc(t)}</span><span class="muted small">${esc(quien(ords().get(id)))} · ${esc(ccNom(ords().get(id).cc))}</span></button>`).join("")}${P.length>12?`<p class="muted small">y ${P.length-12} más en la lista.</p>`:""}</div>`:`<div class="panel bandeja vacia"><span class="muted">No tienes pendientes. 👍</span></div>`}
+ ${PC.length?`<div class="panel bandeja eq"><button class="eq-t" data-acc="ver-pc" aria-expanded="${!!S.verPC}"><span><b>Compras (Laura) tiene ${fmtN(PC.length)} pendiente${PC.length>1?"s":""}</b>${(n=>n?` · <span style="color:var(--bad)">${n} novedad${n>1?"es":""} sin resolver</span>`:"")(PC.filter(x=>x[1]==="Resolver la novedad").length)}</span><span class="muted small">${S.verPC?"Ocultar":"Ver"}</span></button>
+  ${S.verPC?PC.slice(0,40).map(([id,t])=>`<button class="pend-it" data-ord="${id}"><b>${id}</b><span>${esc(t)}</span><span class="muted small">${esc(quien(ords().get(id)))} · ${esc(ccNom(ords().get(id).cc))}</span></button>`).join("")+(PC.length>40?`<p class="muted small">y ${PC.length-40} más en la lista.</p>`:""):""}</div>`:""}
  <div class="filtros">${FILTROS.map(([k,t])=>`<button class="fbtn${f.est===k?" on":""}" data-fest="${k}">${t} <b>${cnt(k)}</b></button>`).join("")}</div>
  <div class="tools"><input class="inp" type="search" id="qord" placeholder="Número, artículo, proveedor, OC, factura…" value="${esc(f.q)}" aria-label="Buscar pedido">
   <select class="inp" id="ford-cc" aria-label="Centro de costos"><option value="">Todos los centros</option>${centros().map(c=>`<option value="${c.id}"${f.cc===c.id?" selected":""}>${esc(c.nombre)}</option>`).join("")}</select>
@@ -960,7 +965,7 @@ function enlazar(){
  document.querySelectorAll("[data-fest]").forEach(b=>b.onclick=()=>{S.fo.est=b.dataset.fest;S.lim.ord=100;render()});
  const qo=$("#qord");if(qo){qo.oninput=()=>{S.fo.q=qo.value;repintar("#qord")};$("#ford-cc").onchange=e=>{S.fo.cc=e.target.value;render()};if($("#ford-prov"))$("#ford-prov").onchange=e=>{S.fo.prov=e.target.value;render()}}
  document.querySelectorAll("[data-art]").forEach(el=>el.onclick=()=>dlgArt(el.dataset.art));
- document.querySelectorAll("[data-acc]").forEach(b=>b.onclick=()=>({"nuevo-prov":()=>dlgProv(null),"importar":dlgImportar,"nuevo-art":()=>dlgArt(null),"nuevo-ped":dlgNuevo,"empresa":dlgEmpresa,"mas-ord":()=>{S.lim.ord=(S.lim.ord||100)+200;render()},"nuevo-cc":()=>ccNombre(-1),
+ document.querySelectorAll("[data-acc]").forEach(b=>b.onclick=()=>({"nuevo-prov":()=>dlgProv(null),"importar":dlgImportar,"nuevo-art":()=>dlgArt(null),"nuevo-ped":dlgNuevo,"empresa":dlgEmpresa,"ver-pc":()=>{S.verPC=!S.verPC;render()},"mas-ord":()=>{S.lim.ord=(S.lim.ord||100)+200;render()},"nuevo-cc":()=>ccNombre(-1),
   "mas-prov":()=>{S.lim.prov+=200;render()},"mas-art":()=>{S.lim.art+=200;render()}})[b.dataset.acc]());
  document.querySelectorAll("[data-cc-ren]").forEach(b=>b.onclick=()=>ccNombre(+b.dataset.ccRen));
  const qc=$("#qcorr");if(qc){qc.oninput=()=>{S.corr.q=qc.value;S.corr.rev="";repintar("#qcorr")};$("#tcorr").onchange=e=>{S.corr.tipo=e.target.value;render()}}
