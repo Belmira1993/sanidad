@@ -222,6 +222,20 @@ details.mas summary{color:var(--accent);font-weight:700;padding:8px 0;font-size:
 .dayctl .btn{font-size:1.5rem;line-height:1;padding:4px 12px;font-weight:400}
 .top h1{padding-bottom:0}
 @media (max-width:760px){.logo{height:28px}.top h1{font-size:1rem;padding-bottom:8px}.top-in{padding:8px 14px 0}.seg.big button{font-size:1.02rem;padding:8px 6px;line-height:1.15}.fincas{gap:12px}.finca .nm{font-size:1.75rem}}
+/* ===== Registros sanitarios ===== */
+.filtros{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.fbtn{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 12px;font:600 .84rem var(--font);cursor:pointer;color:var(--ink);white-space:nowrap}
+.fbtn b{color:var(--ink-2);font-weight:600;margin-left:2px}.fbtn.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}.fbtn.on b{color:inherit}
+.tools-r{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}.tools-r .inp{flex:1 1 260px}.tools-r select.inp{flex:0 1 200px}
+.chk{display:inline-flex;gap:6px;align-items:center;font-weight:600;font-size:.9rem;white-space:nowrap}
+.lista-r td{cursor:pointer}.lista-r tr:hover td{background:var(--surface-2)}.lista-r td.mono{white-space:nowrap}.lista-r td.res-c{max-width:360px;overflow-wrap:anywhere}.lista-r tr.leg td{color:var(--ink-2)}
+.tipo-t{font-weight:600;border-left:4px solid var(--line);padding-left:6px;white-space:nowrap}
+.tipo-t[data-t="tratamiento"],.card-r[data-t="tratamiento"]{border-left-color:var(--m-trat)}.tipo-t[data-t="necropsia"],.card-r[data-t="necropsia"]{border-left-color:var(--m-nec)}.tipo-t[data-t="laboratorio"],.card-r[data-t="laboratorio"]{border-left-color:var(--m-lab)}
+.tipo-t[data-t="evaluacion"],.card-r[data-t="evaluacion"]{border-left-color:var(--brand)}.tipo-t[data-t="suplementacion"],.card-r[data-t="suplementacion"]{border-left-color:var(--warn)}
+.cards-r{display:none}
+.card-r{display:flex;flex-direction:column;gap:4px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:8px;cursor:pointer;color:var(--ink);font:inherit}
+.card-r .cr-t{overflow-wrap:anywhere}
+@media (max-width:760px){.lista-r{display:none}.cards-r{display:block}.filtros{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.tools-r select.inp{flex:1 1 100%}}
 /* ===== ERP: pantalla de módulos ===== */
 .mod-card{width:min(480px,100%)}
 .mod-list{display:flex;flex-direction:column;gap:12px}
@@ -258,7 +272,7 @@ details.mas summary{color:var(--accent);font-weight:700;padding:8px 0;font-size:
 <header class="top"><div class="top-in">
   <h1><span class="logo-wrap"><img class="logo logo-claro" src="logo.svg" alt="Truchas Belmira" width="628" height="203"><img class="logo logo-oscuro" src="logo-blanco.svg" alt="" aria-hidden="true" width="628" height="203"></span><span class="app-t">Sanidad</span> <button id="pend" type="button"></button><button id="cambiarMod" type="button" class="modbtn" hidden title="Cambiar de módulo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Módulos</span></button></h1>
   <nav class="desk" id="nav">
-    <a href="#inicio">Inicio</a><a href="#diario">Agua y clima</a><a href="#evento">Eventos sanitarios</a><a href="#lotes">Lotes</a>
+    <a href="#inicio">Inicio</a><a href="#diario">Agua y clima</a><a href="#evento">Eventos sanitarios</a><a href="#registros">Registros</a><a href="#lotes">Lotes</a>
     <a href="#comparar">Lote entre fincas</a><a href="#temporadas">Temporadas</a><a href="#ensayos">Ensayos</a><a href="#correcciones">Correcciones</a><a href="#calidad">Calidad de datos</a><a href="#claude">Análisis</a><a href="#ajustes">Ajustes</a>
   </nav>
 </div></header>
@@ -271,7 +285,7 @@ details.mas summary{color:var(--accent);font-weight:700;padding:8px 0;font-size:
   <button type="button" id="mas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>Más</button>
 </nav>
 <div class="sheet" id="sheet"><div>
-  <a href="#comparar">Lote entre fincas</a><a href="#temporadas">Temporadas y clima</a><a href="#ensayos">Ensayos</a><a href="#correcciones">Correcciones</a><a href="#calidad">Calidad de datos</a><a href="#claude">Análisis con Claude</a><a href="#ajustes">Ajustes, históricos y exportar</a>
+  <a href="#registros">Registros sanitarios</a><a href="#comparar">Lote entre fincas</a><a href="#temporadas">Temporadas y clima</a><a href="#ensayos">Ensayos</a><a href="#correcciones">Correcciones</a><a href="#calidad">Calidad de datos</a><a href="#claude">Análisis con Claude</a><a href="#ajustes">Ajustes, históricos y exportar</a>
 </div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <datalist id="dl-diag"></datalist><datalist id="dl-agente"></datalist>
@@ -340,7 +354,7 @@ function sv(tag,a,...kids){const e=document.createElementNS(SVGNS,tag);if(a)for(
    Usuarios antiguos sin "modulos" conservan Sanidad con su "rol" de siempre. */
 const MODS={
  sanidad:{n:"Sanidad",d:"Agua y clima, eventos sanitarios, lotes y alertas de las fincas.",ic:"M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z|M8 11h.01"},
- compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261113c"}};
+ compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261113d"}};
 const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras"};
 function modulosDe(u){const am=u?.app_metadata||{};const m=am.modulos&&typeof am.modulos==="object"?{...am.modulos}:{sanidad:am.rol||"registro"};
  if(am.rol==="admin")for(const k of Object.keys(MODS))m[k]="admin";for(const k of Object.keys(m))if(!MODS[k])delete m[k];return m}
@@ -1080,6 +1094,35 @@ function ensayoForm(v){const ex=S.ensEdit?S.ensayos.get(S.ensEdit):null;const M=
  draw();v.append(card(ex?"Editar ensayo o seguimiento":"Nuevo ensayo o seguimiento",body))}
 /* --- Correcciones --- */
 const numReg=id=>"EV-"+String(id||"").replace(/[^a-z0-9]/gi,"").slice(-6).toUpperCase();
+/* --- Registros: lista de trabajo de los eventos sanitarios (sin búsquedas obligatorias) --- */
+const RESUMEN_K=["diagnostico","producto","hallazgos","resultado","agente","motivo","observacion","detalle"];
+function resumenEv(r){const x=r.datos||{};const c=(CAMPOS[r.tipo]||[]).filter(f=>x[f.k]!==""&&x[f.k]!=null&&f.t!=="number"&&f.t!=="date");
+ const pri=c.sort((a,b)=>((RESUMEN_K.indexOf(a.k)+1)||99)-((RESUMEN_K.indexOf(b.k)+1)||99)).slice(0,2).map(f=>String(x[f.k]));return(pri.join(" · ")||r.notas||"").slice(0,140)}
+V.registros=v=>{const M=S.M;const f=S.reg||(S.reg={tipo:"",finca:"",mios:false,q:"",lim:100});
+ const base=M.eventos.slice().sort((a,b)=>a.fecha<b.fecha?1:a.fecha>b.fecha?-1:String(b.creado||"").localeCompare(String(a.creado||"")));
+ const pasa=(r,sinTipo)=>(sinTipo||!f.tipo||r.tipo===f.tipo)&&(!f.finca||r.finca===f.finca)&&(!f.mios||r.por===S.me.id)&&(!f.q||norm(numReg(r.id)+" "+(TIPOS[r.tipo]||"")+" "+fNom(r.finca)+" "+(S.lotes.get(r.lote)?.codigo||"")+" "+JSON.stringify(r.datos||{})+" "+(r.notas||"")+" "+(r.responsable||"")).includes(norm(f.q)));
+ const L=base.filter(r=>pasa(r)),cnt=t=>base.filter(r=>pasa(r,true)&&(!t||r.tipo===t)).length;
+ const chips=el("div",{class:"filtros"},[["","Todos"],...Object.entries(TIPOS)].map(([k,t])=>el("button",{class:"fbtn"+(f.tipo===k?" on":""),onclick:()=>{f.tipo=k;f.lim=100;render()}},t+" ",el("b",{text:String(cnt(k))}))));
+ const q=el("input",{class:"inp",type:"search",placeholder:"Buscar: EV-…, lote, producto, diagnóstico…",value:f.q,"aria-label":"Buscar registro"});
+ q.addEventListener("input",()=>{f.q=q.value;f.lim=100;const p=q.selectionStart;render();const n=document.querySelector("#view input[type=search]");if(n){n.focus();try{n.setSelectionRange(p,p)}catch(e){}}});
+ const fin=el("select",{class:"inp","aria-label":"Finca",onchange:e=>{f.finca=e.target.value;render()}},[["","Todas las fincas"],...FINCAS.map(x=>[x.id,x.nombre])].map(([k,t])=>el("option",{value:k,text:t})));fin.value=f.finca;
+ const mios=el("label",{class:"chk"},el("input",{type:"checkbox",checked:f.mios||null,onchange:e=>{f.mios=e.target.checked;render()}}),"Solo los míos");
+ const abrir=r=>{if(S.canWrite&&!r.legacy)go("evento",{state:{evPre:{id:r.id},volverA:"registros"}})};
+ const filas=L.slice(0,f.lim);
+ const tabla=el("div",{class:"panel scroll lista-r",style:"padding:0"},el("table",null,el("thead",null,el("tr",null,["Número","Fecha","Finca","Lote","Tipo","Resumen","Registró",""].map(h=>el("th",{text:h})))),
+  el("tbody",null,filas.map(r=>{const Lo=S.lotes.get(r.lote);return el("tr",{"data-t":r.tipo,class:r.legacy?"leg":"",onclick:()=>abrir(r)},el("td",{class:"mono"},el("b",{text:r.legacy?"Histórico":numReg(r.id)})),el("td",{class:"mono",text:fmtF(r.fecha)}),
+   el("td",{text:fNom(r.finca)}),el("td",{text:(Lo?"Lote "+Lo.codigo:"—")+(r.canal?" · "+r.canal:"")}),el("td",null,el("span",{class:"tipo-t","data-t":r.tipo,text:TIPOS[r.tipo]||r.tipo})),
+   el("td",{class:"res-c",text:resumenEv(r)||"—"}),el("td",{text:r.responsable||"—"}),el("td",null,r.tipo==="tratamiento"&&!r.legacy&&!(r.adjuntos||[]).length?el("span",{class:"chip media",text:"Falta fórmula"}):(r.adjuntos||[]).length?el("span",{class:"chip",text:"📎 "+r.adjuntos.length}):null))}))));
+ const cards=el("div",{class:"cards-r"},filas.map(r=>{const Lo=S.lotes.get(r.lote);return el("button",{class:"card-r","data-t":r.tipo,onclick:()=>abrir(r)},
+  el("span",{class:"row",style:"justify-content:space-between;margin:0"},el("b",{text:TIPOS[r.tipo]||r.tipo}),el("span",{class:"small muted",text:r.legacy?"Histórico":numReg(r.id)})),
+  el("span",{class:"cr-t",text:resumenEv(r)||"—"}),el("span",{class:"small muted",text:`${fmtF(r.fecha)} · ${fNom(r.finca)}${Lo?" · Lote "+Lo.codigo:""}${r.responsable?" · "+r.responsable:""}`}),
+  r.tipo==="tratamiento"&&!r.legacy&&!(r.adjuntos||[]).length?el("span",{class:"chip media",style:"align-self:flex-start",text:"Falta fórmula"}):null)}));
+ v.append(...[el("div",{class:"row",style:"margin-bottom:12px"},el("h2",{text:"Registros sanitarios"}),el("span",{class:"spacer"}),S.canWrite?el("button",{class:"btn pri",onclick:()=>go("evento")},"Nuevo evento"):null),
+  chips,el("div",{class:"tools-r"},q,fin,mios),
+  el("p",{class:"small muted",style:"margin:0 0 8px",text:L.length?`${L.length} registro${L.length>1?"s":""}. Toca uno para abrirlo y editarlo.`:"No hay registros con ese filtro."}),
+  L.length?tabla:el("div",{class:"panel empty",text:base.length?"Prueba con otro filtro.":"Todavía no hay eventos registrados."}),L.length?cards:null,
+  L.length>f.lim?el("button",{class:"btn",style:"display:block;margin:12px auto 0",onclick:()=>{f.lim+=200;render()}},`Ver más (${L.length-f.lim})`):null].filter(Boolean))};
+
 V.correcciones=v=>{const M=S.M;const f=S.corr||(S.corr={q:"",desde:"",hasta:"",finca:"",tipo:"",lote:""});
  const res=el("div");
  const buscar=()=>{res.textContent="";const q=norm(f.q).replace(/^ev-?/,"");const d1=dn(f.desde),d2=dn(f.hasta);
