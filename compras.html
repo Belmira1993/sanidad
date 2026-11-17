@@ -451,7 +451,7 @@ const VISTAS=[
  {id:"inicio",t:"Pedidos",ic:'<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h8"/>'},
  {id:"proveedores",t:"Proveedores",ic:'<path d="M3 21h18M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/>'},
  {id:"articulos",t:"Artículos",ic:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/>'},
- {id:"centros",t:"Centros de costos",tm:"Centros",ic:'<circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/>'},
+ {id:"centros",t:"Centros de costos",tm:"Centros",ic:'<circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/>',solo:"pagosv"},
  {id:"pagos",t:"Pagos",ic:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>',solo:"pagosv"},
  {id:"evaluacion",t:"Evaluación",ic:'<path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/>',solo:"gestion"},
  {id:"correcciones",t:"Correcciones",ic:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/>',solo:"gestion"}];
@@ -701,6 +701,23 @@ function docProveedor(id,o,nit){const E=empresa(),p=provs().get(nit)||{nombre:ni
  <table class="tot"><tr><td>Subtotal</td><td class="n">${peso(sub)}</td></tr><tr><td>IVA</td><td class="n">${peso(iva)}</td></tr><tr><td>Total</td><td class="n">${peso(sub+iva)}</td></tr></table>
  <p class="pie">Por favor citar el número <b>${esc(num)}</b> en la remisión y en la factura electrónica. Precios según su cotización${cots.length?" "+esc(cots.join(", ")):""}. Elaboró: ${esc(persona(ME()))} – Compras.</p>
  <div class="no"><button onclick="print()">Imprimir o guardar PDF</button></div></body></html>`}
+/* Copia del pedido para quien lo pidió (control propio): se imprime o se guarda en PDF */
+function docSolicitud(id,o){const E=empresa(),e=estado(o),its=activos(o),hayP=its.some(i=>+i.precio>0);
+ const lg=document.querySelector(".logo-claro")?.src||new URL("logo.svg",location.href).href;
+ const ap=o.aprob?.ok?(o.aprob.auto?"No requiere (lo pidió un jefe)":`${esc(persona(o.aprob.por||o.jefe))}${o.aprob.fecha?" · "+fecha(o.aprob.fecha):""}`):(o.aprob?.ok===false?"Rechazado":"Pendiente");
+ const filas=its.map(it=>`<tr><td>${esc(artNom(it))}${it.nota?`<br><small>${esc(it.nota)}</small>`:""}</td><td class="n">${fmtN(it.cant)}</td><td>${esc(it.u||"")}</td><td>${it.prov?esc(provs().get(it.prov)?.nombre||it.prov):"—"}</td>${hayP?`<td class="n">${+it.precio>0?peso(totItem(it)):"—"}</td>`:""}<td>${it.rec?(it.rec.estado==="nov"?"Con novedad":"Recibido"):it.rem?"Despachado":"—"}</td></tr>`).join("");
+ return`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Pedido ${esc(id)}</title><style>
+ body{font:13px/1.45 Calibri,Carlito,Arial,sans-serif;color:#1E2B38;margin:28px;max-width:820px}h1{font-size:20px;color:#2D4E7F;margin:0}table{border-collapse:collapse;width:100%;margin-top:14px}
+ th,td{border-bottom:1px solid #DDE4DC;padding:6px 8px;text-align:left;vertical-align:top}th{background:#EEF2ED;font-size:12px}td.n,th.n{text-align:right;white-space:nowrap}
+ .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #2D4E7F;padding-bottom:10px}.top img{height:44px}.box{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+ .box div{background:#F4F6F3;border-radius:6px;padding:10px}.pie{margin-top:24px;font-size:11px;color:#5A6A70}.no{margin-top:16px}@media print{.no{display:none}body{margin:12mm}}</style></head><body>
+ <div class="top"><div><img src="${lg}" alt="Truchas Belmira"><div style="margin-top:6px"><b>${esc(E.nombre)}</b> · NIT ${esc(E.nit)}</div></div>
+ <div style="text-align:right"><h1>PEDIDO DE COMPRA</h1><b style="font-size:16px">${esc(id)}</b><br>Fecha del pedido: ${fecha(o.fecha)}<br>Estado: <b>${esc(EST[e][0])}</b></div></div>
+ <div class="box"><div><b>Solicitó</b><br>${esc(quien(o))}<br>Centro de costos: ${esc(ccNom(o.cc))}${o.nota?"<br><small>"+esc(o.nota)+"</small>":""}</div>
+ <div><b>Aprobación</b><br>Jefe: ${ap}${o.ger?`<br>Gerencia: ${o.ger.ok?"Aprobó":"No aprobó"}${o.ger.fecha?" · "+fecha(o.ger.fecha):""}`:""}${hayP?`<br>Total con IVA: <b>${peso(totOrden(o))}</b>`:""}</div></div>
+ <table><thead><tr><th>Artículo</th><th class="n">Cantidad</th><th>Unidad</th><th>Proveedor</th>${hayP?'<th class="n">Total con IVA</th>':""}<th>Entrega</th></tr></thead><tbody>${filas}</tbody></table>
+ <p class="pie">Copia de control generada desde la app de Belmira el ${fecha(hoy())}. El estado puede cambiar después de esta fecha.</p>
+ <div class="no"><button onclick="print()">Imprimir o guardar PDF</button></div></body></html>`}
 function abrirDoc(html,titulo){const w=window.open("","_blank");if(w){w.document.open();w.document.write(html);w.document.close();return}
  /* Si el navegador no deja abrir otra ventana, se muestra aquí mismo */
  const d=$("#dlg2");d.innerHTML=`<div class="dlg-h"><h3>${esc(titulo)}</h3><button class="x" id="d2x" aria-label="Cerrar">×</button></div><iframe class="doc-f" title="${esc(titulo)}"></iframe>`;d.classList.add("doc");
@@ -930,7 +947,7 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
    :`<p class="small" style="margin:4px 0">${{pagado:"Pagado",credito:"A crédito"}[p.estado]||"Pendiente"}${p.comp?" · "+esc(p.comp):""}${p.fecha?" · "+fecha(p.fecha):""}</p>`}</div>`}).join("")}`:""}
   <datalist id="provs-l">${G?[...provs()].map(([n,d])=>`<option value="${esc(d.nombre)} · ${n}">`).join(""):""}</datalist><datalist id="arts-l2">${G?[...arts()].filter(([,d])=>!d.unido).map(([k,d])=>`<option value="${esc(d.nombre)} · ${k}">`).join(""):""}</datalist>
   <details class="mas" id="o-hist"><summary>Historial de cambios</summary><div class="muted small">Cargando…</div></details>`,
-  `${puedeAnular?'<button class="btn danger izq" id="o-anular">Anular</button>':""}<a class="btn" href="${wa(`Pedido ${id} (${ccNom(o.cc)}): ${EST[e][0]}. ${({"por-aprobar":"Pendiente de tu aprobación.","por-aprobar-gerencia":"Pendiente de aprobación de Gerencia.","comprado":"Ya está comprado (pagado); confirma cuando llegue.","despachado":"Va en camino; confirma cuando llegue."})[e]||""} Ábrelo aquí: ${enlace(id)}`)}" target="_blank" rel="noopener">WhatsApp</a><button class="btn" data-cerrar>Cerrar</button>${G&&!["anulado","rechazado","por-aprobar"].includes(e)?'<button class="btn pri" id="o-ok">Guardar</button>':""}`);
+  `${puedeAnular?'<button class="btn danger izq" id="o-anular">Anular</button>':""}<button type="button" class="btn" id="o-pdf" title="Descargar el pedido en PDF">PDF</button><a class="btn" href="${wa(`Pedido ${id} (${ccNom(o.cc)}): ${EST[e][0]}. ${({"por-aprobar":"Pendiente de tu aprobación.","por-aprobar-gerencia":"Pendiente de aprobación de Gerencia.","comprado":"Ya está comprado (pagado); confirma cuando llegue.","despachado":"Va en camino; confirma cuando llegue."})[e]||""} Ábrelo aquí: ${enlace(id)}`)}" target="_blank" rel="noopener">WhatsApp</a><button class="btn" data-cerrar>Cerrar</button>${G&&!["anulado","rechazado","por-aprobar"].includes(e)?'<button class="btn pri" id="o-ok">Guardar</button>':""}`);
  dlg.classList.add("ancho");dlg.addEventListener("close",()=>dlg.classList.remove("ancho"),{once:true});
  /* Guardado seguro: si otra persona cambió la orden mientras estaba abierta, no se pisa su cambio. */
  const guardar=async(cambiar,msg)=>{const fresca=await DB.fresco(COL.ord,id);if(fresca&&JSON.stringify(fresca)!==JSON.stringify(o0)){toast("Otra persona cambió este pedido mientras lo tenías abierto. Se recargó: revisa y vuelve a guardar.",6000);dlgOrden(id);return}
@@ -985,6 +1002,7 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
   const r=await pedirPrecio(`Cambiar precio: ${artNom(it)}`,`Nuevo precio sin IVA por ${up?a.unidadPrecio:it.u}`,+(it.precio/fac).toFixed(2));if(!r)return;
   guardando(b,()=>guardar(n=>{n.items[i].cambio={ant:+n.items[i].precio,nuevo:+(r.precio*fac).toFixed(4),motivo:r.motivo,por:me,fecha:hoy(),estado:"pendiente"}},"Cambio enviado a Gerencia para aprobación."))});
  dlg.querySelectorAll("[data-cap]").forEach(b=>b.onclick=()=>{const i=+b.dataset.cap,ok=b.dataset.v==="1";guardando(b,()=>guardar(n=>{const c=n.items[i].cambio;c.estado=ok?"aprobado":"rechazado";c.aprobo=me;c.fechaAprob=hoy();if(ok)n.items[i].precio=c.nuevo},ok?"Cambio de precio aprobado.":"Cambio de precio no aprobado."))});
+ if($("#o-pdf"))$("#o-pdf").onclick=()=>abrirDoc(docSolicitud(id,ords().get(id)||o),"Pedido "+id);
  dlg.querySelectorAll("[data-docp]").forEach(b=>b.onclick=()=>abrirDoc(docProveedor(id,ords().get(id),b.dataset.docp),"Orden de pedido "+id));
  if($("#cot-b")){$("#cot-b").onclick=()=>$("#cot-f").click();$("#cot-f").onchange=async ev=>{const f=ev.target.files[0];ev.target.value="";if(!f)return;const R=$("#cot-r");R.innerHTML='<p class="muted small">Leyendo la cotización…</p>';
   try{const r=leerCotizacion(await textoPDF(f),o);const pr=r.prov?provs().get(r.prov):null;
