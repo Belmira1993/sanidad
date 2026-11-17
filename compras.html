@@ -941,7 +941,7 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
  dlg.querySelectorAll('[data-k="tot"]').forEach(t=>t.oninput=()=>{const i=+t.dataset.i,it=o.items[i],a=it.art?arts().get(it.art):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad,fac=a?.factor||1;
   const iva=+dlg.querySelector(`[data-i="${i}"][data-k="iva"]`).value,tot=+t.value;if(tot>0&&+it.cant>0){const pu=tot/(1+iva/100)/it.cant;dlg.querySelector(`[data-i="${i}"][data-k="pUni"]`).value=+(up?pu/fac:pu).toFixed(2)}});
  if($("#o-ok"))$("#o-ok").onclick=ev=>guardando(ev.target,async()=>{const val=(i,k)=>dlg.querySelector(`[data-i="${i}"][data-k="${k}"]`)?.value?.trim()??null;const avisos=[];
-  await guardar(async n=>{const alzas=[],sin3=[];n.items.forEach((it,i)=>{if(it.anulado||val(i,"cot")===null)return;const lk=bloqueado(n,it);
+  await guardar(async n=>{const alzas=[],sin3=[],nuevosDoc=[];n.items.forEach((it,i)=>{if(it.anulado||val(i,"cot")===null)return;const lk=bloqueado(n,it);
    if(cotsPend[i])it.cots=cotsPend[i];
    const pt=lk?null:val(i,"provTxt");if(pt!==null){const nit=(pt.match(/·\s*(\d+)\s*$/)||[])[1]||soloDig(pt);if(pt&&!provs().has(nit))throw{message:`Artículo ${i+1}: elige un proveedor de la lista (o créalo en Proveedores).`};if(pt)it.prov=nit;else delete it.prov}
    const at=lk?null:val(i,"artTxt");if(at){const c=(at.match(/·\s*(A\d+)\s*$/)||[])[1];if(!c||!arts().has(c))throw{message:`Artículo ${i+1}: elige un artículo del catálogo.`};it.art=c;delete it.txt}
@@ -949,7 +949,7 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
    const ocAntes=it.oc;for(const k of["cot","oc","rem","fac"]){const v=val(i,k);if(v)it[k]=v;else if(!(lk&&k==="oc"))delete it[k]}
    {const rt=val(i,"ret");if(rt)it.ret=rt}
    if(!(lk&&ocAntes)){const ot=val(i,"ocTipo");if(ot==="cot")it.ocTipo="cot";else if(ot!==null)delete it.ocTipo}
-   if(it.oc&&!ocAntes){it.ocFecha=hoy();if(it.art&&!ultimoPrecio(it.art,id)&&(it.cots||[]).length<3&&!it.sin3)sin3.push(i)}
+   if(it.oc&&!ocAntes){nuevosDoc.push(i);it.ocFecha=hoy();if(it.art&&!ultimoPrecio(it.art,id)&&(it.cots||[]).length<3&&!it.sin3)sin3.push(i)}
    if(!lk){const pu=+String(val(i,"pUni")||"").replace(",",".");if(pu>0){const p=up?pu*fac:pu;
     const ult=ultimoPrecio(it.art,id);
     if(ult&&p>ult.precio*1.05&&!(it.alza&&Math.abs(it.alza.nuevo-p)<.01))alzas.push({i,ant:ult.precio,nuevo:p,pct:(p-ult.precio)/ult.precio*100,de:ult.id});
@@ -957,6 +957,7 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
     if(it.alza&&Math.abs(it.alza.nuevo-p)>=.01)delete it.alza;it.precio=+p.toFixed(4)}else{delete it.precio;delete it.alza}
    it.iva=+val(i,"iva")}if(it.fac)it.facTipo=val(i,"facTipo");else delete it.facTipo;
    const st=val(i,"solTipo");if(st)it.sol={tipo:st,txt:val(i,"solTxt")||"",fecha:it.sol?.fecha||hoy(),por:it.sol?.por||me};else if(st==="")delete it.sol});
+  if(nuevosDoc.length&&!await confirmarCompra(nuevosDoc.map(i=>{const it=n.items[i];return`${artNom(it)}: ${it.ocTipo==="cot"?"cotización del proveedor":"OC"} ${it.oc}`})))return false;
   for(const i of sin3){const m=await pedir(`${artNom(n.items[i])}: artículo nuevo con menos de 3 cotizaciones`,"El procedimiento pide 3 cotizaciones para lo nuevo. ¿Por qué se compra así? (queda registrado)");if(!m)return false;n.items[i].sin3={motivo:m,por:me,fecha:hoy()}}
   if(alzas.length){const dec=await decidirAlzas(alzas,n);if(!dec)return false;
    for(const a of alzas){const it=n.items[a.i];if(dec[a.i]==="ok")it.alza={ant:+a.ant.toFixed(2),nuevo:+a.nuevo.toFixed(2),pct:+a.pct.toFixed(1),de:a.de,por:me,fecha:hoy()};else{delete it.precio;delete it.alza;it.recotizar={fecha:hoy(),por:me,ant:+a.ant.toFixed(2),cot:it.cot||""};delete it.cot}}}
@@ -975,7 +976,7 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
   const q=(k,v)=>{const el=dlg.querySelector(`[data-i="${i}"][data-k="${k}"]`);if(el&&v!=null&&v!==""){el.value=v;el.dataset.r="ok"}};
   q("provTxt",(provs().get(c.prov)?.nombre||c.prov)+" · "+c.prov);q("pUni",c.pu);q("iva",c.iva);q("cot",c.cot);b.textContent=`Comparar cotizaciones (${r.cots.length})`;toast("Cotización elegida. Pulsa Guardar.",4000)});
  dlg.querySelectorAll('[data-k="ocTipo"]').forEach(sel=>sel.onchange=()=>{const i=sel.dataset.i,n=dlg.querySelector(`[data-i="${i}"][data-k="oc"]`),c=dlg.querySelector(`[data-i="${i}"][data-k="cot"]`);
-  n.closest("label").firstChild.textContent=sel.value==="cot"?"N.º de cotización":"N.º de OC";if(sel.value==="cot"&&!n.value&&c?.value)n.value=c.value;n.focus()});
+  n.closest("label").firstChild.textContent=sel.value==="cot"?"N.º de cotización":"N.º de OC";n.focus()});
  dlg.querySelectorAll("[data-cambio]").forEach(b=>b.onclick=async()=>{const i=+b.dataset.cambio,it=o.items[i],a=it.art?arts().get(it.art):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad,fac=up?a.factor:1;
   const r=await pedirPrecio(`Cambiar precio: ${artNom(it)}`,`Nuevo precio sin IVA por ${up?a.unidadPrecio:it.u}`,+(it.precio/fac).toFixed(2));if(!r)return;
   guardando(b,()=>guardar(n=>{n.items[i].cambio={ant:+n.items[i].precio,nuevo:+(r.precio*fac).toFixed(4),motivo:r.motivo,por:me,fecha:hoy(),estado:"pendiente"}},"Cambio enviado a Gerencia para aprobación."))});
@@ -1440,6 +1441,12 @@ function dlgArt(id){const d=id?arts().get(id):{nombre:"",unidad:"unidad",unidadP
   const nota=$("#a-nota").value.trim();if(nota)nd.nota=nota;
   const cod=id||sigCodigo();await DB.set(COL.art,cod,nd);dlg.close();toast(id?"Artículo actualizado.":`Artículo creado: ${cod}.`);render()})}
 
+/* Confirmar que la compra ya se hizo al escribir el documento de compra */
+function confirmarCompra(L){return new Promise(res=>{const d=$("#dlg2");
+ d.innerHTML=`<div class="dlg-h"><h3>¿Ya se hizo la compra?</h3></div><div class="dlg-b"><p>Escribiste el documento de compra en:</p><ul style="margin:8px 0 12px 18px">${L.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+ <p>Al guardar, el pedido pasa a <b>Comprado</b>. Si solo cotizaste, cancela, borra el número del documento de compra y deja el número solo en la casilla <b>Cotización</b>.</p></div>
+ <div class="dlg-f"><button class="btn" id="cc-no">Cancelar</button><button class="btn pri" id="cc-si">Sí, ya se compró</button></div>`;
+ let r=false;$("#cc-no").onclick=()=>d.close();$("#cc-si").onclick=()=>{r=true;d.close()};d.onclose=()=>res(r);d.showModal()})}
 /* Crear artículo desde el pedido (sin salir de la ventana) */
 function crearArtRapido(nom0,u0){return new Promise(res=>{const d=$("#dlg2");
  d.innerHTML=`<div class="dlg-h"><h3>Nuevo artículo</h3></div><div class="dlg-b"><div class="fgrid">
