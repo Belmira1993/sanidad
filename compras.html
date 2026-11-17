@@ -556,7 +556,7 @@ function dlgEmpresa(){const e=empresa();abrir("Datos de la empresa",`<p class="m
 
 /* =================== ÓRDENES DE PEDIDO (ciclo de compra) =================== */
 const EST={ "por-aprobar":["Por aprobar","warn",1],"rechazado":["Rechazado","bad",0],"aprobado":["Por cotizar","info",2],"en-cotizacion":["En cotización","info",3],
- "por-aprobar-gerencia":["Por aprobar Gerencia","warn",4],"cotizado":["Por comprar","info",5],"comprado":["Comprado","ok",6],"despachado":["Despachado","ok",7],
+ "por-aprobar-gerencia":["Por aprobar Gerencia","warn",4],"cotizado":["Falta soporte","info",4],"soportado":["Cotizado","info",5],"por-pagar":["Por pagar","warn",5],"comprado":["Comprado","ok",6],"despachado":["Despachado","ok",7],
  "con-novedad":["Con novedad","bad",8],"recibido":["Recibido","ok",9],"novedad-resuelta":["Novedad resuelta","ok",9],"cerrado":["Cerrado","",10],"anulado":["Anulado","",11]};
 const TOPE_GERENCIA=1000000;
 const TIPODOC=["Factura electrónica","Cuenta de cobro","Documento soporte"];
@@ -581,12 +581,14 @@ function estado(o){if(o.anulada)return"anulado";const it=activos(o);
  if(it.every(i=>i.rec)){if(it.some(i=>i.rec.estado==="nov"&&!i.sol))return"con-novedad";if(it.every(i=>i.fac))return"cerrado";return it.some(i=>i.sol)?"novedad-resuelta":"recibido"}
  const cotizado=it.every(i=>i.prov&&+i.precio>0);
  if(!cotizado)return it.some(i=>i.prov||i.cot||+i.precio>0)?"en-cotizacion":"aprobado";
- if(totOrden(o)>=TOPE_GERENCIA&&!it.every(i=>i.oc)){if(o.ger?.ok===false)return"rechazado";if(!o.ger?.ok)return"por-aprobar-gerencia"}
- if(!it.every(i=>i.oc))return"cotizado";
- if(it.every(i=>i.rec)){if(it.some(i=>i.rec.estado==="nov"&&!i.sol))return"con-novedad";
-  if(it.every(i=>i.fac))return"cerrado";return it.some(i=>i.sol)?"novedad-resuelta":"recibido"}
+ /* Comprado = pagado (lote con comprobante) o a crédito. El soporte (cotización u OC) no es la compra. */
+ const pg=pago(o),pagado=pg==="ok"||pg==="credito";
+ if(totOrden(o)>=TOPE_GERENCIA&&!pagado){if(o.ger?.ok===false)return"rechazado";if(!o.ger?.ok)return"por-aprobar-gerencia"}
  if(it.some(i=>i.rec?.estado==="nov"&&!i.sol))return"con-novedad";
- return it.some(i=>i.rem||i.rec)?"despachado":"comprado"}
+ if(it.some(i=>i.rem||i.rec))return"despachado";
+ if(pagado)return"comprado";
+ if(!it.every(i=>i.oc))return"cotizado";
+ return it.every(i=>i.fac)?"por-pagar":"soportado"}
 function factura(o){const it=activos(o);const n=it.filter(i=>i.fac).length;return!it.length?"":n===it.length?"ok":n?"parcial":"pend"}
 function pago(o){const nits=[...new Set(activos(o).map(i=>i.prov).filter(Boolean))];if(!nits.length)return"";const p=o.pagos||{};
  if(nits.every(n=>p[n]?.estado==="pagado"))return"ok";if(nits.some(n=>p[n]?.estado==="parcial"))return"parcial";if(nits.some(n=>p[n]?.estado==="credito"))return"credito";return nits.some(n=>p[n]?.estado==="pagado")?"parcial":"pend"}
@@ -600,8 +602,8 @@ function pendientes(){const me=ME(),L=[],C=[];
   if(e==="por-aprobar"&&o.jefe===me)L.push([id,"Aprobar el pedido"]);
   if(e==="por-aprobar-gerencia"&&S.rol==="admin")L.push([id,"Aprobar el gasto (más de $1.000.000)"]);
   if(S.rol==="admin"&&activos(o).some(i=>i.cambio?.estado==="pendiente"))L.push([id,"Aprobar cambio de precio"]);
-  if(S.gestion){if(e==="aprobado")C.push([id,"Cotizar"]);else if(e==="en-cotizacion")C.push([id,"Terminar cotización"]);else if(e==="cotizado")C.push([id,"Comprar: OC o cotización"]);else if(e==="con-novedad")C.push([id,"Resolver la novedad"]);
-   if(["comprado","despachado","recibido","novedad-resuelta"].includes(e)&&factura(o)!=="ok")C.push([id,"Registrar factura"]);
+  if(S.gestion){if(e==="aprobado")C.push([id,"Cotizar"]);else if(e==="en-cotizacion")C.push([id,"Terminar cotización"]);else if(e==="cotizado")C.push([id,"Registrar soporte del precio (cotización u OC)"]);else if(e==="con-novedad")C.push([id,"Resolver la novedad"]);
+   if(["soportado","comprado","despachado","recibido","novedad-resuelta"].includes(e)&&factura(o)!=="ok")C.push([id,"Registrar factura"]);
    }
   if(o.sol===me&&["comprado","despachado"].includes(e))L.push([id,"Confirmar que llegó"]);
   if(o.sol===me&&e==="rechazado"&&!o.visto)L.push([id,"Fue rechazado: revisa el motivo"])}
@@ -617,10 +619,10 @@ function pendientes(){const me=ME(),L=[],C=[];
  const ord=X=>X.sort((a,b)=>(a[0]==="RECOT"||a[0]==="EVAL"?1:0)-(b[0]==="RECOT"||b[0]==="EVAL"?1:0)||b[0].localeCompare(a[0]));
  /* Gerencia ve aparte el trabajo de Compras (Laura); a Compras se le suma a su lista */
  if(S.rol==="admin")return{mios:ord(L),compras:ord(C)};return{mios:ord(L.concat(C)),compras:[]}}
-const FILTROS=[["","Todas"],["abiertas","Abiertas"],["por-aprobar","Por aprobar"],["por-cotizar","Por cotizar"],["cotizado","Por comprar"],["en-camino","Comprado / en camino"],["con-novedad","Con novedad"],["sin-factura","Sin factura"],["pago-pend","Pago pendiente"],["cerrado","Cerradas"],["anulado","Anuladas o rechazadas"]];
+const FILTROS=[["","Todas"],["abiertas","Abiertas"],["por-aprobar","Por aprobar"],["por-cotizar","Por cotizar"],["por-pagar-f","Por pagar"],["en-camino","Comprado / en camino"],["con-novedad","Con novedad"],["sin-factura","Sin factura"],["pago-pend","Pago pendiente"],["cerrado","Cerradas"],["anulado","Anuladas o rechazadas"]];
 function pasaFiltro(o,f){const e=estado(o);switch(f){case"":return true;case"abiertas":return!["cerrado","anulado","rechazado"].includes(e);case"por-aprobar":return e==="por-aprobar"||e==="por-aprobar-gerencia";
- case"por-cotizar":return e==="aprobado"||e==="en-cotizacion";case"en-camino":return e==="comprado"||e==="despachado";case"sin-factura":return!["anulado","rechazado","por-aprobar"].includes(e)&&factura(o)!=="ok"&&EST[e][2]>=6;
- case"pago-pend":return EST[e][2]>=6&&e!=="anulado"&&["pend","parcial"].includes(pago(o));case"anulado":return e==="anulado"||e==="rechazado";default:return e===f}}
+ case"por-cotizar":return e==="aprobado"||e==="en-cotizacion"||e==="cotizado";case"por-pagar-f":return e==="soportado"||e==="por-pagar";case"en-camino":return e==="comprado"||e==="despachado";case"sin-factura":return!["anulado","rechazado","por-aprobar"].includes(e)&&factura(o)!=="ok"&&EST[e][2]>=5;
+ case"pago-pend":return EST[e][2]>=5&&e!=="anulado"&&["pend","parcial"].includes(pago(o));case"anulado":return e==="anulado"||e==="rechazado";default:return e===f}}
 function vPedidos(){const w=cargando(COL.ord,COL.art,COL.cfg,COL.prov);if(w)return w;
  const f=S.fo||(S.fo={q:"",est:"abiertas",cc:"",prov:""}),PP=pendientes(),P=PP.mios,PC=PP.compras;
  let rows=[...ords()].filter(([id,o])=>pasaFiltro(o,f.est)&&(!f.cc||o.cc===f.cc)&&(!f.prov||activos(o).some(i=>i.prov===f.prov))&&
@@ -642,7 +644,7 @@ function vPedidos(){const w=cargando(COL.ord,COL.art,COL.cfg,COL.prov);if(w)retu
  ${total?`<div class="panel scroll lista" style="padding:0"><table><thead><tr><th>Número</th><th>Fecha</th><th>Pidió</th><th>Centro</th><th>Artículos</th><th>Proveedor</th><th>Estado</th><th class="n">Total</th></tr></thead><tbody>
  ${R.map(({id,o,e,pv})=>`<tr data-ord="${id}"><td class="mono"><b>${id}</b></td><td class="mono">${fecha(o.fecha)}</td><td>${esc(quien(o))}</td><td>${esc(ccNom(o.cc))}</td>
   <td>${esc(activos(o).slice(0,2).map(artNom).join(", "))}${activos(o).length>2?` <span class="muted">+${activos(o).length-2}</span>`:""}</td><td>${esc(pv.join(", ")||"—")}</td>
-  <td>${chipEst(e)}<span class="inds">${chipInd("Factura",EST[e][2]>=6?factura(o):"")}${chipInd("Pago",EST[e][2]>=6?pago(o):"")}</span></td><td class="n mono">${totOrden(o)?peso(totOrden(o)):"—"}</td></tr>`).join("")}</tbody></table></div>
+  <td>${chipEst(e)}<span class="inds">${chipInd("Factura",EST[e][2]>=5?factura(o):"")}${chipInd("Pago",EST[e][2]>=5?pago(o):"")}</span></td><td class="n mono">${totOrden(o)?peso(totOrden(o)):"—"}</td></tr>`).join("")}</tbody></table></div>
  <div class="cards">${R.map(({id,o,e,pv})=>`<button class="card-it" data-ord="${id}"><span class="row" style="justify-content:space-between;margin:0;color:var(--ink)"><b>${id}</b>${chipEst(e)}</span>
   <span class="ci-t">${esc(activos(o).slice(0,3).map(artNom).join(", "))}</span><span class="row">${fecha(o.fecha)} · ${esc(quien(o))} · ${esc(ccNom(o.cc))}${totOrden(o)?" · "+peso(totOrden(o)):""}</span>
   ${pv.length?`<span class="row">${esc(pv.join(", "))}</span>`:""}</button>`).join("")}</div>
@@ -793,7 +795,7 @@ const diasEntre=(a,b)=>Math.round((new Date(b)-new Date(a))/864e5);
 function metricas(anio){const M=new Map();
  for(const[oid,o]of ords()){if(o.anulada||!String(o.fecha||"").startsWith(anio))continue;
   for(const it of activos(o)){if(!it.prov)continue;const m=M.get(it.prov)||M.set(it.prov,{ped:new Set(),monto:0,rec:0,nov:0,dias:[],alzas:0,sin3:0}).get(it.prov);
-   m.ped.add(oid);m.monto+=totItem(it);if(it.rec){m.rec++;if(it.rec.estado==="nov")m.nov++;const ini=it.ocFecha||o.fecha;if(it.rec.fecha&&ini)m.dias.push(Math.max(0,diasEntre(ini,it.rec.fecha)))}if(it.alza)m.alzas++;if(it.sin3)m.sin3++}}
+   m.ped.add(oid);m.monto+=totItem(it);if(it.rec){m.rec++;if(it.rec.estado==="nov")m.nov++;const pp=(o.pagos||{})[it.prov],ini=(pp&&["pagado","parcial"].includes(pp.estado)&&pp.fecha)||it.ocFecha||o.fecha;if(it.rec.fecha&&ini)m.dias.push(Math.max(0,diasEntre(ini,it.rec.fecha)))}if(it.alza)m.alzas++;if(it.sin3)m.sin3++}}
  for(const m of M.values()){m.nped=m.ped.size;m.diasProm=m.dias.length?Math.round(m.dias.reduce((a,b)=>a+b,0)/m.dias.length):null;m.pctNov=m.rec?Math.round(100*m.nov/m.rec):0}
  return M}
 /* Sugerencia de puntaje con los datos de la app: entrega según novedades */
@@ -815,7 +817,7 @@ function estadoEval(nit,p,AM){const act=esActivo(nit,p,AM),em=evalMeses(p),ue=ul
  const prox=ue?sumaMeses(ue,em):hoy(),dias=Math.round((Date.parse(prox)-Date.parse(hoy()))/864e5);return{k:dias<=0?"vencida":dias<=60?"proxima":"aldia",prox,dias,ue,em,act}}
 function metricasRango(nit,desde,hasta){const m={ped:new Set(),monto:0,rec:0,nov:0,dias:[],alzas:0,sin3:0};
  for(const[oid,o]of ords()){if(o.anulada)continue;const f=String(o.fecha||"");if(f<desde||f>hasta)continue;
-  for(const it of activos(o)){if(it.prov!==nit)continue;m.ped.add(oid);m.monto+=totItem(it);if(it.rec){m.rec++;if(it.rec.estado==="nov")m.nov++;const ini=it.ocFecha||o.fecha;if(it.rec.fecha&&ini)m.dias.push(Math.max(0,diasEntre(ini,it.rec.fecha)))}if(it.alza)m.alzas++;if(it.sin3)m.sin3++}}
+  for(const it of activos(o)){if(it.prov!==nit)continue;m.ped.add(oid);m.monto+=totItem(it);if(it.rec){m.rec++;if(it.rec.estado==="nov")m.nov++;const pp=(o.pagos||{})[it.prov],ini=(pp&&["pagado","parcial"].includes(pp.estado)&&pp.fecha)||it.ocFecha||o.fecha;if(it.rec.fecha&&ini)m.dias.push(Math.max(0,diasEntre(ini,it.rec.fecha)))}if(it.alza)m.alzas++;if(it.sin3)m.sin3++}}
  m.nped=m.ped.size;m.diasProm=m.dias.length?Math.round(m.dias.reduce((a,b)=>a+b,0)/m.dias.length):null;m.pctNov=m.rec?Math.round(100*m.nov/m.rec):0;return m}
 /* ---------- Recotización: con otro proveedor; primera ronda hasta el 28 de febrero de 2027 ---------- */
 const RONDA={ini:"2026-11-14",fin:"2027-02-28"};
@@ -895,14 +897,14 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
    <label class="f">IVA<select class="inp" data-i="${i}" data-k="iva"${dl}>${[0,5,19].map(v=>`<option value="${v}"${(+it.iva||0)===v?" selected":""}>${v} %</option>`).join("")}</select></label>
    <label class="f">o total con IVA<input class="inp" data-i="${i}" data-k="tot" type="number" min="0" step="any" placeholder="Calcula el precio"${dl}></label>
    <label class="f">Retención en la fuente${it.ret?"":`<span class="hint">Sugerido por ${esc(sugerirConcepto(it,id)[1])}</span>`}<select class="inp" data-i="${i}" data-k="ret">${retCfg().conceptos.map(c=>`<option value="${c.id}"${conceptoDe(it,id)===c.id?" selected":""}>${esc(c.n)}</option>`).join("")}</select></label>
-   <label class="f">Documento de compra<select class="inp" data-i="${i}" data-k="ocTipo"${lk&&it.oc?" disabled":""}><option value="">OC World Office</option><option value="cot"${it.ocTipo==="cot"?" selected":""}>Cotización del proveedor</option></select></label>
-   <label class="f">${it.ocTipo==="cot"?"N.º de cotización":"N.º de OC"}<input class="inp" data-i="${i}" data-k="oc" value="${esc(it.oc||"")}"></label>
+   <label class="f">Soporte del precio<select class="inp" data-i="${i}" data-k="ocTipo"${lk&&it.oc?" disabled":""}><option value="">Sin soporte todavía</option><option value="cot"${it.oc&&it.ocTipo==="cot"?" selected":""}>Cotización del proveedor</option><option value="oc"${it.oc&&it.ocTipo!=="cot"?" selected":""}>OC de World Office</option></select><span class="hint">La cotización usa el número de arriba. No es la compra: se compra al pagar.</span></label>
+   <label class="f"${it.oc&&it.ocTipo!=="cot"?"":" hidden"}>N.º de OC<input class="inp" data-i="${i}" data-k="oc" value="${it.ocTipo!=="cot"?esc(it.oc||""):""}"></label>
    <label class="f">Remisión<input class="inp" data-i="${i}" data-k="rem" value="${esc(it.rem||"")}"></label>
    <label class="f">Documento<select class="inp" data-i="${i}" data-k="facTipo">${TIPODOC.map(t=>`<option${(it.facTipo||TIPODOC[0])===t?" selected":""}>${t}</option>`).join("")}</select></label>
    <label class="f">Número de factura<input class="inp" data-i="${i}" data-k="fac" value="${esc(it.fac||"")}" placeholder="FE-…"></label>
    ${it.rec?.estado==="nov"?`<label class="f wide">Solución de la novedad<select class="inp" data-i="${i}" data-k="solTipo"><option value="">Sin resolver</option>${["Reenvío","Nota crédito","Devolución","Se acepta así"].map(t=>`<option${it.sol?.tipo===t?" selected":""}>${t}</option>`).join("")}</select><input class="inp" data-i="${i}" data-k="solTxt" value="${esc(it.sol?.txt||"")}" placeholder="Detalle de la solución" style="margin-top:6px"></label>`:""}
   </div>`:`<dl class="oi-d">${pr?`<dt>Proveedor</dt><dd>${esc(pr.nombre)}</dd>`:""}${it.cot?`<dt>Cotización</dt><dd>${esc(it.cot)}</dd>`:""}${+it.precio>0?`<dt>Precio</dt><dd>${peso(it.precio)} + IVA ${it.iva||0} % por ${esc(it.u)}</dd>`:""}
-   ${it.oc?`<dt>${it.ocTipo==="cot"?"Cotización (compra)":"OC"}</dt><dd>${esc(it.oc)}</dd>`:""}${it.rem?`<dt>Remisión</dt><dd>${esc(it.rem)}</dd>`:""}${it.fac?`<dt>${esc(it.facTipo||"Factura")}</dt><dd>${esc(it.fac)}</dd>`:""}${it.sol?`<dt>Solución</dt><dd>${esc(it.sol.tipo)}${it.sol.txt?": "+esc(it.sol.txt):""}</dd>`:""}</dl>`}
+   ${it.oc?`<dt>${it.ocTipo==="cot"?"Soporte (cotización)":"OC"}</dt><dd>${esc(it.oc)}</dd>`:""}${it.rem?`<dt>Remisión</dt><dd>${esc(it.rem)}</dd>`:""}${it.fac?`<dt>${esc(it.facTipo||"Factura")}</dt><dd>${esc(it.fac)}</dd>`:""}${it.sol?`<dt>Solución</dt><dd>${esc(it.sol.tipo)}${it.sol.txt?": "+esc(it.sol.txt):""}</dd>`:""}</dl>`}
   ${it.rec?`<p class="small muted" style="margin:6px 0 0">Recepción ${fecha(it.rec.fecha)} por ${esc(persona(it.rec.por))}${it.rec.estado==="nov"?`: <b style="color:var(--bad)">${esc(it.rec.nota||"")}</b>`:": completo."}</p>`:""}
   ${dueno&&!it.anulado&&!it.rec&&it.oc?`<div class="row" style="margin-top:8px"><button class="btn sm" data-rec="${i}" data-v="ok">Llegó completo</button><button class="btn sm danger" data-rec="${i}" data-v="nov">Llegó con novedad</button></div>`:""}
   ${(G||puedeEditarPedido)&&!it.anulado&&!it.oc&&activos(o).length>1?`<button class="linkbtn small" data-anit="${i}">Quitar este artículo</button>`:""}</div>`};
@@ -926,7 +928,7 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
    :`<p class="small" style="margin:4px 0">${{pagado:"Pagado",credito:"A crédito"}[p.estado]||"Pendiente"}${p.comp?" · "+esc(p.comp):""}${p.fecha?" · "+fecha(p.fecha):""}</p>`}</div>`}).join("")}`:""}
   <datalist id="provs-l">${G?[...provs()].map(([n,d])=>`<option value="${esc(d.nombre)} · ${n}">`).join(""):""}</datalist><datalist id="arts-l2">${G?[...arts()].filter(([,d])=>!d.unido).map(([k,d])=>`<option value="${esc(d.nombre)} · ${k}">`).join(""):""}</datalist>
   <details class="mas" id="o-hist"><summary>Historial de cambios</summary><div class="muted small">Cargando…</div></details>`,
-  `${puedeAnular?'<button class="btn danger izq" id="o-anular">Anular</button>':""}<a class="btn" href="${wa(`Pedido ${id} (${ccNom(o.cc)}): ${EST[e][0]}. ${({"por-aprobar":"Pendiente de tu aprobación.","por-aprobar-gerencia":"Pendiente de aprobación de Gerencia.","comprado":"Ya está comprado; confirma cuando llegue.","despachado":"Va en camino; confirma cuando llegue."})[e]||""} Ábrelo aquí: ${enlace(id)}`)}" target="_blank" rel="noopener">WhatsApp</a><button class="btn" data-cerrar>Cerrar</button>${G&&!["anulado","rechazado","por-aprobar"].includes(e)?'<button class="btn pri" id="o-ok">Guardar</button>':""}`);
+  `${puedeAnular?'<button class="btn danger izq" id="o-anular">Anular</button>':""}<a class="btn" href="${wa(`Pedido ${id} (${ccNom(o.cc)}): ${EST[e][0]}. ${({"por-aprobar":"Pendiente de tu aprobación.","por-aprobar-gerencia":"Pendiente de aprobación de Gerencia.","comprado":"Ya está comprado (pagado); confirma cuando llegue.","despachado":"Va en camino; confirma cuando llegue."})[e]||""} Ábrelo aquí: ${enlace(id)}`)}" target="_blank" rel="noopener">WhatsApp</a><button class="btn" data-cerrar>Cerrar</button>${G&&!["anulado","rechazado","por-aprobar"].includes(e)?'<button class="btn pri" id="o-ok">Guardar</button>':""}`);
  dlg.classList.add("ancho");dlg.addEventListener("close",()=>dlg.classList.remove("ancho"),{once:true});
  /* Guardado seguro: si otra persona cambió la orden mientras estaba abierta, no se pisa su cambio. */
  const guardar=async(cambiar,msg)=>{const fresca=await DB.fresco(COL.ord,id);if(fresca&&JSON.stringify(fresca)!==JSON.stringify(o0)){toast("Otra persona cambió este pedido mientras lo tenías abierto. Se recargó: revisa y vuelve a guardar.",6000);dlgOrden(id);return}
@@ -941,15 +943,18 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
  dlg.querySelectorAll('[data-k="tot"]').forEach(t=>t.oninput=()=>{const i=+t.dataset.i,it=o.items[i],a=it.art?arts().get(it.art):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad,fac=a?.factor||1;
   const iva=+dlg.querySelector(`[data-i="${i}"][data-k="iva"]`).value,tot=+t.value;if(tot>0&&+it.cant>0){const pu=tot/(1+iva/100)/it.cant;dlg.querySelector(`[data-i="${i}"][data-k="pUni"]`).value=+(up?pu/fac:pu).toFixed(2)}});
  if($("#o-ok"))$("#o-ok").onclick=ev=>guardando(ev.target,async()=>{const val=(i,k)=>dlg.querySelector(`[data-i="${i}"][data-k="${k}"]`)?.value?.trim()??null;const avisos=[];
-  await guardar(async n=>{const alzas=[],sin3=[],nuevosDoc=[];n.items.forEach((it,i)=>{if(it.anulado||val(i,"cot")===null)return;const lk=bloqueado(n,it);
+  await guardar(async n=>{const alzas=[],sin3=[];n.items.forEach((it,i)=>{if(it.anulado||val(i,"cot")===null)return;const lk=bloqueado(n,it);
    if(cotsPend[i])it.cots=cotsPend[i];
    const pt=lk?null:val(i,"provTxt");if(pt!==null){const nit=(pt.match(/·\s*(\d+)\s*$/)||[])[1]||soloDig(pt);if(pt&&!provs().has(nit))throw{message:`Artículo ${i+1}: elige un proveedor de la lista (o créalo en Proveedores).`};if(pt)it.prov=nit;else delete it.prov}
    const at=lk?null:val(i,"artTxt");if(at){const c=(at.match(/·\s*(A\d+)\s*$/)||[])[1];if(!c||!arts().has(c))throw{message:`Artículo ${i+1}: elige un artículo del catálogo.`};it.art=c;delete it.txt}
    const a=it.art?arts().get(it.art):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad,fac=a?.factor||1;
-   const ocAntes=it.oc;for(const k of["cot","oc","rem","fac"]){const v=val(i,k);if(v)it[k]=v;else if(!(lk&&k==="oc"))delete it[k]}
+   const ocAntes=it.oc;for(const k of["cot","rem","fac"]){const v=val(i,k);if(v)it[k]=v;else delete it[k]}
    {const rt=val(i,"ret");if(rt)it.ret=rt}
-   if(!(lk&&ocAntes)){const ot=val(i,"ocTipo");if(ot==="cot")it.ocTipo="cot";else if(ot!==null)delete it.ocTipo}
-   if(it.oc&&!ocAntes){nuevosDoc.push(i);it.ocFecha=hoy();if(it.art&&!ultimoPrecio(it.art,id)&&(it.cots||[]).length<3&&!it.sin3)sin3.push(i)}
+   if(!(lk&&ocAntes)){const ot=val(i,"ocTipo");
+    if(ot==="cot"){if(!it.cot)throw{message:`Artículo ${i+1}: escribe el número en la casilla Cotización (es el soporte del precio).`};it.oc=it.cot;it.ocTipo="cot"}
+    else if(ot==="oc"){const v=val(i,"oc");if(!v)throw{message:`Artículo ${i+1}: escribe el número de la OC.`};it.oc=v;delete it.ocTipo}
+    else if(ot!==null){delete it.oc;delete it.ocTipo}}
+   if(it.oc&&!ocAntes){it.ocFecha=hoy();if(it.art&&!ultimoPrecio(it.art,id)&&(it.cots||[]).length<3&&!it.sin3)sin3.push(i)}
    if(!lk){const pu=+String(val(i,"pUni")||"").replace(",",".");if(pu>0){const p=up?pu*fac:pu;
     const ult=ultimoPrecio(it.art,id);
     if(ult&&p>ult.precio*1.05&&!(it.alza&&Math.abs(it.alza.nuevo-p)<.01))alzas.push({i,ant:ult.precio,nuevo:p,pct:(p-ult.precio)/ult.precio*100,de:ult.id});
@@ -957,11 +962,9 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
     if(it.alza&&Math.abs(it.alza.nuevo-p)>=.01)delete it.alza;it.precio=+p.toFixed(4)}else{delete it.precio;delete it.alza}
    it.iva=+val(i,"iva")}if(it.fac)it.facTipo=val(i,"facTipo");else delete it.facTipo;
    const st=val(i,"solTipo");if(st)it.sol={tipo:st,txt:val(i,"solTxt")||"",fecha:it.sol?.fecha||hoy(),por:it.sol?.por||me};else if(st==="")delete it.sol});
-  if(nuevosDoc.length&&!await confirmarCompra(nuevosDoc.map(i=>{const it=n.items[i];return`${artNom(it)}: ${it.ocTipo==="cot"?"cotización del proveedor":"OC"} ${it.oc}`})))return false;
   for(const i of sin3){const m=await pedir(`${artNom(n.items[i])}: artículo nuevo con menos de 3 cotizaciones`,"El procedimiento pide 3 cotizaciones para lo nuevo. ¿Por qué se compra así? (queda registrado)");if(!m)return false;n.items[i].sin3={motivo:m,por:me,fecha:hoy()}}
   if(alzas.length){const dec=await decidirAlzas(alzas,n);if(!dec)return false;
    for(const a of alzas){const it=n.items[a.i];if(dec[a.i]==="ok")it.alza={ant:+a.ant.toFixed(2),nuevo:+a.nuevo.toFixed(2),pct:+a.pct.toFixed(1),de:a.de,por:me,fecha:hoy()};else{delete it.precio;delete it.alza;it.recotizar={fecha:hoy(),por:me,ant:+a.ant.toFixed(2),cot:it.cot||""};delete it.cot}}}
-  if(totOrden(n)>=TOPE_GERENCIA&&!n.ger?.ok&&n.items.some(it=>!it.anulado&&it.oc&&!o0.items[n.items.indexOf(it)]?.oc))throw{message:"Este pedido pasa de $1.000.000: Gerencia debe aprobar el gasto antes de comprar (OC o cotización)."};
   const P={...(n.pagos||{})};dlg.querySelectorAll("[data-pago]").forEach(x=>{const nit=x.dataset.pago;P[nit]=P[nit]||{};if(x.value)P[nit][x.dataset.k]=x.value;else delete P[nit][x.dataset.k]});
   for(const k of Object.keys(P))if(!P[k].estado||P[k].estado==="pend"&&!P[k].comp&&!P[k].fecha)delete P[k];if(Object.keys(P).length)n.pagos=P;else delete n.pagos},"Pedido actualizado.");
   if(avisos.length)setTimeout(()=>toast("Ojo: "+avisos.join("; "),8000),300)});
@@ -975,8 +978,7 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
  dlg.querySelectorAll("[data-comp]").forEach(b=>b.onclick=async()=>{const i=+b.dataset.comp,r=await comparar(o.items[i],o,id);if(!r)return;cotsPend[i]=r.cots;const c=r.cots[r.eleg];
   const q=(k,v)=>{const el=dlg.querySelector(`[data-i="${i}"][data-k="${k}"]`);if(el&&v!=null&&v!==""){el.value=v;el.dataset.r="ok"}};
   q("provTxt",(provs().get(c.prov)?.nombre||c.prov)+" · "+c.prov);q("pUni",c.pu);q("iva",c.iva);q("cot",c.cot);b.textContent=`Comparar cotizaciones (${r.cots.length})`;toast("Cotización elegida. Pulsa Guardar.",4000)});
- dlg.querySelectorAll('[data-k="ocTipo"]').forEach(sel=>sel.onchange=()=>{const i=sel.dataset.i,n=dlg.querySelector(`[data-i="${i}"][data-k="oc"]`),c=dlg.querySelector(`[data-i="${i}"][data-k="cot"]`);
-  n.closest("label").firstChild.textContent=sel.value==="cot"?"N.º de cotización":"N.º de OC";n.focus()});
+ dlg.querySelectorAll('[data-k="ocTipo"]').forEach(sel=>sel.onchange=()=>{const n=dlg.querySelector(`[data-i="${sel.dataset.i}"][data-k="oc"]`),l=n.closest("label");l.hidden=sel.value!=="oc";if(sel.value==="oc")n.focus()});
  dlg.querySelectorAll("[data-cambio]").forEach(b=>b.onclick=async()=>{const i=+b.dataset.cambio,it=o.items[i],a=it.art?arts().get(it.art):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad,fac=up?a.factor:1;
   const r=await pedirPrecio(`Cambiar precio: ${artNom(it)}`,`Nuevo precio sin IVA por ${up?a.unidadPrecio:it.u}`,+(it.precio/fac).toFixed(2));if(!r)return;
   guardando(b,()=>guardar(n=>{n.items[i].cambio={ant:+n.items[i].precio,nuevo:+(r.precio*fac).toFixed(4),motivo:r.motivo,por:me,fecha:hoy(),estado:"pendiente"}},"Cambio enviado a Gerencia para aprobación."))});
@@ -1088,7 +1090,7 @@ function estadoPagos(){const M=new Map();if(!DB.listo(COL.pag))return M;
   if(x.dif?.estado==="conciliada"&&x.dif.accion==="corregir"&&x.dif.nuevo!=null)e.ajuste=+x.dif.nuevo});return M}
 /* Lo que ya se puede pasar a pago: compra hecha (OC o cotización) y factura registrada, con saldo */
 function listosPago(){const EP=estadoPagos(),L=[];const hoyD=hoy();
- for(const[id,o]of ords()){const e=estado(o);if(["anulado","rechazado","por-aprobar"].includes(e))continue;
+ for(const[id,o]of ords()){const e=estado(o);if(["anulado","rechazado","por-aprobar","por-aprobar-gerencia"].includes(e))continue;
   for(const nit of [...new Set(activos(o).map(i=>i.prov).filter(Boolean))]){const its=activos(o).filter(i=>i.prov===nit);if(!its.length||!its.every(i=>i.oc&&i.fac))continue;
    const pg=(o.pagos||{})[nit]||{},ep=EP.get(id+"|"+nit);if(pg.estado==="pagado"&&!ep)continue;if(ep?.prog)continue;
    const key=id+"|"+nit,op=S.pg.opt.get(key)||{},lq=liquidar(o,nit,op,id),neto=ep?.ajuste??lq.neto,pagado=ep?.pagado||0,saldo=Math.round(neto-pagado);if(saldo<=0)continue;
@@ -1109,7 +1111,7 @@ function vPagos(){const w=cargando(COL.ord,COL.prov,COL.art,COL.cfg,COL.pag,...(
    <p class="ro-note">Compras con OC o cotización y factura registrada, con saldo por pagar. Las vencidas y las más antiguas salen primero. El valor a pagar ya descuenta las retenciones; puedes pagar una parte (abono) y el saldo queda para otra semana.</p>
    <div class="panel">${L.length?L.map(x=>{const v=pg.sel.get(x.key),op=pg.opt.get(x.key)||{},p=provs().get(x.nit)||{nombre:x.nit},c=ctas().get(x.nit);
     return`<div class="pgl${v!=null?" on":""}"><label class="pgl-c"><input type="checkbox" data-pgsel="${x.key}"${v!=null?" checked":""}></label>
-     <div class="pgl-t"><b>${esc(p.nombre)}</b><span class="sub">${esc(x.id)} · ${x.fac.map(esc).join(", ")} · ${x.dias===1?"1 día":x.dias+" días"} desde la compra${x.vence?` · <span class="${x.venc<0?"bad-t":""}">${x.venc<0?"vencida hace "+(-x.venc)+" días":"vence "+fecha(x.vence)}</span>`:""}${c?` · ${esc(c.banco||"")} ${esc(c.numero)}`:' · <span class="warn-t">sin cuenta registrada</span>'}</span>
+     <div class="pgl-t"><b>${esc(p.nombre)}</b><span class="sub">${esc(x.id)} · ${x.fac.map(esc).join(", ")} · ${x.dias===1?"1 día":x.dias+" días"} desde el soporte del precio${x.vence?` · <span class="${x.venc<0?"bad-t":""}">${x.venc<0?"vencida hace "+(-x.venc)+" días":"vence "+fecha(x.vence)}</span>`:""}${c?` · ${esc(c.banco||"")} ${esc(c.numero)}`:' · <span class="warn-t">sin cuenta registrada</span>'}</span>
       <span class="sub">Factura ${peso(x.lq.total)} · retención ${peso(x.lq.rf)}${x.lq.riva?" · reteIVA "+peso(x.lq.riva):""}${x.lq.rica?" · reteICA "+peso(x.lq.rica):""}${x.pagado?" · abonado "+peso(x.pagado):""} · <b>saldo ${peso(x.saldo)}</b>
        <label class="mini"><input type="checkbox" data-pgopt="${x.key}" data-k="riva"${op.riva?" checked":""}> ReteIVA</label><label class="mini"><input type="checkbox" data-pgopt="${x.key}" data-k="rica"${op.rica?" checked":""}> ReteICA</label></span>
       ${x.lq.avisos.length?`<span class="sub warn-t">${x.lq.avisos.map(esc).join(" · ")}</span>`:""}</div>
@@ -1441,12 +1443,6 @@ function dlgArt(id){const d=id?arts().get(id):{nombre:"",unidad:"unidad",unidadP
   const nota=$("#a-nota").value.trim();if(nota)nd.nota=nota;
   const cod=id||sigCodigo();await DB.set(COL.art,cod,nd);dlg.close();toast(id?"Artículo actualizado.":`Artículo creado: ${cod}.`);render()})}
 
-/* Confirmar que la compra ya se hizo al escribir el documento de compra */
-function confirmarCompra(L){return new Promise(res=>{const d=$("#dlg2");
- d.innerHTML=`<div class="dlg-h"><h3>¿Ya se hizo la compra?</h3></div><div class="dlg-b"><p>Escribiste el documento de compra en:</p><ul style="margin:8px 0 12px 18px">${L.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
- <p>Al guardar, el pedido pasa a <b>Comprado</b>. Si solo cotizaste, cancela, borra el número del documento de compra y deja el número solo en la casilla <b>Cotización</b>.</p></div>
- <div class="dlg-f"><button class="btn" id="cc-no">Cancelar</button><button class="btn pri" id="cc-si">Sí, ya se compró</button></div>`;
- let r=false;$("#cc-no").onclick=()=>d.close();$("#cc-si").onclick=()=>{r=true;d.close()};d.onclose=()=>res(r);d.showModal()})}
 /* Crear artículo desde el pedido (sin salir de la ventana) */
 function crearArtRapido(nom0,u0){return new Promise(res=>{const d=$("#dlg2");
  d.innerHTML=`<div class="dlg-h"><h3>Nuevo artículo</h3></div><div class="dlg-b"><div class="fgrid">
