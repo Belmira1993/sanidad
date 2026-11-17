@@ -303,6 +303,7 @@ nav.mob{grid-template-columns:repeat(4,1fr)}
 .revi.on{background:var(--info-bg);border-radius:6px}
 .revi span{flex:1;min-width:0}
 .revi b{flex:none}
+.av-ban{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#EEF5F7;border:1px solid #CFE3E8;border-radius:12px;padding:12px 14px;margin:0 0 14px}.av-ban>div{flex:1 1 240px;display:flex;flex-direction:column;gap:2px}.av-ban span{font-size:.85rem;color:#4A5A63}
 .bandeja{margin-bottom:14px}.bandeja h3{color:var(--brand);margin-bottom:6px;display:flex;align-items:center;gap:8px}
 .bandeja.vacia{padding:12px 18px}
 .pend-it{display:grid;grid-template-columns:90px 1fr auto;gap:10px;align-items:center;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:9px 4px;cursor:pointer;color:var(--ink);font:inherit}
@@ -476,7 +477,7 @@ const sigCodigo=()=>{let m=0;for(const id of arts().keys()){const n=+id.replace(
 const eqTxt=d=>!d.unidadPrecio||d.unidadPrecio===d.unidad?"—":(d.factor||1)>=1?`1 ${d.unidad} = ${fmtN(d.factor||1)} ${d.unidadPrecio}`:`1 ${d.unidadPrecio} = ${fmtN(+(1/d.factor).toFixed(4))} ${d.unidad}`;
 
 /* ---------- Vistas ---------- */
-function render(){const v=$("#view");
+function render(){setTimeout(()=>{if(S.sb)AV.pintar(S.sb,S.me.email,m=>toast(m,5000))},0);const v=$("#view");
  if(S.vista==="inicio")v.innerHTML=vPedidos();
  else if(S.vista==="proveedores")v.innerHTML=vProv();
  else if(S.vista==="articulos")v.innerHTML=vArt();
@@ -633,6 +634,7 @@ function vPedidos(){const w=cargando(COL.ord,COL.art,COL.cfg,COL.prov);if(w)retu
  const fila=([id,o])=>{const e=estado(o),pv=[...new Set(activos(o).map(i=>provs().get(i.prov)?.nombre).filter(Boolean))];return{id,o,e,pv}};
  const R=rows.map(fila);
  return`<div class="row hrow"><h2 style="color:var(--brand)">Pedidos</h2><span class="spacer"></span>${S.rol==="lector"?"":`<button class="btn pri" data-acc="nuevo-ped">Nuevo pedido</button>`}</div>
+ <div id="av-ban"></div>
  ${P.length?`<div class="panel bandeja"><h3>Mis pendientes <span class="chip warn">${P.length}</span></h3>${P.slice(0,12).map(pendItem).join("")}${P.length>12?`<p class="muted small">y ${P.length-12} más en la lista.</p>`:""}</div>`:`<div class="panel bandeja vacia"><span class="muted">No tienes pendientes. 👍</span></div>`}
  ${PC.length?`<div class="panel bandeja eq"><button class="eq-t" data-acc="ver-pc" aria-expanded="${!!S.verPC}"><span><b>Compras (Laura) tiene ${fmtN(PC.length)} pendiente${PC.length>1?"s":""}</b>${(n=>n?` · <span style="color:var(--bad)">${n} novedad${n>1?"es":""} sin resolver</span>`:"")(PC.filter(x=>x[1]==="Resolver la novedad").length)}</span><span class="muted small">${S.verPC?"Ocultar":"Ver"}</span></button>
   ${S.verPC?PC.slice(0,40).map(pendItem).join("")+(PC.length>40?`<p class="muted small">y ${PC.length-40} más en la lista.</p>`:""):""}</div>`:""}
@@ -1477,6 +1479,33 @@ async function ccActivo(i){const L=centros().map(c=>({...c}));const c=L[i];if(c.
 
 /* ---------- Inicio ---------- */
 function rolDe(u){const am=u?.app_metadata||{};return am.rol==="admin"?"admin":(am.modulos&&am.modulos.compras)||""}
+/* ===== Avisos de la app (notificaciones al celular o PC, aunque la app esté cerrada) ===== */
+const AV={pub:"BByXhC1kCP3BUeE2hIszSsv1AEiZNOltUbNCuInjPW_EN-YeqBmeo2r5DQwMP6Qvndi7FonVttlgbYb0GK-lWyE",
+ ok(){return"serviceWorker"in navigator&&"PushManager"in window&&"Notification"in window},
+ ios(){return/iphone|ipad|ipod/i.test(navigator.userAgent)},
+ inst(){return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true},
+ key(){const s=AV.pub.replace(/-/g,"+").replace(/_/g,"/"),b=atob(s+"===".slice((s.length+3)%4));return Uint8Array.from(b,c=>c.charCodeAt(0))},
+ reg(){return navigator.serviceWorker.register("sw.js")},
+ async estado(){if(!AV.ok())return AV.ios()&&!AV.inst()?"ios":"no";if(Notification.permission==="denied")return"bloqueado";
+  const r=await navigator.serviceWorker.getRegistration();const s=r&&await r.pushManager.getSubscription();return s&&Notification.permission==="granted"?"activo":"inactivo"},
+ async guardar(cli,email,s){const j=s.toJSON(),h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(j.endpoint)),id=[...new Uint8Array(h)].slice(0,12).map(x=>x.toString(16).padStart(2,"0")).join("");
+  const{error}=await cli.from("documentos").upsert({coleccion:"avisos_equipos",id,data:{email:String(email).toLowerCase(),endpoint:j.endpoint,keys:j.keys,equipo:navigator.userAgent.slice(0,160),fecha:new Date().toISOString().slice(0,10)}});if(error)throw error},
+ async activar(cli,email){if(!AV.ok())throw{message:AV.ios()?"En iPhone: agrega la app a la pantalla de inicio y ábrela desde el ícono.":"Este navegador no permite avisos."};
+  const p=await Notification.requestPermission();if(p!=="granted")throw{message:"No se dio permiso para los avisos. Puedes activarlo en los ajustes del navegador o del teléfono."};
+  const r=await AV.reg();await navigator.serviceWorker.ready;const sub=()=>r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:AV.key()});
+  let s=await r.pushManager.getSubscription()||await sub();
+  try{await AV.guardar(cli,email,s)}catch(e){/* el equipo estaba registrado a nombre de otra persona: se crea uno nuevo */await s.unsubscribe();s=await sub();await AV.guardar(cli,email,s)}
+  try{localStorage.setItem("belmira:av:"+String(email).toLowerCase(),new Date().toISOString().slice(0,7))}catch(e){}},
+ async iniciar(cli,email){if(!AV.ok())return;navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.belmira==="abrir")location.href=e.data.url});
+  try{if(Notification.permission!=="granted")return;const r=await AV.reg();const s=await r.pushManager.getSubscription();if(!s)return;
+   const k="belmira:av:"+String(email).toLowerCase(),m=new Date().toISOString().slice(0,7);if(localStorage.getItem(k)!==m){await AV.guardar(cli,email,s);localStorage.setItem(k,m)}}catch(e){}},
+ async pintar(cli,email,aviso){const b=document.getElementById("av-ban");if(!b)return;let e;try{e=await AV.estado()}catch(x){return}
+  let no=0;try{no=+localStorage.getItem("belmira:av-no")||0}catch(x){}
+  if(!["inactivo","ios"].includes(e)||Date.now()-no<14*864e5){b.innerHTML="";return}
+  b.innerHTML=e==="ios"?'<div class="av-ban"><div><b>Avisos en iPhone</b><span>Para recibir notificaciones, agrega la app a la pantalla de inicio (botón Compartir › Agregar a inicio) y ábrela desde ese ícono.</span></div><button type="button" class="btn" id="av-no">Entendido</button></div>'
+   :'<div class="av-ban"><div><b>Recibe avisos en este equipo</b><span>Te llega una notificación cuando tengas un pendiente nuevo, aunque la app esté cerrada.</span></div><button type="button" class="btn pri" id="av-si">Activar avisos</button><button type="button" class="btn" id="av-no">Ahora no</button></div>';
+  const n=document.getElementById("av-no");if(n)n.onclick=()=>{try{localStorage.setItem("belmira:av-no",String(Date.now()))}catch(x){}b.innerHTML=""};
+  const s=document.getElementById("av-si");if(s)s.onclick=async()=>{s.disabled=true;s.textContent="Activando…";try{await AV.activar(cli,email);b.innerHTML="";aviso("Avisos activados en este equipo.")}catch(x){s.disabled=false;s.textContent="Activar avisos";aviso(x.message||"No se pudieron activar los avisos.")}}}};
 async function init(){$("#bell").onclick=verPendientes;
  if(!window.supabase){$("#view").innerHTML='<div class="panel empty">No se pudo cargar la conexión. Revisa la señal y recarga la página.</div>';return}
  const sb=supabase.createClient(CONFIG.url,CONFIG.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
@@ -1484,7 +1513,7 @@ async function init(){$("#bell").onclick=verPendientes;
  if(!data.session){try{sessionStorage.setItem("belmira:volver",location.href)}catch{}location.replace("index.html");return}
  const u=data.session.user;S.me=u;S.rol=rolDe(u);
  if(!S.rol){$("#view").innerHTML='<div class="panel"><h2>Sin acceso a Compras</h2><p class="muted">Tu usuario no tiene asignado este módulo. Pide al administrador que lo revise.</p></div>';return}
- S.gestion=S.rol==="admin"||S.rol==="compras";S.verCuentas=S.gestion||!!u.app_metadata?.ver_todo;S.pagos=!!u.app_metadata?.pagos&&S.rol!=="lector";S.sb=sb;
+ S.gestion=S.rol==="admin"||S.rol==="compras";S.verCuentas=S.gestion||!!u.app_metadata?.ver_todo;S.pagos=!!u.app_metadata?.pagos&&S.rol!=="lector";S.sb=sb;AV.iniciar(sb,u.email);
  $("#who").innerHTML=`<b>${esc(u.user_metadata?.nombre||u.email)}</b>${esc(ROLN[S.rol]||S.rol)}${u.app_metadata?.ver_todo&&!S.gestion?" · ve todo":""}`;
  DB=makeDb(sb);
  try{const{data:eq}=await sb.rpc("equipo");for(const x of eq||[])S.equipo.set(x.email.toLowerCase(),{...x,email:x.email.toLowerCase(),jefe:(x.jefe||"").toLowerCase()})}catch{}
