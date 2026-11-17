@@ -369,7 +369,7 @@ function sv(tag,a,...kids){const e=document.createElementNS(SVGNS,tag);if(a)for(
 const MODS={
  tablero:{n:"Dashboard",d:"Lo más importante de Sanidad y Compras: lo bueno, lo que preocupa e indicadores.",ic:"M4 20V11|M10 20V5|M16 20v-6|M21 20H3"},
  sanidad:{n:"Sanidad",d:"Agua y clima, eventos sanitarios, lotes y alertas de las fincas.",ic:"M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z|M8 11h.01"},
- compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261117a"}};
+ compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261117b"}};
 const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras"};
 function modulosDe(u){const am=u?.app_metadata||{};const m=am.modulos&&typeof am.modulos==="object"?{...am.modulos}:{sanidad:am.rol||"registro"};
  if(am.rol==="admin")for(const k of Object.keys(MODS))m[k]="admin";if(am.tablero&&!m.tablero)m.tablero="lector";for(const k of Object.keys(m))if(!MODS[k])delete m[k];return m}
