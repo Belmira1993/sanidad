@@ -369,7 +369,7 @@ function sv(tag,a,...kids){const e=document.createElementNS(SVGNS,tag);if(a)for(
 const MODS={
  tablero:{n:"Dashboard",d:"Lo más importante de Sanidad y Compras: lo bueno, lo que preocupa e indicadores.",ic:"M4 20V11|M10 20V5|M16 20v-6|M21 20H3"},
  sanidad:{n:"Sanidad",d:"Agua y clima, eventos sanitarios, lotes y alertas de las fincas.",ic:"M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z|M8 11h.01"},
- compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261117b"}};
+ compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261117c"}};
 const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras"};
 function modulosDe(u){const am=u?.app_metadata||{};const m=am.modulos&&typeof am.modulos==="object"?{...am.modulos}:{sanidad:am.rol||"registro"};
  if(am.rol==="admin")for(const k of Object.keys(MODS))m[k]="admin";if(am.tablero&&!m.tablero)m.tablero="lector";for(const k of Object.keys(m))if(!MODS[k])delete m[k];return m}
@@ -1458,8 +1458,10 @@ const TB={
  estado(o){if(o.anulada)return"anulado";const it=TB.act(o);if(o.aprob&&o.aprob.ok===false)return"rechazado";if(!o.aprob?.ok)return"por-aprobar";if(!it.length)return"anulado";
   if(it.every(i=>i.rec)){if(it.some(i=>i.rec.estado==="nov"&&!i.sol))return"con-novedad";return it.every(i=>i.fac)?"cerrado":"recibido"}
   if(!it.every(i=>i.prov&&+i.precio>0))return"cotizando";const t=it.reduce((s,i)=>s+TB.tot(i),0);
-  if(t>=1e6&&!it.every(i=>i.oc)){if(o.ger?.ok===false)return"rechazado";if(!o.ger?.ok)return"por-aprobar-gerencia"}
-  if(!it.every(i=>i.oc))return"por-comprar";if(it.some(i=>i.rec?.estado==="nov"&&!i.sol))return"con-novedad";return"comprado"},
+  const pagado=TB.pagado(o);if(t>=1e6&&!pagado){if(o.ger?.ok===false)return"rechazado";if(!o.ger?.ok)return"por-aprobar-gerencia"}
+  if(it.some(i=>i.rec?.estado==="nov"&&!i.sol))return"con-novedad";if(pagado||it.some(i=>i.rem||i.rec))return"comprado";if(!it.every(i=>i.oc))return"por-soporte";return"por-pagar"},
+ pagado(o){const n=[...new Set(TB.act(o).map(i=>i.prov).filter(Boolean))],p=o.pagos||{};return!!n.length&&(n.every(x=>p[x]?.estado==="pagado")||n.some(x=>p[x]?.estado==="credito"))},
+ fPago(o,nit){const p=(o.pagos||{})[nit];return p&&["pagado","parcial"].includes(p.estado)?p.fecha:null},
  peso:n=>"$"+fmtN(Math.round(n||0)),
  millones:n=>Math.abs(n)>=1e6?"$"+fmtN(n/1e6,1)+" M":"$"+fmtN(Math.round(n||0)),
  artNom:i=>i.art?(S.C.art.get(i.art)?.nombre||i.art):(i.txt||"—"),
@@ -1491,10 +1493,12 @@ function tbCompras(hoyD,P){const C=S.C,dIn=(f,a,b)=>{const d=dn(f);return d!=nul
   if(e==="por-aprobar")R.porAprob.push({id,dias:hoyD-dn(o.fecha)});if(e==="por-aprobar-gerencia")R.porGer++;
   if(e==="cotizando")R.cotiz++;
   if(e==="con-novedad")R.nov++;
-  if(["comprado","recibido","con-novedad"].includes(e)&&it.some(i=>i.oc&&!i.fac))R.sinFac++;
+  if(["por-pagar","comprado","recibido","con-novedad"].includes(e)&&it.some(i=>i.oc&&!i.fac))R.sinFac++;
   for(const i of it){const t=TB.tot(i);
-   if(i.oc&&i.ocFecha){if(dIn(i.ocFecha,a0,hoyD)){R.comprado+=t;R.cc.set(o.cc,(R.cc.get(o.cc)||0)+t);if(i.prov)R.prov.set(i.prov,(R.prov.get(i.prov)||0)+t)}if(dIn(i.ocFecha,p0,p1))R.compradoP+=t;
-    if(dn(i.ocFecha)>hoyD-90){const dd=dn(i.ocFecha)-dn(o.fecha);if(dd>=0)R.tOC.push(dd);if(i.rec?.fecha){const dr=dn(i.rec.fecha)-dn(i.ocFecha);if(dr>=0)R.tRec.push(dr)}}
+   const fp=i.prov?TB.fPago(o,i.prov):null;
+   if(fp){if(dIn(fp,a0,hoyD)){R.comprado+=t;R.cc.set(o.cc,(R.cc.get(o.cc)||0)+t);if(i.prov)R.prov.set(i.prov,(R.prov.get(i.prov)||0)+t)}if(dIn(fp,p0,p1))R.compradoP+=t;
+    if(dn(fp)>hoyD-90&&i.rec?.fecha){const dr=dn(i.rec.fecha)-dn(fp);if(dr>=0)R.tRec.push(dr)}}
+   if(i.oc&&i.ocFecha){if(dn(i.ocFecha)>hoyD-90){const dd=dn(i.ocFecha)-dn(o.fecha);if(dd>=0)R.tOC.push(dd)}
     if(i.sin3&&dIn(i.ocFecha,a0,hoyD))R.sin3++}
    if(i.alza){if(dIn(i.alza.fecha,a0,hoyD))R.alzas.push({id,i,o});if(dn(i.alza.fecha)>hoyD-90)R.alzas90++}
    if(i.cambio?.estado==="pendiente")R.cambios++}
@@ -1574,11 +1578,11 @@ V.tablero=v=>{if(!S.mods.tablero){v.append(card("Sin acceso",el("p",{text:"El Da
  if(!cOk){v.append(card(null,el("p",{class:"muted"},S.C?.err?"No se pudieron cargar los datos de Compras.":"Cargando Compras…")));return}
  v.append(resumen(R.com));
  v.append(el("div",{class:"tb-kpis"},
-  kpi("Comprado (con OC)",TB.millones(c.comprado),`${per}: ${TB.millones(c.compradoP)}`,flecha(c.comprado,c.compradoP,null)),
+  kpi("Comprado (pagado)",TB.millones(c.comprado),`${per}: ${TB.millones(c.compradoP)}`,flecha(c.comprado,c.compradoP,null)),
   kpi("Pedidos nuevos",fmtN(c.nuevos),`${per}: ${fmtN(c.nuevosP)}`),
   kpi("Pedidos abiertos",fmtN(c.abiertos),`${c.porAprob.length} por aprobar · ${c.cotiz} cotizando`),
-  kpi("Días pedido → OC",c.dOC==null?"—":fmtN(c.dOC,1),"Promedio últimos 90 días"),
-  kpi("Días OC → llegada",c.dRec==null?"—":fmtN(c.dRec,1),"Promedio últimos 90 días"),
+  kpi("Días para cotizar",c.dOC==null?"—":fmtN(c.dOC,1),"Del pedido al soporte del precio · 90 días"),
+  kpi("Días pago → llegada",c.dRec==null?"—":fmtN(c.dRec,1),"Promedio últimos 90 días"),
   kpi("Por pagar",TB.millones(c.pagoPend),c.vencidos.length?`${c.vencidos.length} vencido${c.vencidos.length>1?"s":""}`:"Nada vencido")));
  {const sw=tbSemana(),pres=(S.C.cfg.get("presupuestos")||{})[sw]?.valor,Ls=[...S.C.pag.values()].filter(l=>l.sem===sw).flatMap(l=>l.lineas||[]),prog=Ls.reduce((a,x)=>a+(+x.valor||0),0),pag=Ls.reduce((a,x)=>a+(+x.pago?.valor||0),0),dif=Ls.filter(x=>x.estado==="diferencia").length;
   {const r=EVP.recot(S.C.art),e=EVP.evalu(S.C.prov,S.C.ord,S.C.cfg);v.append(el("h3",{class:"tb-sub"},"Proveedores y precios"),el("div",{class:"tb-kpis"},
@@ -1598,18 +1602,19 @@ V.tablero=v=>{if(!S.mods.tablero){v.append(card("Sin acceso",el("p",{text:"El Da
    el("li",{},el("span",{},"Comprados sin factura"),el("b",{},String(c.sinFac))),
    el("li",{},el("span",{},"Artículos nuevos sin 3 cotizaciones"),el("b",{class:c.sin3?"tb-mal":""},String(c.sin3)))))));
  v.append(el("div",{class:"grid2"},
-  el("section",{class:"panel"},el("h3",{},"Gasto por centro de costos"),c.cc.size?el("ul",{class:"tb-ul"},lista(c.cc,TB.ccNom)):el("p",{class:"muted"},"Sin OC escritas en el periodo.")),
-  el("section",{class:"panel"},el("h3",{},"Proveedores con más compras"),c.prov.size?el("ul",{class:"tb-ul"},lista(c.prov,TB.provNom)):el("p",{class:"muted"},"Sin OC escritas en el periodo."))));
- v.append(el("p",{class:"muted small",style:"margin-top:12px"},"Gasto y tiempos de gestión se miden con las OC escritas en la app nueva (las órdenes migradas no tienen fecha de OC)."))};
+  el("section",{class:"panel"},el("h3",{},"Gasto por centro de costos"),c.cc.size?el("ul",{class:"tb-ul"},lista(c.cc,TB.ccNom)):el("p",{class:"muted"},"Sin pagos en el periodo.")),
+  el("section",{class:"panel"},el("h3",{},"Proveedores con más compras"),c.prov.size?el("ul",{class:"tb-ul"},lista(c.prov,TB.provNom)):el("p",{class:"muted"},"Sin pagos en el periodo."))));
+ v.append(el("p",{class:"muted small",style:"margin-top:12px"},"Lo comprado y el tiempo de entrega se miden desde el pago registrado en la app (lote con comprobante); el tiempo para cotizar, desde el soporte del precio."))};
 /* ===== Aviso de pendientes de Compras en la pantalla de módulos (misma regla que compras.html) ===== */
 const PC={act:o=>(o.items||[]).filter(i=>!i.anulado),tot:o=>PC.act(o).reduce((s,i)=>s+(+i.cant||0)*(+i.precio||0)*(1+(+i.iva||0)/100),0),
  estado(o){if(o.anulada)return"anulado";const it=PC.act(o);
   if(o.aprob&&o.aprob.ok===false)return"rechazado";if(!o.aprob?.ok)return"por-aprobar";if(!it.length)return"anulado";
   if(it.every(i=>i.rec)){if(it.some(i=>i.rec.estado==="nov"&&!i.sol))return"con-novedad";if(it.every(i=>i.fac))return"cerrado";return it.some(i=>i.sol)?"novedad-resuelta":"recibido"}
   if(!it.every(i=>i.prov&&+i.precio>0))return it.some(i=>i.prov||i.cot||+i.precio>0)?"en-cotizacion":"aprobado";
-  if(PC.tot(o)>=1000000&&!it.every(i=>i.oc)){if(o.ger?.ok===false)return"rechazado";if(!o.ger?.ok)return"por-aprobar-gerencia"}
-  if(!it.every(i=>i.oc))return"cotizado";
-  if(it.some(i=>i.rec?.estado==="nov"&&!i.sol))return"con-novedad";return it.some(i=>i.rem||i.rec)?"despachado":"comprado"},
+  const pg=PC.pago(o),pagado=pg==="ok"||pg==="credito";
+  if(PC.tot(o)>=1000000&&!pagado){if(o.ger?.ok===false)return"rechazado";if(!o.ger?.ok)return"por-aprobar-gerencia"}
+  if(it.some(i=>i.rec?.estado==="nov"&&!i.sol))return"con-novedad";if(it.some(i=>i.rem||i.rec))return"despachado";if(pagado)return"comprado";
+  if(!it.every(i=>i.oc))return"cotizado";return it.every(i=>i.fac)?"por-pagar":"soportado"},
  factura(o){const it=PC.act(o);const n=it.filter(i=>i.fac).length;return!it.length?"":n===it.length?"ok":n?"parcial":"pend"},
  pago(o){const nits=[...new Set(PC.act(o).map(i=>i.prov).filter(Boolean))];if(!nits.length)return"";const p=o.pagos||{};
   if(nits.every(n=>p[n]?.estado==="pagado"))return"ok";if(nits.some(n=>p[n]?.estado==="credito"))return"credito";return nits.some(n=>p[n]?.estado==="pagado")?"parcial":"pend"},
@@ -1619,7 +1624,7 @@ const PC={act:o=>(o.items||[]).filter(i=>!i.anulado),tot:o=>PC.act(o).reduce((s,
    if(admin&&e==="por-aprobar-gerencia")L.push(id);
    if(admin&&PC.act(o).some(i=>i.cambio?.estado==="pendiente"))L.push(id);
    if(gest&&!admin){if(["aprobado","en-cotizacion","cotizado","con-novedad"].includes(e))L.push(id);
-    if(["comprado","despachado","recibido","novedad-resuelta"].includes(e)&&PC.factura(o)!=="ok")L.push(id);
+    if(["soportado","comprado","despachado","recibido","novedad-resuelta"].includes(e)&&PC.factura(o)!=="ok")L.push(id);
    }
    if(o.sol===me&&["comprado","despachado"].includes(e))L.push(id);
    if(o.sol===me&&e==="rechazado"&&!o.visto)L.push(id)}
