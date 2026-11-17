@@ -370,8 +370,9 @@ function sv(tag,a,...kids){const e=document.createElementNS(SVGNS,tag);if(a)for(
 const MODS={
  tablero:{n:"Dashboard",d:"Lo más importante de Sanidad y Compras: lo bueno, lo que preocupa e indicadores.",ic:"M4 20V11|M10 20V5|M16 20v-6|M21 20H3"},
  sanidad:{n:"Sanidad",d:"Agua y clima, eventos sanitarios, lotes y alertas de las fincas.",ic:"M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z|M8 11h.01"},
- compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261117f"}};
-const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras"};
+ compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261117f"},
+ mantenimiento:{n:"Mantenimiento",d:"Solicitudes, cronograma preventivo, equipos e inventario.",ic:"M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z",url:"mantenimiento.html?v=20261117a"}};
+const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras",tecnico:"Técnico",jefe:"Jefe de mantenimiento",director:"Dirección"};
 function modulosDe(u){const am=u?.app_metadata||{};const m=am.modulos&&typeof am.modulos==="object"?{...am.modulos}:{sanidad:am.rol||"registro"};
  if(am.rol==="admin")for(const k of Object.keys(MODS))m[k]="admin";if(am.tablero&&!m.tablero)m.tablero="lector";for(const k of Object.keys(m))if(!MODS[k])delete m[k];return m}
 function modIcon(d){return sv("svg",{viewBox:"0 0 24 24",fill:"none",stroke:"currentColor","stroke-width":"2","stroke-linecap":"round","stroke-linejoin":"round","aria-hidden":"true"},d.split("|").map(p=>sv("path",{d:p})))}
@@ -1683,7 +1684,7 @@ const AV={pub:"BByXhC1kCP3BUeE2hIszSsv1AEiZNOltUbNCuInjPW_EN-YeqBmeo2r5DQwMP6Qvn
   const n=document.getElementById("av-no");if(n)n.onclick=()=>{try{localStorage.setItem("belmira:av-no",String(Date.now()))}catch(x){}b.innerHTML=""};
   const s=document.getElementById("av-si");if(s)s.onclick=async()=>{s.disabled=true;s.textContent="Activando…";try{await AV.activar(cli,email);b.innerHTML="";aviso("Avisos activados en este equipo.")}catch(x){s.disabled=false;s.textContent="Activar avisos";aviso(x.message||"No se pudieron activar los avisos.")}}}};
 function showModulos(){/* Si venía de un enlace (por ejemplo un pedido enviado por WhatsApp), vuelve allí después de entrar */
- try{const v=sessionStorage.getItem("belmira:volver");if(v&&S.mods.compras&&/^https:\/\/belmira1993\.github\.io\/sanidad\/compras\.html/.test(v)){sessionStorage.removeItem("belmira:volver");location.href=v;return}}catch(e){}
+ try{const v=sessionStorage.getItem("belmira:volver");const mv=(v||"").match(/^https:\/\/belmira1993\.github\.io\/sanidad\/(compras|mantenimiento)\.html/);if(mv&&S.mods[mv[1]]){sessionStorage.removeItem("belmira:volver");location.href=v;return}}catch(e){}
  const box=$("#mbody");box.textContent="";$("#mhola").textContent="Hola, "+(S.me.name||"").split(" ")[0];$("#mcorreo").textContent=S.me.email||"";
  for(const[k,rol]of Object.entries(S.mods).sort((x,y)=>(y[0]==="tablero")-(x[0]==="tablero"))){const m=MODS[k];box.append(el("button",{type:"button",class:"mod-it","data-mod":k,onclick:()=>entrarModulo(k)},
   el("span",{class:"mod-ic"},modIcon(m.ic)),el("span",{class:"mod-tx"},el("b",{text:m.n}),el("span",{text:m.d}),k==="compras"?el("span",{class:"mod-pend",hidden:true}):null),el("span",{class:"mod-rol",text:ROLN[rol]||rol})))}
