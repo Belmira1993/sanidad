@@ -449,13 +449,13 @@ function makeDb(sb){const cols=new Map(),CK="cache:",saveT={};
 /* ---------- Navegación ---------- */
 const VISTAS=[
  {id:"inicio",t:"Pedidos",ic:'<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h8"/>'},
- {id:"proveedores",t:"Proveedores",ic:'<path d="M3 21h18M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/>'},
- {id:"articulos",t:"Artículos",ic:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/>'},
- {id:"centros",t:"Centros de costos",tm:"Centros",ic:'<circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/>',solo:"pagosv"},
+ {id:"proveedores",t:"Proveedores",ic:'<path d="M3 21h18M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/>',solo:"consulta"},
+ {id:"articulos",t:"Artículos",ic:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/>',solo:"consulta"},
+ {id:"centros",t:"Centros de costos",tm:"Centros",ic:'<circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/>',solo:"consulta"},
  {id:"pagos",t:"Pagos",ic:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>',solo:"pagosv"},
  {id:"evaluacion",t:"Evaluación",ic:'<path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/>',solo:"gestion"},
  {id:"correcciones",t:"Correcciones",ic:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/>',solo:"gestion"}];
-const vistas=()=>VISTAS.filter(v=>!v.solo||(v.solo==="pagosv"?(S.gestion||S.pagos):S.gestion));
+const vistas=()=>VISTAS.filter(v=>!v.solo||(v.solo==="pagosv"?(S.gestion||S.pagos):v.solo==="consulta"?(S.gestion||S.pagos||S.verCuentas):S.gestion));
 function pintarNav(){const V=vistas(),VM=V.length>6?V.filter(v=>v.id!=="centros"):V;$("#navm").style.gridTemplateColumns=`repeat(${VM.length},1fr)`;
  $("#navd").innerHTML=V.map(v=>`<a href="#${v.id}"${S.vista===v.id?' aria-current="page"':""}>${v.t}</a>`).join("");
  $("#navm").innerHTML=VM.map(v=>`<a href="#${v.id}"${S.vista===v.id?' aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">${v.ic}</svg>${v.tm||v.t}</a>`).join("")}
