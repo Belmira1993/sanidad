@@ -13,7 +13,8 @@
 <link rel="apple-touch-icon" href="icono-app.png">
 <link rel="manifest" href="manifest.webmanifest">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
-<style>
+<style>.av-ban{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#EEF5F7;border:1px solid #CFE3E8;border-radius:12px;padding:12px 14px;margin:0 0 14px}.av-ban>div{flex:1 1 240px;display:flex;flex-direction:column;gap:2px}.av-ban span{font-size:.85rem;color:#4A5A63}
+
 :root{
   --bg:#ECF1F1;--surface:#FFFFFF;--surface-2:#DFE8E8;--ink:#13232A;--ink-2:#4A5D63;--line:#C7D4D5;
   --brand:#12454F;--brand-ink:#FFFFFF;--accent:#2F6FA0;--trout:#C2577A;--ok:#2E7D4F;--warn:#9A6500;--bad:#B3261E;--info:#2F6FA0;
@@ -369,7 +370,7 @@ function sv(tag,a,...kids){const e=document.createElementNS(SVGNS,tag);if(a)for(
 const MODS={
  tablero:{n:"Dashboard",d:"Lo más importante de Sanidad y Compras: lo bueno, lo que preocupa e indicadores.",ic:"M4 20V11|M10 20V5|M16 20v-6|M21 20H3"},
  sanidad:{n:"Sanidad",d:"Agua y clima, eventos sanitarios, lotes y alertas de las fincas.",ic:"M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z|M8 11h.01"},
- compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261117c"}};
+ compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261117d"}};
 const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras"};
 function modulosDe(u){const am=u?.app_metadata||{};const m=am.modulos&&typeof am.modulos==="object"?{...am.modulos}:{sanidad:am.rol||"registro"};
  if(am.rol==="admin")for(const k of Object.keys(MODS))m[k]="admin";if(am.tablero&&!m.tablero)m.tablero="lector";for(const k of Object.keys(m))if(!MODS[k])delete m[k];return m}
@@ -1654,11 +1655,39 @@ const EVP={ini:"2026-11-14",fin:"2027-02-28",crit:{alta:6,media:12,baja:24,na:0}
   const h=EVP.hoy(),un=EVP.mes(h,-12);let venc=0,sincl=0;for(const[n,p]of provs){const act=p.activo===true||(p.activo!==false&&(AM.get(n)||"")>=un);if(!act)continue;if(!p.crit){sincl++;continue}
    const em=p.evalMeses!=null?+p.evalMeses:EVP.crit[p.crit];if(!em)continue;const ue=p.evaluacion?.fecha||(p.evaluacion?.anio?p.evaluacion.anio+"-12-31":null);if(!ue||EVP.mes(ue,em)<=h)venc++}return{venc,sincl}}};
 
+/* ===== Avisos de la app (notificaciones al celular o PC, aunque la app esté cerrada) ===== */
+const AV={pub:"BByXhC1kCP3BUeE2hIszSsv1AEiZNOltUbNCuInjPW_EN-YeqBmeo2r5DQwMP6Qvndi7FonVttlgbYb0GK-lWyE",
+ ok(){return"serviceWorker"in navigator&&"PushManager"in window&&"Notification"in window},
+ ios(){return/iphone|ipad|ipod/i.test(navigator.userAgent)},
+ inst(){return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true},
+ key(){const s=AV.pub.replace(/-/g,"+").replace(/_/g,"/"),b=atob(s+"===".slice((s.length+3)%4));return Uint8Array.from(b,c=>c.charCodeAt(0))},
+ reg(){return navigator.serviceWorker.register("sw.js")},
+ async estado(){if(!AV.ok())return AV.ios()&&!AV.inst()?"ios":"no";if(Notification.permission==="denied")return"bloqueado";
+  const r=await navigator.serviceWorker.getRegistration();const s=r&&await r.pushManager.getSubscription();return s&&Notification.permission==="granted"?"activo":"inactivo"},
+ async guardar(cli,email,s){const j=s.toJSON(),h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(j.endpoint)),id=[...new Uint8Array(h)].slice(0,12).map(x=>x.toString(16).padStart(2,"0")).join("");
+  const{error}=await cli.from("documentos").upsert({coleccion:"avisos_equipos",id,data:{email:String(email).toLowerCase(),endpoint:j.endpoint,keys:j.keys,equipo:navigator.userAgent.slice(0,160),fecha:new Date().toISOString().slice(0,10)}});if(error)throw error},
+ async activar(cli,email){if(!AV.ok())throw{message:AV.ios()?"En iPhone: agrega la app a la pantalla de inicio y ábrela desde el ícono.":"Este navegador no permite avisos."};
+  const p=await Notification.requestPermission();if(p!=="granted")throw{message:"No se dio permiso para los avisos. Puedes activarlo en los ajustes del navegador o del teléfono."};
+  const r=await AV.reg();await navigator.serviceWorker.ready;const sub=()=>r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:AV.key()});
+  let s=await r.pushManager.getSubscription()||await sub();
+  try{await AV.guardar(cli,email,s)}catch(e){/* el equipo estaba registrado a nombre de otra persona: se crea uno nuevo */await s.unsubscribe();s=await sub();await AV.guardar(cli,email,s)}
+  try{localStorage.setItem("belmira:av:"+String(email).toLowerCase(),new Date().toISOString().slice(0,7))}catch(e){}},
+ async iniciar(cli,email){if(!AV.ok())return;navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.belmira==="abrir")location.href=e.data.url});
+  try{if(Notification.permission!=="granted")return;const r=await AV.reg();const s=await r.pushManager.getSubscription();if(!s)return;
+   const k="belmira:av:"+String(email).toLowerCase(),m=new Date().toISOString().slice(0,7);if(localStorage.getItem(k)!==m){await AV.guardar(cli,email,s);localStorage.setItem(k,m)}}catch(e){}},
+ async pintar(cli,email,aviso){const b=document.getElementById("av-ban");if(!b)return;let e;try{e=await AV.estado()}catch(x){return}
+  let no=0;try{no=+localStorage.getItem("belmira:av-no")||0}catch(x){}
+  if(!["inactivo","ios"].includes(e)||Date.now()-no<14*864e5){b.innerHTML="";return}
+  b.innerHTML=e==="ios"?'<div class="av-ban"><div><b>Avisos en iPhone</b><span>Para recibir notificaciones, agrega la app a la pantalla de inicio (botón Compartir › Agregar a inicio) y ábrela desde ese ícono.</span></div><button type="button" class="btn" id="av-no">Entendido</button></div>'
+   :'<div class="av-ban"><div><b>Recibe avisos en este equipo</b><span>Te llega una notificación cuando tengas un pendiente nuevo, aunque la app esté cerrada.</span></div><button type="button" class="btn pri" id="av-si">Activar avisos</button><button type="button" class="btn" id="av-no">Ahora no</button></div>';
+  const n=document.getElementById("av-no");if(n)n.onclick=()=>{try{localStorage.setItem("belmira:av-no",String(Date.now()))}catch(x){}b.innerHTML=""};
+  const s=document.getElementById("av-si");if(s)s.onclick=async()=>{s.disabled=true;s.textContent="Activando…";try{await AV.activar(cli,email);b.innerHTML="";aviso("Avisos activados en este equipo.")}catch(x){s.disabled=false;s.textContent="Activar avisos";aviso(x.message||"No se pudieron activar los avisos.")}}}};
 function showModulos(){/* Si venía de un enlace (por ejemplo un pedido enviado por WhatsApp), vuelve allí después de entrar */
  try{const v=sessionStorage.getItem("belmira:volver");if(v&&S.mods.compras&&/^https:\/\/belmira1993\.github\.io\/sanidad\/compras\.html/.test(v)){sessionStorage.removeItem("belmira:volver");location.href=v;return}}catch(e){}
  const box=$("#mbody");box.textContent="";$("#mhola").textContent="Hola, "+(S.me.name||"").split(" ")[0];$("#mcorreo").textContent=S.me.email||"";
  for(const[k,rol]of Object.entries(S.mods).sort((x,y)=>(y[0]==="tablero")-(x[0]==="tablero"))){const m=MODS[k];box.append(el("button",{type:"button",class:"mod-it","data-mod":k,onclick:()=>entrarModulo(k)},
   el("span",{class:"mod-ic"},modIcon(m.ic)),el("span",{class:"mod-tx"},el("b",{text:m.n}),el("span",{text:m.d}),k==="compras"?el("span",{class:"mod-pend",hidden:true}):null),el("span",{class:"mod-rol",text:ROLN[rol]||rol})))}
+ {const d=document.createElement("div");d.id="av-ban";box.append(d);AV.pintar(sb,S.me.email,m=>toast(m,5000));AV.iniciar(sb,S.me.email)}
  pintarPendC();vigilarCompras();
  $("#modulos").hidden=false}
 function entrarModulo(k){const m=MODS[k];if(m.url){location.href=m.url+(k==="compras"&&S.pcN?"#pendientes":"");return}$("#modulos").hidden=true;
