@@ -1311,7 +1311,7 @@ function dlgProv(id,pre){const d=id?provs().get(id):{nombre:"",tipo:""},c=id?cta
  const leer=async(input,fn)=>{const f=input.files[0];input.value="";if(!f)return;mostrar('<p class="muted small">Leyendo el PDF…</p>');
   try{fn(await textoPDF(f))}catch(e){mostrar(`<div class="sug">${esc(e.message||"No se pudo leer el PDF.")}</div>`)}};
  $("#rut-b").onclick=()=>$("#rut-f").click();
- $("#rut-f").onchange=e=>leer(e.target,t=>{const r=leerRUT(t);
+ $("#rut-f").onchange=e=>leer(e.target,t=>{const r=leerRUT(t,pdfPos);
   if(!id&&r.nit&&provs().has(r.nit)){toast("Ese proveedor ya existe; se abrió su ficha para actualizarlo.",5000);dlgProv(r.nit,{rut:r});return}aplicarRut(r)});
  if($("#cert-b")){$("#cert-b").onclick=()=>$("#cert-f").click();
   $("#cert-f").onchange=e=>leer(e.target,t=>{const r=leerCertificado(t,id||soloDig($("#p-nit").value));const ok=[];
@@ -1342,16 +1342,34 @@ function dlgProv(id,pre){const d=id?provs().get(id):{nombre:"",tipo:""},c=id?cta
   dlg.close();toast(id?"Proveedor actualizado.":"Proveedor creado.");render()})}
 
 /* ---------- Lectura de PDF (RUT y certificado bancario) ---------- */
-let pdfP=null;
+let pdfP=null,pdfPos=[];
 const cargarPDF=()=>pdfP||(pdfP=new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
  s.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";res(window.pdfjsLib)};s.onerror=()=>{pdfP=null;rej({message:"No se pudo cargar el lector de PDF. Revisa la conexión."})};document.head.appendChild(s)}));
 async function textoPDF(file){if(file.size>15e6)throw{message:"El PDF es muy pesado (más de 15 MB)."};const L=await cargarPDF();
  const doc=await L.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;let t="";
- for(let i=1;i<=Math.min(doc.numPages,6);i++){const c=await(await doc.getPage(i)).getTextContent();for(const it of c.items)t+=it.str+(it.hasEOL?"\n":" ")}
+ pdfPos=[];for(let i=1;i<=Math.min(doc.numPages,6);i++){const c=await(await doc.getPage(i)).getTextContent();for(const it of c.items){t+=it.str+(it.hasEOL?"\n":" ");if(i===1&&it.str.trim())pdfPos.push({x:it.transform[4],y:it.transform[5],w:it.width||0,s:it.str.trim()})}}
  t=t.replace(/[ \t]+/g," ");if(t.replace(/\s/g,"").length<40)throw{message:"Este PDF parece una foto o un escaneo y no tiene texto para leer. Pide el PDF original (descargado de la DIAN o del banco) o escribe los datos a mano."};return t}
 function dvNit(n){const w=[3,7,13,17,19,23,29,37,41,43,47,53,59,67,71];const d=String(n).split("").reverse();let s=0;d.forEach((x,i)=>s+=(+x)*w[i]);const r=s%11;return r>1?11-r:r}
 const junta=t=>t.replace(/\b\d(?: \d\b)+/g,m=>m.replace(/ /g,""));
-function leerRUT(t0){const t=junta(t0),N=norm(t),r={};
+/* RUT de la DIAN: cada dato está en su casilla, debajo o a la derecha del rótulo ("40. Ciudad/Municipio").
+   El orden del texto del PDF no sirve (los rótulos salen juntos y los datos después), por eso se lee por posición. */
+const esRot=s=>/^\d{1,3}\.\s*\D/.test(s);
+function casilla(P,re,tipo){const L=P.find(p=>re.test(p.s));if(!L)return"";
+ const fin=Math.min(...P.filter(p=>p!==L&&esRot(p.s)&&Math.abs(p.y-L.y)<=4&&p.x>L.x+5).map(p=>p.x),1e4);
+ const ok=p=>p!==L&&!esRot(p.s)&&p.x+p.w/2<fin-2&&(tipo==="num"?/^[\d ]+$/.test(p.s):tipo==="txt"?!/^[\d ]+$/.test(p.s):true);
+ let v=P.filter(p=>ok(p)&&Math.abs(p.y-L.y)<=2.5&&p.x>=L.x+L.w-2);
+ if(!v.length)v=P.filter(p=>ok(p)&&p.y<=L.y-4&&p.y>=L.y-16&&p.x+p.w/2>=L.x-8);
+ v.sort((a,b)=>b.y-a.y||a.x-b.x);if(!v.length)return"";const y0=v[0].y;v=v.filter(p=>Math.abs(p.y-y0)<=2.5);
+ const j=v.map(p=>p.s).join(" ").replace(/\s+/g," ").trim();return tipo==="num"?j.replace(/ /g,""):j}
+function leerRUTpos(P){const r={};if(!P||P.length<20||!P.some(p=>/Ciudad\/?\s*Municipio/i.test(p.s)))return r;
+ const nom=casilla(P,/^35\.\s*Raz[oó]n social/i,"txt");
+ if(nom)r.nombre=nom;else{const ap=[/^31\./,/^32\./,/^33\./,/^34\./].map(re=>casilla(P,re,"txt")).filter(Boolean);if(ap.length>=2)r.nombre=ap.join(" ")}
+ const act=casilla(P,/^46\.\s*C[oó]digo/i,"num");if(/^\d{4}$/.test(act))r.actividad=act;
+ const mun=casilla(P,/^40\.\s*Ciudad/i,"txt");if(mun)r.municipio=mun;
+ const dir=casilla(P,/^41\.\s*Direcci[oó]n/i,"txt");if(dir)r.direccion=dir;
+ const tel=casilla(P,/^44\.\s*Tel[eé]fono/i,"num")||casilla(P,/^45\.\s*Tel[eé]fono/i,"num");if(/^\d{7,10}$/.test(tel))r.telefono=tel;
+ return r}
+function leerRUT(t0,P){const t=junta(t0),N=norm(t),r={};
  /* NIT: el primer número de 6 a 10 dígitos después de "(NIT)" cuyo dígito de verificación cuadra */
  const ini=Math.max(0,t.search(/Tributaria\s*\(NIT\)/i));const cands=[...t.slice(ini).matchAll(/\b(\d{6,10})\b(?:\s*(\d)\b)?/g)];
  for(const m of cands){if(m[2]!=null&&+m[2]===dvNit(m[1])){r.nit=m[1];r.dv=m[2];break}if(m[1].length===10&&+m[1][9]===dvNit(m[1].slice(0,9))){r.nit=m[1].slice(0,9);r.dv=m[1][9];break}}
@@ -1372,6 +1390,10 @@ function leerRUT(t0){const t=junta(t0),N=norm(t),r={};
  const mail=(t.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g)||[]).find(m=>!/dian\.gov\.co/i.test(m));if(mail)r.correo=mail.toLowerCase();
  const tel=t.match(/44\.\s*Tel[eé]fono 1\s*(\d{7,10})/i)||t.match(/\b(3\d{9}|60\d{8})\b/);if(tel)r.telefono=tel[1];
  const f=t.match(/Fecha generaci[oó]n documento PDF:?\s*(\d{2})[-/](\d{2})[-/](\d{4})/i);if(f)r.fecha=`${f[1]}/${f[2]}/${f[3]}`;
+
+ Object.assign(r,leerRUTpos(P));
+ for(const k of["nombre","municipio","direccion"])if(r[k]&&/dian|verificaci|firma|aduaner|exportador|realice|^\d+\.\s/i.test(r[k]))delete r[k];
+ if(r.nombre)r.nombre=r.nombre.toUpperCase();
  return r}
 function leerCertificado(t0,nit){const t=junta(t0),N=norm(t),r={};
  for(const b of BANCOS){const k=norm(b).replace(/^banco /,"");if(k.length>2&&N.includes(k)){r.banco=b;break}}
