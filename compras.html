@@ -250,6 +250,15 @@ details.mas summary{color:var(--accent);font-weight:700;padding:8px 0;font-size:
 .lista td.mono,.mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
 .lista .sub{display:block;font-size:.8rem;color:var(--ink-2)}
 .cards{display:none}
+.h-tb td,.h-tb th{vertical-align:top}.h-tb td .sub{display:block;font-size:.78rem;color:var(--ink-2)}
+.h-tb select.inp{min-width:150px;padding:6px 8px;font-size:.86rem}.h-tb td.d{max-width:220px;overflow-wrap:anywhere}
+.h-tb tr.an td{opacity:.55}.h-tb tr.cam td{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.h-bulk{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);font-size:.88rem}
+.h-bulk select.inp{flex:0 1 200px}
+.h-save{position:sticky;bottom:12px;z-index:5;display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:12px;padding:10px 14px;border-radius:10px;background:var(--surface);border:1px solid var(--accent);box-shadow:0 4px 18px rgba(0,0,0,.12)}
+.h-save[hidden]{display:none}.h-save b{margin-right:auto}
+.h-prog{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin:6px 0 2px}.h-prog i{display:block;height:100%;background:var(--ok)}
+.h-res{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:10px}.h-res table{width:100%;font-size:.86rem}.h-res td.n,.h-tb td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 .card-it{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:8px;cursor:pointer;color:var(--ink)}
 .card-it b{display:block}
 .card-it .row{gap:6px;margin-top:4px;font-size:.84rem;color:var(--ink-2)}
@@ -392,7 +401,7 @@ const fmtN=n=>new Intl.NumberFormat("es-CO").format(n);
 document.addEventListener("close",e=>{const t=toast.el;if(t&&e.target.contains(t)){const top=[...document.querySelectorAll("dialog[open]")].pop()||document.body;top.appendChild(t)}},true);
 function toast(m,ms=3400){const t=toast.el||(toast.el=$("#toast")),top=[...document.querySelectorAll("dialog[open]")].pop()||document.body;if(t.parentNode!==top)top.appendChild(t);t.textContent=m;t.style.display="block";clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display="none",ms)}
 const S={equipo:new Map(),me:null,rol:"",gestion:false,verCuentas:false,pagos:false,sb:null,pg:{sel:new Map(),opt:new Map(),tab:"prog",lote:null},vista:"inicio",q:{prov:"",art:""},filtro:{prov:"",art:""},lim:{prov:100,art:100}};
-const COL={prov:"compras_proveedores",cta:"compras_cuentas",art:"compras_articulos",cfg:"compras_config",ord:"compras_ordenes",eva:"compras_evaluaciones",pag:"compras_pagos"};
+const COL={prov:"compras_proveedores",cta:"compras_cuentas",art:"compras_articulos",cfg:"compras_config",ord:"compras_ordenes",eva:"compras_evaluaciones",pag:"compras_pagos",his:"compras_historico"};
 const TIPOS={J:"Jurídica",N:"Natural"};
 const UNIDADES=["unidad","kg","g","bulto","litro","galón","garrafa","caneca","caja","paquete","rollo","metro","par","juego","servicio"];
 const ROLN={admin:"Administrador",compras:"Gestión de compras",aprobador:"Aprueba",solicitante:"Solicita",lector:"Consulta"};
@@ -454,9 +463,10 @@ const VISTAS=[
  {id:"centros",t:"Centros de costos",tm:"Centros",ic:'<circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/>',solo:"consulta"},
  {id:"pagos",t:"Pagos",ic:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>',solo:"pagosv"},
  {id:"evaluacion",t:"Evaluación",ic:'<path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/>',solo:"gestion"},
+ {id:"historico",t:"Histórico OC",tm:"Histórico",ic:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',solo:"consulta"},
  {id:"correcciones",t:"Correcciones",ic:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/>',solo:"gestion"}];
 const vistas=()=>VISTAS.filter(v=>!v.solo||(v.solo==="pagosv"?(S.gestion||S.pagos):v.solo==="consulta"?(S.gestion||S.pagos||S.verCuentas):S.gestion));
-function pintarNav(){const V=vistas(),VM=V.length>6?V.filter(v=>v.id!=="centros"):V;$("#navm").style.gridTemplateColumns=`repeat(${VM.length},1fr)`;
+function pintarNav(){const V=vistas(),VM=V.length>6?V.filter(v=>v.id!=="centros"&&v.id!=="historico"):V;$("#navm").style.gridTemplateColumns=`repeat(${VM.length},1fr)`;
  $("#navd").innerHTML=V.map(v=>`<a href="#${v.id}"${S.vista===v.id?' aria-current="page"':""}>${v.t}</a>`).join("");
  $("#navm").innerHTML=VM.map(v=>`<a href="#${v.id}"${S.vista===v.id?' aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">${v.ic}</svg>${v.tm||v.t}</a>`).join("")}
 function ir(){if(dlg.open)dlg.close();let h=location.hash.slice(1);if(/^ORD-\d+$/.test(h)){S.abrir=h;history.replaceState(null,"","#inicio");h="inicio"}if(h==="pendientes"){S.verPend=true;history.replaceState(null,"","#inicio");h="inicio"}S.vista=vistas().some(v=>v.id===h)?h:"inicio";pintarNav();render();window.scrollTo(0,0)}
@@ -484,6 +494,7 @@ function render(){setTimeout(()=>{if(S.sb)AV.pintar(S.sb,S.me.email,m=>toast(m,5
  else if(S.vista==="correcciones")v.innerHTML=vCorr();
  else if(S.vista==="evaluacion")v.innerHTML=vEval();
  else if(S.vista==="pagos")v.innerHTML=vPagos();
+ else if(S.vista==="historico")v.innerHTML=vHist();
  else v.innerHTML=vCentros();
  enlazar();campana()}
 /* Aviso de pendientes: campana en el encabezado, número en la pestaña y en el ícono de la app (si el teléfono lo permite) */
@@ -1232,7 +1243,7 @@ function enlazarPagos(){const pg=S.pg;
  if(pg.lote){const d=document.querySelector(`[data-lote-d="${pg.lote}"]`);if(d){d.open=true;d.scrollIntoView({block:"start"})}pg.lote=null}}
 
 /* ---------- Eventos ---------- */
-function enlazar(){if(S.vista==="pagos")enlazarPagos();
+function enlazar(){if(S.vista==="pagos")enlazarPagos();if(S.vista==="historico")enlazarHist();
  document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>location.hash=b.dataset.go);
  const qp=$("#qprov");if(qp){qp.oninput=()=>{S.q.prov=qp.value;S.lim.prov=100;repintar("#qprov")};$("#fprov").onchange=e=>{S.filtro.prov=e.target.value;S.lim.prov=100;render()}}
  const qa=$("#qart");if(qa){qa.oninput=()=>{S.q.art=qa.value;S.lim.art=100;repintar("#qart")};$("#fart").onchange=e=>{S.filtro.art=e.target.value;render()}}
@@ -1340,6 +1351,87 @@ function dlgProv(id,pre){const d=id?provs().get(id):{nombre:"",tipo:""},c=id?cta
    if(cambio)await DB.set(COL.cta,nit,nc)}
   if(JSON.stringify(nd)!==JSON.stringify(d)||!id)await DB.set(COL.prov,nit,nd);
   dlg.close();toast(id?"Proveedor actualizado.":"Proveedor creado.");render()})}
+
+
+/* ---------- Histórico de OC (Excel de Compras, dic 2025 a nov 2026) ----------
+   Una fila por mes en compras_historico (data.l = líneas). Compras completa centro de costos y responsable;
+   los cambios se acumulan y se guardan juntos (un registro por mes), para no llenar la base. */
+const HS=()=>S.h||(S.h={q:"",mes:"",f:"",cc:"",lim:100,cam:new Map()});
+function hLineas(){const out=[],cam=HS().cam;
+ for(const[id,d]of DB.docs(COL.his))for(const x of d.l||[]){const c=cam.get(x.i);out.push(c?{...x,...c,_doc:id,_cam:1}:{...x,_doc:id})}
+ return out.sort((a,b)=>b.f.localeCompare(a.f)||a.i.localeCompare(b.i))}
+const hEstado=x=>x.an?'<span class="chip bad">Anulada</span>':/^pag/i.test(x.est||"")?`<span class="chip ok">Pagado</span><span class="sub">${esc(x.est)}</span>`:x.est?esc(x.est):'<span class="muted">—</span>';
+const hMesN=m=>{const n=["","enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][+m.slice(5,7)];return n[0].toUpperCase()+n.slice(1)+" "+m.slice(0,4)};
+const hProv=x=>provs().get(x.nit)?.nombre||x.pn||x.nit||"—";
+function hFiltrar(L){const h=HS();return L.filter(x=>(!h.mes||x.f.slice(0,7)===h.mes||x._doc==="h-"+h.mes)
+ &&(!h.f||(h.f==="sincc"?!x.an&&!x.cc:h.f==="sinsol"?!x.an&&!x.sol:h.f==="sug"?!x.an&&!x.cc&&!!x.sug:h.f==="anul"?!!x.an:h.f==="cam"?!!x._cam:true))
+ &&(!h.cc||(h.cc==="-"?!x.cc:x.cc===h.cc))&&coincide([x.nit,hProv(x),x.oc,x.fac,x.d,x.t].join(" "),h.q))}
+function vHist(){
+ if(!S.hOn){S.hOn=1;DB.on(COL.his,()=>{if(!dlg.open&&S.vista==="historico")render()});window.addEventListener("beforeunload",e=>{if(S.h&&S.h.cam.size){e.preventDefault();e.returnValue=""}})}
+ const w=cargando(COL.his);if(w)return w;
+ const h=HS(),L=hLineas();
+ if(!L.length)return'<div class="panel empty">Todavía no hay histórico cargado.</div>';
+ const V=L.filter(x=>!x.an),nCC=V.filter(x=>x.cc).length,nSol=V.filter(x=>x.sol).length,tot=V.reduce((s,x)=>s+(+x.tot||0),0);
+ const meses=[...DB.docs(COL.his).keys()].map(k=>k.slice(2)).sort().reverse(),CC=centros(),G=S.gestion;
+ const R=hFiltrar(L),total=R.length,rows=R.slice(0,h.lim),sinCCsug=R.filter(x=>!x.an&&!x.cc&&x.sug).length;
+ const per=[...S.equipo.values()].filter(u=>u.nombre).sort((a,b)=>a.nombre.localeCompare(b.nombre,"es"));
+ const optCC=(v,vacio)=>`<option value="">${vacio}</option>`+CC.filter(c=>c.activo!==false||c.id===v).map(c=>`<option value="${esc(c.id)}"${c.id===v?" selected":""}>${esc(c.nombre)}</option>`).join("");
+ const optSol=(v,vacio)=>`<option value="">${vacio}</option>`+per.map(u=>`<option value="${esc(u.email)}"${u.email===v?" selected":""}>${esc(u.nombre)}</option>`).join("")+(v&&!S.equipo.has(v)?`<option value="${esc(v)}" selected>${esc(v)}</option>`:"");
+ const pct=(a,b)=>b?Math.round(a*100/b):0;
+ /* Resumen (sin anuladas) */
+ const agr=(f)=>{const m=new Map();for(const x of V){const k=f(x);const r=m.get(k)||{n:0,v:0};r.n++;r.v+=+x.tot||0;m.set(k,r)}return[...m].sort((a,b)=>b[1].v-a[1].v)};
+ const tabla=(t,F,nom,lim)=>`<div class="panel"><h3>${t}</h3><table><tbody>${F.slice(0,lim||99).map(([k,r])=>`<tr><td>${esc(nom(k))}</td><td class="n">${fmtN(r.n)}</td><td class="n">${peso(r.v)}</td></tr>`).join("")}</tbody></table></div>`;
+ return`<div class="row hrow"><h2 style="color:var(--brand)">Histórico de OC</h2></div>
+ <p class="ro-note">Órdenes y cotizaciones que Compras llevaba en Excel (${hMesN(meses[meses.length-1]).toLowerCase()} a ${hMesN(meses[0]).toLowerCase()}), ya aprobadas por los jefes. Son solo de consulta: no generan tareas ni pagos. ${G?"Completa el centro de costos y el responsable de cada línea; los cambios se guardan juntos con el botón Guardar.":"Solo Compras las completa."}</p>
+ <div class="panel"><div class="row" style="gap:18px;flex-wrap:wrap"><span><b>${fmtN(V.length)}</b> líneas · <b>${peso(tot)}</b></span>
+  <span class="muted small">${fmtN(L.length-V.length)} anuladas (no suman)</span></div>
+  <div class="row" style="gap:24px;flex-wrap:wrap;margin-top:8px"><div style="flex:1 1 220px">Con centro de costos: <b>${fmtN(nCC)}</b> de ${fmtN(V.length)} (${pct(nCC,V.length)} %)<div class="h-prog"><i style="width:${pct(nCC,V.length)}%"></i></div></div>
+  <div style="flex:1 1 220px">Con responsable: <b>${fmtN(nSol)}</b> de ${fmtN(V.length)} (${pct(nSol,V.length)} %)<div class="h-prog"><i style="width:${pct(nSol,V.length)}%"></i></div></div></div>
+  <details class="mas"><summary>Resumen por centro de costos, mes y proveedor</summary><div class="h-res">
+   ${tabla("Por centro de costos",agr(x=>x.cc||""),k=>k?ccNom(k):"Sin centro de costos")}
+   ${tabla("Por mes",agr(x=>x._doc.slice(2)).sort((a,b)=>b[0].localeCompare(a[0])),hMesN)}
+   ${tabla("Proveedores con más compras",agr(x=>x.nit||x.pn),k=>provs().get(k)?.nombre||L.find(x=>(x.nit||x.pn)===k)?.pn||k,10)}</div></details></div>
+ <div class="tools" style="margin-top:14px"><input class="inp" type="search" id="qhis" placeholder="Buscar proveedor, NIT, OC, factura o descripción" value="${esc(h.q)}" aria-label="Buscar en el histórico">
+  <select class="inp" id="hmes" aria-label="Mes"><option value="">Todos los meses</option>${meses.map(m=>`<option value="${m}"${h.mes===m?" selected":""}>${hMesN(m)}</option>`).join("")}</select>
+  <select class="inp" id="hf" aria-label="Filtrar"><option value="">Todas las líneas</option><option value="sincc"${h.f==="sincc"?" selected":""}>Sin centro de costos</option><option value="sinsol"${h.f==="sinsol"?" selected":""}>Sin responsable</option><option value="sug"${h.f==="sug"?" selected":""}>Con centro sugerido</option><option value="anul"${h.f==="anul"?" selected":""}>Anuladas</option>${h.cam.size?`<option value="cam"${h.f==="cam"?" selected":""}>Sin guardar</option>`:""}</select>
+  <select class="inp" id="hcc" aria-label="Centro de costos"><option value="">Todos los centros</option><option value="-"${h.cc==="-"?" selected":""}>Sin centro</option>${CC.map(c=>`<option value="${esc(c.id)}"${h.cc===c.id?" selected":""}>${esc(c.nombre)}</option>`).join("")}</select></div>
+ ${G&&total?`<div class="h-bulk"><span>Para las <b>${fmtN(total)}</b> líneas filtradas:</span>
+  <select class="inp" id="hb-cc" aria-label="Centro de costos para todas">${optCC("","Centro de costos…")}</select>
+  <select class="inp" id="hb-sol" aria-label="Responsable para todas">${optSol("","Responsable…")}</select>
+  <button type="button" class="btn sm" id="hb-ok">Aplicar</button>
+  ${sinCCsug?`<button type="button" class="btn sm" id="hb-sug">Usar centro sugerido (${fmtN(sinCCsug)})</button>`:""}</div>`:""}
+ <p class="count">${fmtN(total)} líneas · ${peso(R.filter(x=>!x.an).reduce((s,x)=>s+(+x.tot||0),0))}</p>
+ ${total?`<div class="panel scroll" style="padding:0"><table class="h-tb"><thead><tr><th>Fecha</th><th>Proveedor</th><th>OC / factura</th><th>Descripción</th><th class="n">Valor a pagar</th><th>Estado</th><th>Centro de costos</th><th>Responsable</th></tr></thead><tbody>
+ ${rows.map(x=>`<tr data-hl="${esc(x.i)}" class="${x.an?"an":""}${x._cam?" cam":""}"><td class="mono">${fecha(x.f)}</td>
+  <td>${esc(hProv(x))}<span class="sub">${esc(x.nit||"sin NIT")}${x.t?" · "+esc(x.t.toLowerCase()):""}</span></td>
+  <td>${esc(x.oc||"—")}${x.fac?`<span class="sub">Fact. ${esc(x.fac)}</span>`:""}</td><td class="d">${esc(x.d||"—")}${x.ab?`<span class="sub">${esc(x.ab)}</span>`:""}</td>
+  <td class="n">${peso(x.tot)}${x.rf?`<span class="sub">Retención ${peso(x.rf)}</span>`:""}</td><td>${hEstado(x)}</td>
+  <td>${G&&!x.an?`<select class="inp" data-hcc="${esc(x.i)}" aria-label="Centro de costos">${optCC(x.cc||"","—")}</select>`:esc(x.cc?ccNom(x.cc):"—")}${!x.cc&&x.sug?`<span class="sub">Sugerido: ${esc(ccNom(x.sug))}</span>`:""}</td>
+  <td>${G&&!x.an?`<select class="inp" data-hsol="${esc(x.i)}" aria-label="Responsable">${optSol(x.sol||"","—")}</select>`:esc(x.sol?persona(x.sol):"—")}</td></tr>`).join("")}
+ </tbody></table></div>
+ ${total>rows.length?`<button class="btn mas" id="h-mas">Ver más (${fmtN(total-rows.length)})</button>`:""}`
+ :`<div class="panel empty">No hay líneas con ese criterio.</div>`}
+ <div class="h-save" id="h-save"${h.cam.size?"":" hidden"}><b id="h-save-n">${h.cam.size} cambio${h.cam.size===1?"":"s"} sin guardar</b><button type="button" class="btn" id="h-desc">Descartar</button><button type="button" class="btn pri" id="h-guardar">Guardar</button></div>`}
+function hCambiar(i,k,v,base){const h=HS();base=base||hLineas().find(x=>x.i===i);if(!base)return;const c={...(h.cam.get(i)||{cc:base.cc||"",sol:base.sol||""})};c[k]=v;
+ const doc=DB.docs(COL.his).get(base._doc),orig=(doc.l||[]).find(x=>x.i===i)||{};
+ if((c.cc||"")===(orig.cc||"")&&(c.sol||"")===(orig.sol||""))h.cam.delete(i);else h.cam.set(i,c)}
+function hBarra(){const h=HS(),b=$("#h-save");if(!b)return;b.hidden=!h.cam.size;$("#h-save-n").textContent=`${h.cam.size} cambio${h.cam.size===1?"":"s"} sin guardar`}
+function enlazarHist(){const h=HS();
+ const q=$("#qhis");if(q)q.oninput=()=>{h.q=q.value;h.lim=100;repintar("#qhis")};
+ [["#hmes","mes"],["#hf","f"],["#hcc","cc"]].forEach(([s,k])=>{const e=$(s);if(e)e.onchange=()=>{h[k]=e.value;h.lim=100;render()}});
+ const m=$("#h-mas");if(m)m.onclick=()=>{h.lim+=200;render()};
+ document.querySelectorAll("[data-hcc]").forEach(e=>e.onchange=()=>{hCambiar(e.dataset.hcc,"cc",e.value);e.closest("tr").classList.add("cam");hBarra()});
+ document.querySelectorAll("[data-hsol]").forEach(e=>e.onchange=()=>{hCambiar(e.dataset.hsol,"sol",e.value);e.closest("tr").classList.add("cam");hBarra()});
+ const ok=$("#hb-ok");if(ok)ok.onclick=()=>{const cc=$("#hb-cc").value,sol=$("#hb-sol").value;if(!cc&&!sol){toast("Elige un centro de costos o un responsable.");return}
+  const R=hFiltrar(hLineas()).filter(x=>!x.an);for(const x of R){if(cc)hCambiar(x.i,"cc",cc,x);if(sol)hCambiar(x.i,"sol",sol,{...x,...(h.cam.get(x.i)||{})})}toast(`Aplicado a ${fmtN(R.length)} líneas. Revisa y pulsa Guardar.`,4500);render()};
+ const sg=$("#hb-sug");if(sg)sg.onclick=()=>{const R=hFiltrar(hLineas()).filter(x=>!x.an&&!x.cc&&x.sug);for(const x of R)hCambiar(x.i,"cc",x.sug,x);toast(`Se puso el centro sugerido en ${fmtN(R.length)} líneas. Revisa y pulsa Guardar.`,4500);render()};
+ const d=$("#h-desc");if(d)d.onclick=()=>{h.cam.clear();render()};
+ const g=$("#h-guardar");if(g)g.onclick=()=>guardando(g,async()=>{const por={};
+  for(const[i,c]of h.cam){const doc=[...DB.docs(COL.his)].find(([,dd])=>(dd.l||[]).some(x=>x.i===i));if(doc)(por[doc[0]]=por[doc[0]]||new Map()).set(i,c)}
+  let n=0;for(const[id,M]of Object.entries(por)){const fr=await DB.fresco(COL.his,id);if(!fr)continue;
+   const l=(fr.l||[]).map(x=>{const c=M.get(x.i);if(!c)return x;n++;const y={...x,por:ME(),fe:hoy()};if(c.cc)y.cc=c.cc;else delete y.cc;if(c.sol)y.sol=c.sol;else delete y.sol;return y});
+   await DB.set(COL.his,id,{...fr,l});for(const i of M.keys())h.cam.delete(i)}
+  toast(`Se guardaron ${fmtN(n)} líneas.`);render()})}
 
 /* ---------- Lectura de PDF (RUT y certificado bancario) ---------- */
 let pdfP=null,pdfPos=[];
