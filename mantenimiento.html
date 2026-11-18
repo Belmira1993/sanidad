@@ -461,6 +461,78 @@ function makeDb(sb){const cols=new Map(),CK="cache:",saveT={};
 }
 
 let DB;
+/* ===== Análisis de mantenimiento (igual en mantenimiento.html y en el Dashboard) =====
+   Entrada: Maps de órdenes, equipos, inventario y movimientos; nombre(email) para mostrar personas.
+   Salida: kpis, malo/bueno (resumen) y alertas con propuesta. */
+const MANTA=(()=>{
+ const FR={diaria:[1,"d"],semanal:[7,"d"],quincenal:[15,"d"],mensual:[1,"m"],"45dias":[45,"d"],bimestral:[2,"m"],trimestral:[3,"m"],semestral:[6,"m"],anual:[12,"m"]};
+ const FRN={diaria:"diaria",semanal:"semanal",quincenal:"quincenal",mensual:"mensual","45dias":"cada mes y medio",bimestral:"bimestral",trimestral:"trimestral",semestral:"semestral",anual:"anual"};
+ const CAL=["mensual","45dias","bimestral","trimestral","semestral","anual"];
+ const hoyF=()=>new Date(Date.now()-5*36e5).toISOString().slice(0,10);
+ const addD=(f,n)=>{const d=new Date(f+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
+ const finMes=(y,m)=>new Date(Date.UTC(y,m+1,0)).toISOString().slice(0,10);
+ const addM=(f,n)=>{const y=+f.slice(0,4),m=+f.slice(5,7)-1,d=+f.slice(8,10);const fm=finMes(y,m+n);return d>=28?fm:fm.slice(0,8)+String(Math.min(d,+fm.slice(8))).padStart(2,"0")};
+ const sumar=(f,fr)=>FR[fr][1]==="m"?addM(f,FR[fr][0]):addD(f,FR[fr][0]);
+ const dias=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/864e5);
+ const fe=f=>f?f.slice(8,10)+"/"+f.slice(5,7):"—";
+ const horas=ms=>ms/36e5;
+ function primera(p,cod,h){if(p.prox)return p.prox;const y=+h.slice(0,4),m=+h.slice(5,7)-1;const off={mensual:0,"45dias":0,bimestral:1,trimestral:2,semestral:5,anual:11}[p.frec]||0;
+  const fm=finMes(y,m+1+off),ini=fm.slice(0,8)+"01",H=[];for(let f=ini;f<=fm;f=addD(f,1)){const wd=new Date(f+"T12:00:00Z").getUTCDay();if(wd>0&&wd<6)H.push(f)}
+  const k=(+String(cod||"").replace(/\D/g,"")||0)*7+(+String(p.id||"").replace(/\D/g,"")||0)*3;return H[k%H.length]}
+ const estado=o=>{if(o.anulada)return"anulada";if(o.recibido?.ok)return"cerrada";if(o.terminado)return"por-recibir";if(o.espera&&!o.espera.fin)return"en-espera";if(o.rondas?.length&&!o.terminado&&!o.inicio2)return o.asignado?"devuelta":"nueva";if(o.inicio)return"en-proceso";if(o.asignado)return"asignada";return"nueva"};
+ return function(O,E,I,MV,nombre,P){P=P||30;const h=hoyF(),a0=addD(h,-P+1),p0=addD(h,-2*P+1),p1=addD(h,-P),d90=addD(h,-89),nom=nombre||(x=>x||"—");
+  const eqN=c=>E.get(c)?.nombre||c;const L=[...O].filter(([,o])=>!o.anulada);const malo=[],bueno=[],al=[];
+  const corr=L.filter(([,o])=>o.tipo!=="preventivo");const abiertas=L.filter(([,o])=>!["cerrada","anulada"].includes(estado(o)));
+  /* 1) Correctivos repetidos en el mismo equipo o lugar (90 días) */
+  const porEq=new Map(),porLug=new Map();for(const[id,o]of corr){if((o.fecha||"")<d90)continue;if(o.equipo)(porEq.get(o.equipo)||porEq.set(o.equipo,[]).get(o.equipo)).push([id,o]);else if(o.lugar){const k=o.lugar.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g," ").trim().split(" ").slice(0,3).join(" ");(porLug.get(k)||porLug.set(k,[]).get(k)).push([id,o])}}
+  for(const[c,arr]of porEq){if(arr.length<3)continue;const e=E.get(c)||{},fr=(e.plan||[]).filter(p=>CAL.includes(p.frec)).map(p=>p.frec),ult=arr.map(x=>x[1].fecha).sort().pop();
+   const espaciado=fr.length&&fr.every(f=>["bimestral","trimestral","semestral","anual"].includes(f));
+   al.push({nivel:arr.length>=5?"alta":"media",tipo:"repetido",eq:c,ids:arr.map(x=>x[0]),texto:`${eqN(c)}: ${arr.length} correctivos en 90 días (el último el ${fe(ult)}).`,
+    propuesta:`Buscar la causa raíz con el técnico que más lo ha atendido${espaciado?`; el preventivo es ${fr.map(f=>FRN[f]).join(" y ")}: conviene volverlo mensual`:fr.length?"; revisar si la lista del preventivo cubre esta falla":"; el equipo no tiene preventivo: programarle uno"}${arr.length>=5?". Con esta frecuencia de fallas, evaluar reparación mayor o reemplazo":""}.`})}
+  for(const[k,arr]of porLug)if(arr.length>=3)al.push({nivel:"media",tipo:"repetido",ids:arr.map(x=>x[0]),texto:`"${arr[0][1].lugar}": ${arr.length} solicitudes parecidas en 90 días.`,propuesta:"Revisar si es la misma falla y hacer una reparación de fondo en lugar de arreglos puntuales."});
+  /* 2) Correctivo poco después de un preventivo */
+  for(const[id,o]of corr){if(!o.equipo||(o.fecha||"")<d90)continue;const pv=L.filter(([,x])=>x.prev&&x.prev.eq===o.equipo&&x.terminado&&x.terminado.fecha.slice(0,10)<=o.fecha&&dias(x.terminado.fecha.slice(0,10),o.fecha)<=15).map(([pid,x])=>[pid,x]).pop();
+   if(pv)al.push({nivel:"media",tipo:"preventivo",eq:o.equipo,ids:[id,pv[0]],texto:`${eqN(o.equipo)} falló el ${fe(o.fecha)}, ${dias(pv[1].terminado.fecha.slice(0,10),o.fecha)} días después del preventivo ${pv[0]}.`,propuesta:"Revisar la lista de chequeo de ese preventivo: puede que no incluya la parte que falló."})}
+  /* 3) Trabajos devueltos ("no quedó bien") */
+  const dev=new Map();for(const[id,o]of L)for(const r of o.rondas||[]){if((r.recibido?.fecha||"").slice(0,10)<d90)continue;const t=r.terminado?.por||o.asignado||"";(dev.get(t)||dev.set(t,[]).get(t)).push(id)}
+  for(const[t,ids0]of dev){const ids=[...new Set(ids0)];if(ids0.length>=2)al.push({nivel:"media",tipo:"calidad",ids,texto:`${ids0.length} entregas de ${nom(t)} fueron devueltas en 90 días (no quedó bien).`,propuesta:"Revisar con el técnico qué falló; puede faltar capacitación, herramienta o repuesto adecuado."});}
+  /* 4) Críticas sin atender y tiempos */
+  for(const[id,o]of abiertas){const e=estado(o),t0=Date.parse(o.creada||o.fecha),hh=horas(Date.now()-t0);
+   if(o.prioridad==="critica"&&!o.inicio&&hh>4)al.push({nivel:"alta",tipo:"critica",ids:[id],texto:`${id} es crítica y lleva ${Math.round(hh)} horas sin atenderse (${o.equipo?eqN(o.equipo):o.lugar}).`,propuesta:e==="nueva"?"Asignar un técnico ya.":"Confirmar con el técnico asignado cuándo la atiende."});
+   if(e==="en-espera"){const d=dias(o.espera.fecha.slice(0,10),h);if(d>7)al.push({nivel:"media",tipo:"espera",ids:[id],texto:`${id} lleva ${d} días en espera (${o.espera.motivo}${o.espera.pedido?", pedido "+o.espera.pedido:""}).`,propuesta:o.espera.pedido?`Revisar el pedido ${o.espera.pedido} con Compras.`:"Definir quién destraba la espera y para cuándo."})}
+   if(o.inocuidad&&!o.terminado&&dias(o.fecha,h)>2)al.push({nivel:"alta",tipo:"inocuidad",ids:[id],texto:`${id} puede afectar la inocuidad y lleva ${dias(o.fecha,h)} días abierta.`,propuesta:"Priorizarla e informar a Calidad mientras se resuelve."})}
+  const resp=(f0,f1,soloCrit)=>{const v=[];for(const[,o]of L){if(o.tipo==="preventivo"||!o.inicio)continue;if(soloCrit&&o.prioridad!=="critica")continue;const f=(o.fecha||"");if(f<f0||f>f1)continue;v.push(horas(Date.parse(o.inicio.fecha)-Date.parse(o.creada||o.fecha)))}return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
+  const sol=(f0,f1)=>{const v=[];for(const[,o]of L){if(o.tipo==="preventivo"||!o.terminado)continue;const f=(o.fecha||"");if(f<f0||f>f1)continue;v.push(horas(Date.parse(o.terminado.fecha)-Date.parse(o.creada||o.fecha)))}return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
+  const rC=resp(a0,h,true),rT=resp(a0,h),sT=sol(a0,h),sTP=sol(p0,p1);
+  if(rC!=null)(rC<=2?bueno:rC>4?malo:bueno).push(`Las solicitudes críticas se empiezan a atender en ${rC<1?Math.round(rC*60)+" minutos":Math.round(rC*10)/10+" horas"} en promedio.`);
+  /* 5) Preventivos: vencidos y cumplimiento del mes anterior */
+  const ult=(c,pid)=>{let u=null;for(const[,o]of L)if(o.prev&&o.prev.eq===c&&o.prev.plan===pid&&o.terminado){const f=o.terminado.fecha.slice(0,10);if(!u||f>u)u=f}return u};
+  const abiertaPrev=(c,pid)=>L.some(([,o])=>o.prev&&o.prev.eq===c&&o.prev.plan===pid&&!o.terminado);
+  let venc=0,venc7=[];const ym=h.slice(0,7),mp=addM(ym+"-15",-1).slice(0,7);let progMP=0,hechoMP=0;
+  for(const[c,e]of E){if(e.estado!=="activo")continue;for(const p of e.plan||[]){if(!CAL.includes(p.frec))continue;const u=ult(c,p.id),prox=u?sumar(u,p.frec):primera(p,c,h);
+   if(prox<h&&!abiertaPrev(c,p.id)){venc++;if(dias(prox,h)>7)venc7.push(eqN(c))}
+   let f=u||prox,g=0;while(f<mp+"-01"&&g++<60)f=sumar(f,p.frec);while(f.slice(0,7)===mp&&g++<80){progMP++;f=sumar(f,p.frec)}}}
+  for(const[,o]of L)if(o.prev&&o.terminado&&(o.prev.vence||"").slice(0,7)===mp)hechoMP++;
+  if(venc7.length)al.push({nivel:venc7.length>=5?"alta":"media",tipo:"cronograma",texto:`${venc7.length} preventivo${venc7.length>1?"s llevan":" lleva"} más de una semana vencido${venc7.length>1?"s":""}: ${venc7.slice(0,4).join(", ")}${venc7.length>4?"…":""}.`,propuesta:"Asignarlos en el cronograma o reprogramar la primera fecha si no aplican."});
+  const cumpl=progMP?Math.min(100,Math.round(hechoMP/progMP*100)):null;if(cumpl!=null)(cumpl>=80?bueno:malo).push(`Cumplimiento del cronograma el mes pasado: ${cumpl} % (${hechoMP} de ${progMP}).`);
+  /* 6) Inventario: bajo mínimo y cobertura según el consumo */
+  const cons=new Map(),ex=new Map();for(const[,m]of MV)ex.set(m.item,(ex.get(m.item)||0)+(+m.cant||0));
+  for(const[,o]of L)for(const u of o.insumos||[]){ex.set(u.item,(ex.get(u.item)||0)-(+u.cant||0));if((u.fecha||"").slice(0,10)>=d90)cons.set(u.item,(cons.get(u.item)||0)+(+u.cant||0))}
+  for(const[k,it]of I){if(it.activo===false||it.tipo==="herramienta")continue;const s=ex.get(k)||0,c=cons.get(k)||0,cob=c>0?Math.round(s/(c/90)):null;
+   if(it.minimo!=null&&s<=+it.minimo)al.push({nivel:"media",tipo:"inventario",texto:`${it.nombre}: quedan ${s} ${it.unidad||""} (mínimo ${it.minimo}).`,propuesta:`Hacer el pedido en Compras${c?`; se gastan unos ${Math.round(c/3*10)/10} ${it.unidad||""} al mes`:""}.`});
+   else if(cob!=null&&cob<15)al.push({nivel:"media",tipo:"inventario",texto:`${it.nombre}: alcanza para unos ${cob} días al ritmo de consumo actual.`,propuesta:"Pedirlo antes de que se acabe."})}
+  /* 7) Carga de los técnicos */
+  const carga=new Map();for(const[,o]of abiertas)if(o.asignado&&!o.terminado)carga.set(o.asignado,(carga.get(o.asignado)||0)+1);
+  if(carga.size>=2){const v=[...carga].sort((a,b)=>b[1]-a[1]);if(v[0][1]>=5&&v[0][1]>=2*v[v.length-1][1])al.push({nivel:"baja",tipo:"carga",texto:`${nom(v[0][0])} tiene ${v[0][1]} tareas abiertas y ${nom(v[v.length-1][0])} ${v[v.length-1][1]}.`,propuesta:"Repartir mejor las tareas entre los técnicos."})}
+  /* Resumen y KPIs */
+  const nC=corr.filter(([,o])=>(o.fecha||"")>=a0).length,nCP=corr.filter(([,o])=>(o.fecha||"")>=p0&&(o.fecha||"")<=p1).length;
+  if(!al.some(a=>a.tipo==="repetido"))bueno.push("Ningún equipo con correctivos repetidos en los últimos 90 días.");
+  if(!al.some(a=>a.tipo==="critica"))bueno.push("Ninguna solicitud crítica sin atender.");
+  if(nC>nCP&&nC>=3)malo.push(`Más correctivos: ${nC} frente a ${nCP} el periodo anterior.`);else if(nCP>nC)bueno.push(`Menos correctivos: ${nC} frente a ${nCP} el periodo anterior.`);
+  for(const a of al.filter(a=>a.nivel==="alta"))malo.push(a.texto);
+  const ord={alta:0,media:1,baja:2};al.sort((a,b)=>ord[a.nivel]-ord[b.nivel]);
+  return{al,malo,bueno,k:{abiertas:abiertas.length,criticas:abiertas.filter(([,o])=>o.prioridad==="critica").length,nuevas:nC,nuevasP:nCP,resp:rT,respC:rC,sol:sT,solP:sTP,venc,cumpl,progMP,hechoMP}}}})();
+
 /* ===================== MANTENIMIENTO ===================== */
 const COLM={ord:"mant_ordenes",eq:"mant_equipos",inv:"mant_inventario",mov:"mant_movs",pre:"mant_prestamos",cfg:"mant_config"};
 const ROLM={admin:"Administrador",director:"Dirección de mantenimiento",jefe:"Jefe de mantenimiento",tecnico:"Técnico",solicitante:"Solicita",lector:"Consulta"};
@@ -523,12 +595,13 @@ function pendientes(){const me=ME(),L=[];if(!DB.listo(COLM.ord))return L;
   if(String(o.sol||"").toLowerCase()===me&&e==="por-recibir")L.push([id,"Confirma si quedó bien"])}
  if(S.gestion&&DB.listo(COLM.eq)){const v=programa().filter(x=>x.cal&&x.prox<hoy()&&!x.abierta).length;if(v)L.push(["CRON",`${v} preventivo${v>1?"s":""} vencido${v>1?"s":""}`])}
  if(S.gestion&&DB.listo(COLM.inv)&&DB.listo(COLM.mov)){const ST=stock(),b=[...items()].filter(([k,it])=>it.activo!==false&&ST.get(k)?.bajo).length;if(b)L.push(["INV",`${b} ítem${b>1?"s":""} bajo el mínimo`])}
+ if(S.gestion&&DB.listo(COLM.eq)&&DB.listo(COLM.inv)&&DB.listo(COLM.mov)){const A=analisis().al.filter(a=>a.nivel==="alta").length;if(A)L.push(["ANA",`${A} alerta${A>1?"s":""} importante${A>1?"s":""} del análisis`])}
  if(S.rol==="director"||S.rol==="admin"){const a=anioProg();if(DB.listo(COLM.cfg)&&!progAprob(a)&&S.rol==="director")L.push(["PROG",`Aprobar el programa de mantenimiento ${a}`])}
  return L.sort((a,b)=>(/^MT/.test(a[0])?0:1)-(/^MT/.test(b[0])?0:1)||b[0].localeCompare(a[0]))}
 function campana(){const b=$("#bell");if(!b||!DB||!DB.listo(COLM.ord))return;const n=pendientes().length;
  b.hidden=false;$("#bell-n").hidden=!n;$("#bell-n").textContent=n>99?"99+":String(n);document.title=(n?`(${n}) `:"")+"Belmira · Mantenimiento";try{n?navigator.setAppBadge?.(n):navigator.clearAppBadge?.()}catch(e){}}
-const abrirPend=id=>{if(id==="CRON"||id==="PROG"){if(location.hash==="#cronograma")render();else location.hash="cronograma";return}if(id==="INV"){S.inv.f="bajo";if(location.hash==="#inventario")render();else location.hash="inventario";return}if(ords().has(id))dlgOrden(id)};
-const pendItem=([id,t])=>{const o=ords().get(id);return`<button class="pend-it" data-p="${id}"><b>${o?id:id==="INV"?"Inventario":"Cronograma"}</b><span>${esc(t)}</span><span class="muted small">${o?esc(lugar(o))+" · "+esc(persona(o.sol)):""}</span></button>`};
+const abrirPend=id=>{if(id==="ANA"){if(location.hash==="#analisis")render();else location.hash="analisis";return}if(id==="CRON"||id==="PROG"){if(location.hash==="#cronograma")render();else location.hash="cronograma";return}if(id==="INV"){S.inv.f="bajo";if(location.hash==="#inventario")render();else location.hash="inventario";return}if(ords().has(id))dlgOrden(id)};
+const pendItem=([id,t])=>{const o=ords().get(id);return`<button class="pend-it" data-p="${id}"><b>${o?id:id==="INV"?"Inventario":id==="ANA"?"Análisis":"Cronograma"}</b><span>${esc(t)}</span><span class="muted small">${o?esc(lugar(o))+" · "+esc(persona(o.sol)):""}</span></button>`};
 function verPendientes(){const P=pendientes();if(!P.length){toast("No tienes pendientes.");return}if(P.length===1){abrirPend(P[0][0]);return}
  const d=$("#dlg2");d.innerHTML=`<div class="dlg-h"><h3>Tus pendientes (${P.length})</h3></div><div class="dlg-b pend-lista">${P.map(pendItem).join("")}</div><div class="dlg-f"><button class="btn" id="pl-c">Cerrar</button></div>`;
  $("#pl-c").onclick=()=>d.close();d.querySelectorAll("[data-p]").forEach(x=>x.onclick=()=>{d.close();abrirPend(x.dataset.p)});d.showModal()}
@@ -538,8 +611,9 @@ const VISTAS=[
  {id:"inicio",t:"Solicitudes",ic:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z"/>'},
  {id:"cronograma",t:"Cronograma",ic:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',solo:"staff"},
  {id:"equipos",t:"Equipos",ic:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3M7 13h10"/>',solo:"staff"},
- {id:"inventario",t:"Inventario",ic:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/>',solo:"staff"}];
-const vistas=()=>VISTAS.filter(v=>!v.solo||S.staff);
+ {id:"inventario",t:"Inventario",ic:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/>',solo:"staff"},
+ {id:"analisis",t:"Análisis",ic:'<path d="M4 20V11M10 20V5M16 20v-6M21 20H3"/>',solo:"ana"}];
+const vistas=()=>VISTAS.filter(v=>!v.solo||(v.solo==="ana"?(S.gestion||S.rol==="lector"):S.staff));
 function pintarNav(){const V=vistas();$("#navm").style.gridTemplateColumns=`repeat(${V.length},1fr)`;$("#navm").style.display=V.length<2?"none":"";$("#navd").style.display=V.length<2?"none":"";
  $("#navd").innerHTML=V.map(v=>`<a href="#${v.id}"${S.vista===v.id?' aria-current="page"':""}>${v.t}</a>`).join("");
  $("#navm").innerHTML=V.map(v=>`<a href="#${v.id}"${S.vista===v.id?' aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">${v.ic}</svg>${v.t}</a>`).join("")}
@@ -548,8 +622,8 @@ window.addEventListener("hashchange",ir);
 function cargando(...cs){const e=cs.map(c=>DB.error(c)).find(Boolean);if(e&&!cs.every(c=>DB.listo(c)))return`<div class="panel empty">${esc(e.message)} <button class="btn sm" onclick="location.reload()">Reintentar</button></div>`;return cs.every(c=>DB.listo(c))?"":'<div class="panel empty">Cargando…</div>'}
 function coincide(txt,q){if(!q)return true;const t=norm(txt);return norm(q).split(" ").every(p=>t.includes(p))}
 function render(){setTimeout(()=>{if(S.sb)AV.pintar(S.sb,S.me.email,m=>toast(m,5000))},0);const v=$("#view");
- v.innerHTML=S.vista==="cronograma"?vCron():S.vista==="equipos"?vEquipos():S.vista==="inventario"?vInv():vSolicitudes();
- const fn={inicio:bindSol,cronograma:bindCron,equipos:bindEq,inventario:bindInv}[S.vista];fn&&fn();campana()}
+ v.innerHTML=S.vista==="analisis"?vAnalisis():S.vista==="cronograma"?vCron():S.vista==="equipos"?vEquipos():S.vista==="inventario"?vInv():vSolicitudes();
+ const fn={inicio:bindSol,cronograma:bindCron,equipos:bindEq,inventario:bindInv,analisis:bindAna}[S.vista];fn&&fn();campana()}
 
 /* ---------- Solicitudes ---------- */
 const FILT=[["abiertas","Abiertas"],["criticas","Críticas"],["sin-asignar","Sin asignar"],["mias","Asignadas a mí"],["en-espera","En espera"],["por-recibir","Por recibir"],["cerradas","Cerradas"],["todas","Todas"]];
@@ -662,6 +736,23 @@ function docOrden(id,o){const e=estadoM(o),lg=document.querySelector(".logo-clar
  <h3>Cierre</h3><p>Tiempo de respuesta: ${durTxt(o.inicio?Date.parse(o.inicio.fecha)-t0:null)} · Tiempo de solución: ${durTxt(o.terminado?Date.parse(o.terminado.fecha)-t0:null)}<br>${o.recibido?.ok?`Recibido a satisfacción por ${esc(persona(o.recibido.por))} el ${fh(o.recibido.fecha)}`:"Pendiente de recibido"}</p>
  <p class="pie">Reemplaza el formato F-PR-72. Generado desde la app de Belmira el ${fecha(hoy())}.</p><div class="no"><button onclick="print()">Imprimir o guardar PDF</button></div></body></html>`}
 
+
+/* ---------- Análisis ---------- */
+const analisis=()=>{const k=S.anaP||30;const c=S.anaC;if(c&&c.t>Date.now()-3000&&c.k===k)return c.r;const r=MANTA(ords(),eqs(),items(),DB.docs(COLM.mov),persona,k);S.anaC={t:Date.now(),k,r};return r};
+const hTxt=hh=>hh==null?"—":hh<1?Math.round(hh*60)+" min":hh<48?(Math.round(hh*10)/10)+" h":Math.round(hh/24)+" días";
+function vAnalisis(){const w=cargando(COLM.ord,COLM.eq,COLM.inv,COLM.mov);if(w)return w;const P=S.anaP||30,A=analisis(),k=A.k;
+ const NIV={alta:["Importante","bad"],media:["Revisar","warn"],baja:["Sugerencia","info"]};
+ return`<div class="row hrow"><h2 style="color:var(--brand)">Análisis de mantenimiento</h2><span class="spacer"></span><div class="tabs" style="margin:0"><button class="tab${P===30?" on":""}" data-ap="30">Últimos 30 días</button><button class="tab${P===90?" on":""}" data-ap="90">Últimos 90 días</button></div></div>
+ <div class="kpis3"><div class="kpi3"><b>${k.abiertas}</b><span>Solicitudes abiertas · ${k.criticas} crítica${k.criticas===1?"":"s"}</span></div><div class="kpi3"><b>${k.nuevas}</b><span>Correctivos en el periodo · antes ${k.nuevasP}</span></div>
+  <div class="kpi3"><b>${hTxt(k.resp)}</b><span>Tiempo de respuesta promedio${k.respC!=null?` · críticas ${hTxt(k.respC)}`:""}</span></div><div class="kpi3"><b>${hTxt(k.sol)}</b><span>Tiempo de solución promedio · antes ${hTxt(k.solP)}</span></div>
+  <div class="kpi3"><b>${k.cumpl==null?"—":k.cumpl+" %"}</b><span>Cumplimiento del cronograma el mes pasado${k.progMP?` (${k.hechoMP} de ${k.progMP})`:""}</span></div><div class="kpi3"><b>${k.venc}</b><span>Preventivos vencidos sin asignar</span></div></div>
+ <div class="grid2" style="margin-top:12px"><section class="panel"><h3 class="bad-t">Lo que preocupa</h3>${A.malo.length?`<ul class="hist">${A.malo.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:'<p class="muted">Nada para resaltar.</p>'}</section>
+  <section class="panel"><h3 style="color:var(--ok)">Lo bueno</h3>${A.bueno.length?`<ul class="hist">${A.bueno.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:'<p class="muted">Nada para resaltar.</p>'}</section></div>
+ <section class="panel" style="margin-top:12px"><h3>Alertas y propuestas (${A.al.length})</h3>${A.al.length?A.al.map(a=>`<div class="cr-it"><div class="cr-t"><span><span class="chip ${NIV[a.nivel][1]}">${NIV[a.nivel][0]}</span> <b>${esc(a.texto)}</b></span><span class="sub">Propuesta: ${esc(a.propuesta)}</span>
+  ${(a.ids||[]).length||a.eq?`<span class="sub">${a.eq?`<a href="#" data-ae="${a.eq}">Ver equipo</a> · `:""}${(a.ids||[]).slice(0,6).map(i=>`<a href="#" data-ao="${i}">${i}</a>`).join(" · ")}</span>`:""}</div></div>`).join(""):'<p class="muted">Sin alertas. Todo en orden.</p>'}
+  <p class="muted small" style="margin-top:8px">La app revisa: correctivos repetidos en un equipo o lugar, fallas poco después de un preventivo, trabajos devueltos, críticas sin atender, solicitudes que afectan la inocuidad, esperas largas, preventivos vencidos, insumos por acabarse y la carga de cada técnico.</p></section>`}
+function bindAna(){const v=$("#view");v.querySelectorAll("[data-ap]").forEach(b=>b.onclick=()=>{S.anaP=+b.dataset.ap;render()});
+ v.querySelectorAll("[data-ao]").forEach(a=>a.onclick=e=>{e.preventDefault();dlgOrden(a.dataset.ao)});v.querySelectorAll("[data-ae]").forEach(a=>a.onclick=e=>{e.preventDefault();dlgEquipo(a.dataset.ae)})}
 /* ---------- Cronograma ---------- */
 function vCron(){const w=cargando(COLM.ord,COLM.eq,COLM.cfg);if(w)return w;const c=S.cron,P=programa(),h=hoy(),cal=P.filter(x=>x.cal),rut=P.filter(x=>!x.cal);
  const y=c.y,m=c.m,d1=`${y}-${String(m+1).padStart(2,"0")}-01`,dN=finMes(y,m);const A=anioProg(),ap=progAprob(A);
