@@ -715,7 +715,7 @@ function docProveedor(id,o,nit){const E=empresa(),p=provs().get(nit)||{nombre:ni
 /* Copia del pedido para quien lo pidió (control propio): se imprime o se guarda en PDF */
 function docSolicitud(id,o){const E=empresa(),e=estado(o),its=activos(o),hayP=its.some(i=>+i.precio>0);
  const lg=document.querySelector(".logo-claro")?.src||new URL("logo.svg",location.href).href;
- const ap=o.aprob?.ok?(o.aprob.auto?"No requiere (lo pidió un jefe)":`${esc(persona(o.aprob.por||o.jefe))}${o.aprob.fecha?" · "+fecha(o.aprob.fecha):""}`):(o.aprob?.ok===false?"Rechazado":"Pendiente");
+ const ap=o.aprob?.ok?(o.aprob.hist?"Aprobado antes de la app (histórico de OC)":o.aprob.auto?"No requiere (lo pidió un jefe)":`${esc(persona(o.aprob.por||o.jefe))}${o.aprob.fecha?" · "+fecha(o.aprob.fecha):""}`):(o.aprob?.ok===false?"Rechazado":"Pendiente");
  const filas=its.map(it=>`<tr><td>${esc(artNom(it))}${it.nota?`<br><small>${esc(it.nota)}</small>`:""}</td><td class="n">${fmtN(it.cant)}</td><td>${esc(it.u||"")}</td><td>${it.prov?esc(provs().get(it.prov)?.nombre||it.prov):"—"}</td>${hayP?`<td class="n">${+it.precio>0?peso(totItem(it)):"—"}</td>`:""}<td>${it.rec?(it.rec.estado==="nov"?"Con novedad":"Recibido"):it.rem?"Despachado":"—"}</td></tr>`).join("");
  return`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Pedido ${esc(id)}</title><style>
  body{font:13px/1.45 Calibri,Carlito,Arial,sans-serif;color:#1E2B38;margin:28px;max-width:820px}h1{font-size:20px;color:#2D4E7F;margin:0}table{border-collapse:collapse;width:100%;margin-top:14px}
@@ -825,7 +825,7 @@ const diasEntre=(a,b)=>Math.round((new Date(b)-new Date(a))/864e5);
 function metricas(anio){const M=new Map();
  for(const[oid,o]of ords()){if(o.anulada||!String(o.fecha||"").startsWith(anio))continue;
   for(const it of activos(o)){if(!it.prov)continue;const m=M.get(it.prov)||M.set(it.prov,{ped:new Set(),monto:0,rec:0,nov:0,dias:[],alzas:0,sin3:0}).get(it.prov);
-   m.ped.add(oid);m.monto+=totItem(it);if(it.rec){m.rec++;if(it.rec.estado==="nov")m.nov++;const pp=(o.pagos||{})[it.prov],ini=(pp&&["pagado","parcial"].includes(pp.estado)&&pp.fecha)||it.ocFecha||o.fecha;if(it.rec.fecha&&ini)m.dias.push(Math.max(0,diasEntre(ini,it.rec.fecha)))}if(it.alza)m.alzas++;if(it.sin3)m.sin3++}}
+   m.ped.add(oid);m.monto+=totItem(it);if(it.rec){m.rec++;if(it.rec.estado==="nov")m.nov++;const pp=(o.pagos||{})[it.prov],ini=(pp&&["pagado","parcial"].includes(pp.estado)&&pp.fecha)||it.ocFecha||o.fecha;if(it.rec.fecha&&ini&&!it.rec.hist)m.dias.push(Math.max(0,diasEntre(ini,it.rec.fecha)))}if(it.alza)m.alzas++;if(it.sin3)m.sin3++}}
  for(const m of M.values()){m.nped=m.ped.size;m.diasProm=m.dias.length?Math.round(m.dias.reduce((a,b)=>a+b,0)/m.dias.length):null;m.pctNov=m.rec?Math.round(100*m.nov/m.rec):0}
  return M}
 /* Sugerencia de puntaje con los datos de la app: entrega según novedades */
@@ -847,7 +847,7 @@ function estadoEval(nit,p,AM){const act=esActivo(nit,p,AM),em=evalMeses(p),ue=ul
  const prox=ue?sumaMeses(ue,em):hoy(),dias=Math.round((Date.parse(prox)-Date.parse(hoy()))/864e5);return{k:dias<=0?"vencida":dias<=60?"proxima":"aldia",prox,dias,ue,em,act}}
 function metricasRango(nit,desde,hasta){const m={ped:new Set(),monto:0,rec:0,nov:0,dias:[],alzas:0,sin3:0};
  for(const[oid,o]of ords()){if(o.anulada)continue;const f=String(o.fecha||"");if(f<desde||f>hasta)continue;
-  for(const it of activos(o)){if(it.prov!==nit)continue;m.ped.add(oid);m.monto+=totItem(it);if(it.rec){m.rec++;if(it.rec.estado==="nov")m.nov++;const pp=(o.pagos||{})[it.prov],ini=(pp&&["pagado","parcial"].includes(pp.estado)&&pp.fecha)||it.ocFecha||o.fecha;if(it.rec.fecha&&ini)m.dias.push(Math.max(0,diasEntre(ini,it.rec.fecha)))}if(it.alza)m.alzas++;if(it.sin3)m.sin3++}}
+  for(const it of activos(o)){if(it.prov!==nit)continue;m.ped.add(oid);m.monto+=totItem(it);if(it.rec){m.rec++;if(it.rec.estado==="nov")m.nov++;const pp=(o.pagos||{})[it.prov],ini=(pp&&["pagado","parcial"].includes(pp.estado)&&pp.fecha)||it.ocFecha||o.fecha;if(it.rec.fecha&&ini&&!it.rec.hist)m.dias.push(Math.max(0,diasEntre(ini,it.rec.fecha)))}if(it.alza)m.alzas++;if(it.sin3)m.sin3++}}
  m.nped=m.ped.size;m.diasProm=m.dias.length?Math.round(m.dias.reduce((a,b)=>a+b,0)/m.dias.length):null;m.pctNov=m.rec?Math.round(100*m.nov/m.rec):0;return m}
 /* ---------- Recotización: con otro proveedor; primera ronda hasta el 28 de febrero de 2027 ---------- */
 const RONDA={ini:"2026-11-14",fin:"2027-02-28"};
@@ -944,7 +944,7 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
  if(e==="por-aprobar-gerencia"&&ger)acciones.push('<button class="btn pri" data-gap="1">Aprobar el gasto</button><button class="btn danger" data-gap="0">No aprobar</button>');
  const puedeAnular=!["anulado","cerrado"].includes(e)&&(G||(dueno&&e==="por-aprobar"));
  abrir(`${id} ${chipEst(e)}`,`<div class="o-info"><div><span>Pidió</span><b>${esc(quien(o))}</b></div><div><span>Fecha</span><b>${fecha(o.fecha)}</b></div><div><span>Centro de costos</span><b>${esc(ccNom(o.cc))}</b></div>
-  <div><span>Aprobación</span><b>${o.aprob?.auto?"No requiere (jefe de área)":o.aprob?(o.aprob.ok?"Aprobó ":"Rechazó ")+esc(persona(o.aprob.por)):"Pendiente: "+esc(persona(o.jefe))}</b></div>
+  <div><span>Aprobación</span><b>${o.aprob?.hist?"Aprobado antes de la app (histórico de OC)":o.aprob?.auto?"No requiere (jefe de área)":o.aprob?(o.aprob.ok?"Aprobó ":"Rechazó ")+esc(persona(o.aprob.por)):"Pendiente: "+esc(persona(o.jefe))}</b></div>
   <div><span>Total con IVA</span><b>${totOrden(o)?peso(totOrden(o)):"Sin cotizar"}</b></div>${totOrden(o)>=TOPE_GERENCIA&&(o.ger||!activos(o).every(i=>i.oc))?`<div><span>Gerencia</span><b>${o.ger?(o.ger.ok?"Aprobó":"No aprobó"):"Pendiente"}</b></div>`:""}</div>
   ${o.nota?`<p class="o-nota">${esc(o.nota)}</p>`:""}${o.aprob?.motivo?`<p class="sug">Motivo del rechazo: ${esc(o.aprob.motivo)}</p>`:""}${o.anulada?`<p class="sug">Anulado por ${esc(persona(o.anulada.por))}: ${esc(o.anulada.motivo||"")}</p>`:""}
   ${acciones.length?`<div class="o-acc">${acciones.join("")}</div>`:""}
@@ -1360,11 +1360,12 @@ const HS=()=>S.h||(S.h={q:"",mes:"",f:"",cc:"",lim:100,cam:new Map()});
 function hLineas(){const out=[],cam=HS().cam;
  for(const[id,d]of DB.docs(COL.his))for(const x of d.l||[]){const c=cam.get(x.i);out.push(c?{...x,...c,_doc:id,_cam:1}:{...x,_doc:id})}
  return out.sort((a,b)=>b.f.localeCompare(a.f)||a.i.localeCompare(b.i))}
-const hEstado=x=>x.an?'<span class="chip bad">Anulada</span>':/^pag/i.test(x.est||"")?`<span class="chip ok">Pagado</span><span class="sub">${esc(x.est)}</span>`:x.est?esc(x.est):'<span class="muted">—</span>';
+const hPend=x=>!x.an&&!/^pag/i.test(x.est||"");
+const hEstado=x=>x.ord?`<span class="chip info">En Pedidos</span><span class="sub"><a href="#${esc(x.ord)}">${esc(x.ord)}</a></span>`:x.an?'<span class="chip bad">Anulada</span>':/^pag/i.test(x.est||"")?`<span class="chip ok">Pagado</span><span class="sub">${esc(x.est)}</span>`:x.est?esc(x.est):'<span class="muted">—</span>';
 const hMesN=m=>{const n=["","enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][+m.slice(5,7)];return n[0].toUpperCase()+n.slice(1)+" "+m.slice(0,4)};
 const hProv=x=>provs().get(x.nit)?.nombre||x.pn||x.nit||"—";
 function hFiltrar(L){const h=HS();return L.filter(x=>(!h.mes||x.f.slice(0,7)===h.mes||x._doc==="h-"+h.mes)
- &&(!h.f||(h.f==="sincc"?!x.an&&!x.cc:h.f==="sinsol"?!x.an&&!x.sol:h.f==="sug"?!x.an&&!x.cc&&!!x.sug:h.f==="anul"?!!x.an:h.f==="cam"?!!x._cam:true))
+ &&(!h.f||(h.f==="sincc"?!x.an&&!x.cc:h.f==="sinsol"?!x.an&&!x.sol:h.f==="sug"?!x.an&&!x.cc&&!!x.sug:h.f==="anul"?!!x.an:h.f==="cam"?!!x._cam:h.f==="pend"?hPend(x)&&!x.ord:h.f==="ped"?!!x.ord:true))
  &&(!h.cc||(h.cc==="-"?!x.cc:x.cc===h.cc))&&coincide([x.nit,hProv(x),x.oc,x.fac,x.d,x.t].join(" "),h.q))}
 function vHist(){
  if(!S.hOn){S.hOn=1;DB.on(COL.his,()=>{if(!dlg.open&&S.vista==="historico")render()});window.addEventListener("beforeunload",e=>{if(S.h&&S.h.cam.size){e.preventDefault();e.returnValue=""}})}
@@ -1373,7 +1374,7 @@ function vHist(){
  if(!L.length)return'<div class="panel empty">Todavía no hay histórico cargado.</div>';
  const V=L.filter(x=>!x.an),nCC=V.filter(x=>x.cc).length,nSol=V.filter(x=>x.sol).length,tot=V.reduce((s,x)=>s+(+x.tot||0),0);
  const meses=[...DB.docs(COL.his).keys()].map(k=>k.slice(2)).sort().reverse(),CC=centros(),G=S.gestion;
- const R=hFiltrar(L),total=R.length,rows=R.slice(0,h.lim),sinCCsug=R.filter(x=>!x.an&&!x.cc&&x.sug).length;
+ const R=hFiltrar(L),total=R.length,rows=R.slice(0,h.lim),sinCCsug=R.filter(x=>!x.an&&!x.cc&&x.sug).length,nPasar=R.filter(x=>hPend(x)&&!x.ord&&x.cc&&x.sol&&!x._cam).length,nPend=V.filter(x=>hPend(x)&&!x.ord).length;
  const per=[...S.equipo.values()].filter(u=>u.nombre).sort((a,b)=>a.nombre.localeCompare(b.nombre,"es"));
  const optCC=(v,vacio)=>`<option value="">${vacio}</option>`+CC.filter(c=>c.activo!==false||c.id===v).map(c=>`<option value="${esc(c.id)}"${c.id===v?" selected":""}>${esc(c.nombre)}</option>`).join("");
  const optSol=(v,vacio)=>`<option value="">${vacio}</option>`+per.map(u=>`<option value="${esc(u.email)}"${u.email===v?" selected":""}>${esc(u.nombre)}</option>`).join("")+(v&&!S.equipo.has(v)?`<option value="${esc(v)}" selected>${esc(v)}</option>`:"");
@@ -1382,9 +1383,9 @@ function vHist(){
  const agr=(f)=>{const m=new Map();for(const x of V){const k=f(x);const r=m.get(k)||{n:0,v:0};r.n++;r.v+=+x.tot||0;m.set(k,r)}return[...m].sort((a,b)=>b[1].v-a[1].v)};
  const tabla=(t,F,nom,lim)=>`<div class="panel"><h3>${t}</h3><table><tbody>${F.slice(0,lim||99).map(([k,r])=>`<tr><td>${esc(nom(k))}</td><td class="n">${fmtN(r.n)}</td><td class="n">${peso(r.v)}</td></tr>`).join("")}</tbody></table></div>`;
  return`<div class="row hrow"><h2 style="color:var(--brand)">Histórico de OC</h2></div>
- <p class="ro-note">Órdenes y cotizaciones que Compras llevaba en Excel (${hMesN(meses[meses.length-1]).toLowerCase()} a ${hMesN(meses[0]).toLowerCase()}), ya aprobadas por los jefes. Son solo de consulta: no generan tareas ni pagos. ${G?"Completa el centro de costos y el responsable de cada línea; los cambios se guardan juntos con el botón Guardar.":"Solo Compras las completa."}</p>
+ <p class="ro-note">Órdenes y cotizaciones que Compras llevaba en Excel (${hMesN(meses[meses.length-1]).toLowerCase()} a ${hMesN(meses[0]).toLowerCase()}), ya aprobadas por los jefes. Las pagadas quedan solo de consulta. ${G?"Completa el centro de costos y el responsable de cada línea (se guardan juntos con el botón Guardar). Las pendientes de pago, ya completas y guardadas, se pasan a Pedidos para seguir el proceso normal de factura y pago.":"Solo Compras las completa."}</p>
  <div class="panel"><div class="row" style="gap:18px;flex-wrap:wrap"><span><b>${fmtN(V.length)}</b> líneas · <b>${peso(tot)}</b></span>
-  <span class="muted small">${fmtN(L.length-V.length)} anuladas (no suman)</span></div>
+  <span class="muted small">${fmtN(L.length-V.length)} anuladas (no suman)</span>${nPend?`<span class="muted small">${fmtN(nPend)} pendientes de pago por pasar a Pedidos</span>`:""}</div>
   <div class="row" style="gap:24px;flex-wrap:wrap;margin-top:8px"><div style="flex:1 1 220px">Con centro de costos: <b>${fmtN(nCC)}</b> de ${fmtN(V.length)} (${pct(nCC,V.length)} %)<div class="h-prog"><i style="width:${pct(nCC,V.length)}%"></i></div></div>
   <div style="flex:1 1 220px">Con responsable: <b>${fmtN(nSol)}</b> de ${fmtN(V.length)} (${pct(nSol,V.length)} %)<div class="h-prog"><i style="width:${pct(nSol,V.length)}%"></i></div></div></div>
   <details class="mas"><summary>Resumen por centro de costos, mes y proveedor</summary><div class="h-res">
@@ -1393,25 +1394,45 @@ function vHist(){
    ${tabla("Proveedores con más compras",agr(x=>x.nit||x.pn),k=>provs().get(k)?.nombre||L.find(x=>(x.nit||x.pn)===k)?.pn||k,10)}</div></details></div>
  <div class="tools" style="margin-top:14px"><input class="inp" type="search" id="qhis" placeholder="Buscar proveedor, NIT, OC, factura o descripción" value="${esc(h.q)}" aria-label="Buscar en el histórico">
   <select class="inp" id="hmes" aria-label="Mes"><option value="">Todos los meses</option>${meses.map(m=>`<option value="${m}"${h.mes===m?" selected":""}>${hMesN(m)}</option>`).join("")}</select>
-  <select class="inp" id="hf" aria-label="Filtrar"><option value="">Todas las líneas</option><option value="sincc"${h.f==="sincc"?" selected":""}>Sin centro de costos</option><option value="sinsol"${h.f==="sinsol"?" selected":""}>Sin responsable</option><option value="sug"${h.f==="sug"?" selected":""}>Con centro sugerido</option><option value="anul"${h.f==="anul"?" selected":""}>Anuladas</option>${h.cam.size?`<option value="cam"${h.f==="cam"?" selected":""}>Sin guardar</option>`:""}</select>
+  <select class="inp" id="hf" aria-label="Filtrar"><option value="">Todas las líneas</option><option value="sincc"${h.f==="sincc"?" selected":""}>Sin centro de costos</option><option value="sinsol"${h.f==="sinsol"?" selected":""}>Sin responsable</option><option value="sug"${h.f==="sug"?" selected":""}>Con centro sugerido</option><option value="pend"${h.f==="pend"?" selected":""}>Pendientes de pago</option><option value="ped"${h.f==="ped"?" selected":""}>Pasadas a Pedidos</option><option value="anul"${h.f==="anul"?" selected":""}>Anuladas</option>${h.cam.size?`<option value="cam"${h.f==="cam"?" selected":""}>Sin guardar</option>`:""}</select>
   <select class="inp" id="hcc" aria-label="Centro de costos"><option value="">Todos los centros</option><option value="-"${h.cc==="-"?" selected":""}>Sin centro</option>${CC.map(c=>`<option value="${esc(c.id)}"${h.cc===c.id?" selected":""}>${esc(c.nombre)}</option>`).join("")}</select></div>
  ${G&&total?`<div class="h-bulk"><span>Para las <b>${fmtN(total)}</b> líneas filtradas:</span>
   <select class="inp" id="hb-cc" aria-label="Centro de costos para todas">${optCC("","Centro de costos…")}</select>
   <select class="inp" id="hb-sol" aria-label="Responsable para todas">${optSol("","Responsable…")}</select>
   <button type="button" class="btn sm" id="hb-ok">Aplicar</button>
-  ${sinCCsug?`<button type="button" class="btn sm" id="hb-sug">Usar centro sugerido (${fmtN(sinCCsug)})</button>`:""}</div>`:""}
+  ${sinCCsug?`<button type="button" class="btn sm" id="hb-sug">Usar centro sugerido (${fmtN(sinCCsug)})</button>`:""}
+  ${nPasar?`<button type="button" class="btn sm pri" id="hb-ped">Pasar a Pedidos (${fmtN(nPasar)})</button>`:""}</div>`:""}
  <p class="count">${fmtN(total)} líneas · ${peso(R.filter(x=>!x.an).reduce((s,x)=>s+(+x.tot||0),0))}</p>
  ${total?`<div class="panel scroll" style="padding:0"><table class="h-tb"><thead><tr><th>Fecha</th><th>Proveedor</th><th>OC / factura</th><th>Descripción</th><th class="n">Valor a pagar</th><th>Estado</th><th>Centro de costos</th><th>Responsable</th></tr></thead><tbody>
  ${rows.map(x=>`<tr data-hl="${esc(x.i)}" class="${x.an?"an":""}${x._cam?" cam":""}"><td class="mono">${fecha(x.f)}</td>
   <td>${esc(hProv(x))}<span class="sub">${esc(x.nit||"sin NIT")}${x.t?" · "+esc(x.t.toLowerCase()):""}</span></td>
   <td>${esc(x.oc||"—")}${x.fac?`<span class="sub">Fact. ${esc(x.fac)}</span>`:""}</td><td class="d">${esc(x.d||"—")}${x.ab?`<span class="sub">${esc(x.ab)}</span>`:""}</td>
   <td class="n">${peso(x.tot)}${x.rf?`<span class="sub">Retención ${peso(x.rf)}</span>`:""}</td><td>${hEstado(x)}</td>
-  <td>${G&&!x.an?`<select class="inp" data-hcc="${esc(x.i)}" aria-label="Centro de costos">${optCC(x.cc||"","—")}</select>`:esc(x.cc?ccNom(x.cc):"—")}${!x.cc&&x.sug?`<span class="sub">Sugerido: ${esc(ccNom(x.sug))}</span>`:""}</td>
-  <td>${G&&!x.an?`<select class="inp" data-hsol="${esc(x.i)}" aria-label="Responsable">${optSol(x.sol||"","—")}</select>`:esc(x.sol?persona(x.sol):"—")}</td></tr>`).join("")}
+  <td>${G&&!x.an&&!x.ord?`<select class="inp" data-hcc="${esc(x.i)}" aria-label="Centro de costos">${optCC(x.cc||"","—")}</select>`:esc(x.cc?ccNom(x.cc):"—")}${!x.cc&&x.sug?`<span class="sub">Sugerido: ${esc(ccNom(x.sug))}</span>`:""}</td>
+  <td>${G&&!x.an&&!x.ord?`<select class="inp" data-hsol="${esc(x.i)}" aria-label="Responsable">${optSol(x.sol||"","—")}</select>`:esc(x.sol?persona(x.sol):"—")}</td></tr>`).join("")}
  </tbody></table></div>
  ${total>rows.length?`<button class="btn mas" id="h-mas">Ver más (${fmtN(total-rows.length)})</button>`:""}`
  :`<div class="panel empty">No hay líneas con ese criterio.</div>`}
  <div class="h-save" id="h-save"${h.cam.size?"":" hidden"}><b id="h-save-n">${h.cam.size} cambio${h.cam.size===1?"":"s"} sin guardar</b><button type="button" class="btn" id="h-desc">Descartar</button><button type="button" class="btn pri" id="h-guardar">Guardar</button></div>`}
+
+/* Pasar líneas pendientes de pago a Pedidos: un pedido aprobado (aprob.hist) y ya recibido por línea */
+function hPedido(x){const nit=x.nit,v=+x.v||+x.tot||0,ivp=v?Math.round((+x.iv||0)*100/v):0,iva=[0,5,19].find(t=>Math.abs(t-ivp)<=1)??ivp,
+ oc=(x.oc||"").trim(),cot=/^(ctz|cot|cta|cuenta)/i.test(oc),u=S.equipo.get(x.sol)||{};
+ const it={txt:x.d||"Compra del histórico",cant:1,u:"global",prov:nit,precio:v,iva,oc:oc||"Excel "+x.i,ocFecha:x.f,rec:{estado:"ok",fecha:x.f,por:ME(),hist:true}};
+ if(cot)it.ocTipo="cot";if(x.fac)it.fac=x.fac;
+ const nota=["Pasado del histórico de OC ("+x.i+")",x.est?"Estado en Excel: "+x.est:"",x.ab?"Abonos: "+x.ab:"",x.rf?"Retención en Excel: "+peso(x.rf):""].filter(Boolean).join(" · ");
+ return{fecha:x.f,sol:x.sol,jefe:u.jefe||null,cc:x.cc,items:[it],aprob:{ok:true,hist:true,por:ME(),fecha:hoy()},hist:x.i,nota}}
+async function hPasar(btn){const h=HS();if(h.cam.size){toast("Primero guarda los cambios pendientes.");return}
+ const R=hFiltrar(hLineas()).filter(x=>hPend(x)&&!x.ord&&x.cc&&x.sol),sinProv=[...new Set(R.filter(x=>!x.nit||!provs().has(x.nit)).map(x=>x.nit||x.pn))];
+ if(!R.length)return;
+ if(sinProv.length){toast(`Primero crea en Proveedores: ${sinProv.slice(0,4).join(", ")}${sinProv.length>4?"…":""}. Esas líneas no se pasan.`,7000)}
+ const ok=R.filter(x=>x.nit&&provs().has(x.nit));if(!ok.length)return;
+ if(!confirm(`Se crearán ${ok.length} pedido${ok.length>1?"s":""} aprobado${ok.length>1?"s":""} y recibido${ok.length>1?"s":""}, listos para factura y pago. ¿Continuar?`))return;
+ await guardando(btn,async()=>{const por={};let n=0;
+  /* Si algo falla a mitad, igual se marcan en el histórico los que sí se crearon (para no duplicarlos) */
+  try{for(const x of ok){const k=await DB.siguiente(),id="ORD-"+String(k).padStart(4,"0"),o=hPedido(x);o.n=k;await DB.insert(COL.ord,id,o);(por[x._doc]=por[x._doc]||new Map()).set(x.i,id);n++}}
+  finally{for(const[id,M]of Object.entries(por)){const fr=await DB.fresco(COL.his,id);if(!fr)continue;await DB.set(COL.his,id,{...fr,l:(fr.l||[]).map(x=>M.has(x.i)?{...x,ord:M.get(x.i),por:ME(),fe:hoy()}:x)})}}
+  toast(`Se crearon ${n} pedidos. Ya están en Pedidos y en Pagos.`,5000);render()})}
 function hCambiar(i,k,v,base){const h=HS();base=base||hLineas().find(x=>x.i===i);if(!base)return;const c={...(h.cam.get(i)||{cc:base.cc||"",sol:base.sol||""})};c[k]=v;
  const doc=DB.docs(COL.his).get(base._doc),orig=(doc.l||[]).find(x=>x.i===i)||{};
  if((c.cc||"")===(orig.cc||"")&&(c.sol||"")===(orig.sol||""))h.cam.delete(i);else h.cam.set(i,c)}
@@ -1426,6 +1447,8 @@ function enlazarHist(){const h=HS();
   const R=hFiltrar(hLineas()).filter(x=>!x.an);for(const x of R){if(cc)hCambiar(x.i,"cc",cc,x);if(sol)hCambiar(x.i,"sol",sol,{...x,...(h.cam.get(x.i)||{})})}toast(`Aplicado a ${fmtN(R.length)} líneas. Revisa y pulsa Guardar.`,4500);render()};
  const sg=$("#hb-sug");if(sg)sg.onclick=()=>{const R=hFiltrar(hLineas()).filter(x=>!x.an&&!x.cc&&x.sug);for(const x of R)hCambiar(x.i,"cc",x.sug,x);toast(`Se puso el centro sugerido en ${fmtN(R.length)} líneas. Revisa y pulsa Guardar.`,4500);render()};
  const d=$("#h-desc");if(d)d.onclick=()=>{h.cam.clear();render()};
+ const pd=$("#hb-ped");if(pd)pd.onclick=()=>hPasar(pd);
+ document.querySelectorAll("#view a[href^=\"#ORD-\"]").forEach(a=>a.onclick=e=>{e.preventDefault();dlgOrden(a.getAttribute("href").slice(1))});
  const g=$("#h-guardar");if(g)g.onclick=()=>guardando(g,async()=>{const por={};
   for(const[i,c]of h.cam){const doc=[...DB.docs(COL.his)].find(([,dd])=>(dd.l||[]).some(x=>x.i===i));if(doc)(por[doc[0]]=por[doc[0]]||new Map()).set(i,c)}
   let n=0;for(const[id,M]of Object.entries(por)){const fr=await DB.fresco(COL.his,id);if(!fr)continue;
