@@ -372,7 +372,7 @@ function sv(tag,a,...kids){const e=document.createElementNS(SVGNS,tag);if(a)for(
 const MODS={
  tablero:{n:"Dashboard",d:"Lo más importante de Sanidad y Compras: lo bueno, lo que preocupa e indicadores.",ic:"M4 20V11|M10 20V5|M16 20v-6|M21 20H3"},
  sanidad:{n:"Sanidad",d:"Agua y clima, eventos sanitarios, lotes y alertas de las fincas.",ic:"M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z|M8 11h.01"},
- compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261118b"},
+ compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261118c"},
  mantenimiento:{n:"Mantenimiento",d:"Solicitudes, cronograma preventivo, equipos e inventario.",ic:"M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z",url:"mantenimiento.html?v=20261117b"}};
 const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras",tecnico:"Técnico",jefe:"Jefe de mantenimiento",director:"Dirección"};
 function modulosDe(u){const am=u?.app_metadata||{};const m=am.modulos&&typeof am.modulos==="object"?{...am.modulos}:{sanidad:am.rol||"registro"};
@@ -1568,7 +1568,7 @@ function tbSanidad(M,P){const hoy=M.hoy,F=[];let vivT=0,muT=0,v0T=0,muP=0,v0P=0;
 function tbCompras(hoyD,P){const C=S.C,dIn=(f,a,b)=>{const d=dn(f);return d!=null&&d>=a&&d<=b},a0=hoyD-P+1,p0=hoyD-2*P+1,p1=hoyD-P;
  const R={comprado:0,compradoP:0,nuevos:0,nuevosP:0,abiertos:0,porAprob:[],porGer:0,nov:0,sinFac:0,pagoPend:0,vencidos:[],alzas:[],alzas90:0,sin3:0,cambios:0,cc:new Map(),prov:new Map(),tOC:[],tRec:[],cotiz:0};
  for(const[id,o]of C.ord){const e=TB.estado(o),it=TB.act(o);
-  if(dIn(o.fecha,a0,hoyD))R.nuevos++;if(dIn(o.fecha,p0,p1))R.nuevosP++;
+  if(!o.hist&&dIn(o.fecha,a0,hoyD))R.nuevos++;if(!o.hist&&dIn(o.fecha,p0,p1))R.nuevosP++;
   if(!["cerrado","anulado","rechazado"].includes(e))R.abiertos++;
   if(e==="por-aprobar")R.porAprob.push({id,dias:hoyD-dn(o.fecha)});if(e==="por-aprobar-gerencia")R.porGer++;
   if(e==="cotizando")R.cotiz++;
@@ -1577,8 +1577,8 @@ function tbCompras(hoyD,P){const C=S.C,dIn=(f,a,b)=>{const d=dn(f);return d!=nul
   for(const i of it){const t=TB.tot(i);
    const fp=i.prov?TB.fPago(o,i.prov):null;
    if(fp){if(dIn(fp,a0,hoyD)){R.comprado+=t;R.cc.set(o.cc,(R.cc.get(o.cc)||0)+t);if(i.prov)R.prov.set(i.prov,(R.prov.get(i.prov)||0)+t)}if(dIn(fp,p0,p1))R.compradoP+=t;
-    if(dn(fp)>hoyD-90&&i.rec?.fecha){const dr=dn(i.rec.fecha)-dn(fp);if(dr>=0)R.tRec.push(dr)}}
-   if(i.oc&&i.ocFecha){if(dn(i.ocFecha)>hoyD-90){const dd=dn(i.ocFecha)-dn(o.fecha);if(dd>=0)R.tOC.push(dd)}
+    if(dn(fp)>hoyD-90&&i.rec?.fecha&&!o.hist){const dr=dn(i.rec.fecha)-dn(fp);if(dr>=0)R.tRec.push(dr)}}
+   if(i.oc&&i.ocFecha){if(!o.hist&&dn(i.ocFecha)>hoyD-90){const dd=dn(i.ocFecha)-dn(o.fecha);if(dd>=0)R.tOC.push(dd)}
     if(i.sin3&&dIn(i.ocFecha,a0,hoyD))R.sin3++}
    if(i.alza){if(dIn(i.alza.fecha,a0,hoyD))R.alzas.push({id,i,o});if(dn(i.alza.fecha)>hoyD-90)R.alzas90++}
    if(i.cambio?.estado==="pendiente")R.cambios++}
