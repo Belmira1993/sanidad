@@ -381,6 +381,9 @@ dialog.dlg.doc{width:min(900px,98vw);height:92vh}dialog.dlg.doc .doc-f{width:100
 .warn-b{border-color:var(--warn);background:var(--warn-bg)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:12px}
 .tab.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.inp[data-r="ok"]{border-color:var(--ok);background:var(--ok-bg)}
+.leer{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.leido{border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:.9rem;margin:8px 0;background:var(--surface-2)}.leido.ok{border-color:var(--ok);background:var(--ok-bg)}
 </style>
 <script>try{const t=JSON.parse(localStorage.getItem("sanidad:tema"));if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
@@ -473,6 +476,7 @@ const MANTA=(()=>{
  const finMes=(y,m)=>new Date(Date.UTC(y,m+1,0)).toISOString().slice(0,10);
  const addM=(f,n)=>{const y=+f.slice(0,4),m=+f.slice(5,7)-1,d=+f.slice(8,10);const fm=finMes(y,m+n);return d>=28?fm:fm.slice(0,8)+String(Math.min(d,+fm.slice(8))).padStart(2,"0")};
  const sumar=(f,fr)=>FR[fr][1]==="m"?addM(f,FR[fr][0]):addD(f,FR[fr][0]);
+ const noDomA=f=>f&&new Date(f+"T12:00:00Z").getUTCDay()===0?addD(f,1):f;
  const dias=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/864e5);
  const fe=f=>f?f.slice(8,10)+"/"+f.slice(5,7):"—";
  const horas=ms=>ms/36e5;
@@ -509,7 +513,7 @@ const MANTA=(()=>{
   const ult=(c,pid)=>{let u=null;for(const[,o]of L)if(o.prev&&o.prev.eq===c&&o.prev.plan===pid&&o.terminado){const f=o.terminado.fecha.slice(0,10);if(!u||f>u)u=f}return u};
   const abiertaPrev=(c,pid)=>L.some(([,o])=>o.prev&&o.prev.eq===c&&o.prev.plan===pid&&!o.terminado);
   let venc=0,venc7=[];const ym=h.slice(0,7),mp=addM(ym+"-15",-1).slice(0,7);let progMP=0,hechoMP=0;
-  for(const[c,e]of E){if(e.estado!=="activo")continue;for(const p of e.plan||[]){if(!CAL.includes(p.frec))continue;const u=ult(c,p.id),prox=u?sumar(u,p.frec):primera(p,c,h);
+  for(const[c,e]of E){if(e.estado!=="activo")continue;for(const p of e.plan||[]){if(!CAL.includes(p.frec))continue;const u=ult(c,p.id),prox=noDomA(u?sumar(u,p.frec):primera(p,c,h));
    if(prox<h&&!abiertaPrev(c,p.id)){venc++;if(dias(prox,h)>7)venc7.push(eqN(c))}
    let f=u||prox,g=0;while(f<mp+"-01"&&g++<60)f=sumar(f,p.frec);while(f.slice(0,7)===mp&&g++<80){progMP++;f=sumar(f,p.frec)}}}
   for(const[,o]of L)if(o.prev&&o.terminado&&(o.prev.vence||"").slice(0,7)===mp)hechoMP++;
@@ -551,6 +555,8 @@ const addD=(f,n)=>{const d=new Date(f+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+
 const finMes=(y,m)=>new Date(Date.UTC(y,m+1,0)).toISOString().slice(0,10);
 const addM=(f,n)=>{const y=+f.slice(0,4),m=+f.slice(5,7)-1,d=+f.slice(8,10);const fm=finMes(y,m+n);return(d>=28?fm:fm.slice(0,8)+String(Math.min(d,+fm.slice(8))).padStart(2,"0"))};
 const sumar=(f,fr)=>{const F=FREC[fr];return F[2]==="m"?addM(f,F[1]):addD(f,F[1])};
+/* Decisión de Gerencia: ningún preventivo se programa en domingo; pasa al lunes */
+const noDom=f=>f&&new Date(f+"T12:00:00Z").getUTCDay()===0?addD(f,1):f;
 const ME=()=>String(S.me.email||"").toLowerCase();
 const persona=e=>S.equipo.get(String(e||"").toLowerCase())?.nombre||e||"—";
 const ords=()=>DB.docs(COLM.ord),eqs=()=>DB.docs(COLM.eq),items=()=>DB.docs(COLM.inv);
@@ -581,9 +587,9 @@ function primeraFecha(p,cod){if(p.prox)return p.prox;const h=hoy(),y=+h.slice(0,
  const fm=finMes(y,m+1+off),ini=fm.slice(0,8)+"01",H=[];for(let f=ini;f<=fm;f=addD(f,1)){const wd=new Date(f+"T12:00:00Z").getUTCDay();if(wd>0&&wd<6)H.push(f)}
  const k=(+String(cod||"").replace(/\D/g,"")||0)*7+(+String(p.id||"").replace(/\D/g,"")||0)*3;return H[k%H.length]}
 function programa(){const L=[];for(const[cod,e]of eqs()){if(e.estado!=="activo")continue;for(const p of e.plan||[]){if(!FREC[p.frec])continue;
-  const u=ultimoHecho(cod,p.id),prox=u?sumar(u,p.frec):primeraFecha(p,cod),abierta=ordenAbierta(cod,p.id);L.push({cod,e,p,ult:u,prox,abierta,cal:CALF.includes(p.frec)})}}
+  const u=ultimoHecho(cod,p.id),base=u?sumar(u,p.frec):primeraFecha(p,cod),prox=noDom(base),abierta=ordenAbierta(cod,p.id);L.push({cod,e,p,ult:u,base,prox,abierta,cal:CALF.includes(p.frec)})}}
  return L.sort((a,b)=>a.prox.localeCompare(b.prox))}
-function ocurrencias(it,desde,hasta){const out=[];let f=it.prox,g=0;while(f<desde&&g++<400)f=sumar(f,it.p.frec);while(f<=hasta&&g++<800){out.push(f);f=sumar(f,it.p.frec)}if(it.prox<desde&&!it.abierta&&it.prox<hoy())out.unshift(it.prox);return out}
+function ocurrencias(it,desde,hasta){const out=[];let f=it.base||it.prox,g=0;while(noDom(f)<desde&&g++<400)f=sumar(f,it.p.frec);while(noDom(f)<=hasta&&g++<800){out.push(noDom(f));f=sumar(f,it.p.frec)}if(it.prox<desde&&!it.abierta&&it.prox<hoy())out.unshift(it.prox);return out}
 const anioProg=()=>{const h=hoy();return+h.slice(5,7)>=11?+h.slice(0,4)+1:+h.slice(0,4)};
 const progAprob=a=>DB.docs(COLM.cfg).get("programa-"+a)?.aprobado;
 
@@ -810,20 +816,26 @@ const CAMPOS=[["marca","Marca"],["modelo","Modelo"],["serie","Serie"],["capacida
 function dlgEquipo(cod){const e=cod?eqs().get(cod):{nombre:"",area:"Productos naturales",cc:"planta-de-proceso",estado:"activo",plan:[{id:"p1",frec:"mensual",act:"Mantenimiento preventivo mensual"}]};const G=S.gestion,dis=G?"":" disabled";
  const bit=[...ords()].filter(([,o])=>o.equipo===cod).sort((a,b)=>b[1].n-a[1].n);
  const planRow=(p,i)=>`<div class="pl-row" data-pl="${i}"><select class="inp" data-k="frec"${dis}>${Object.entries(FREC).map(([k,f])=>`<option value="${k}"${p.frec===k?" selected":""}>${f[0]}</option>`).join("")}</select><input class="inp" data-k="act" value="${esc(p.act||"")}"${dis}><input class="inp" type="date" data-k="prox" value="${esc(p.prox||"")}" title="Primera fecha (opcional)"${dis}>${G?`<button class="x" data-plx="${i}" title="Quitar">×</button>`:""}</div>`;
- abrir(cod?`${esc(cod)} · ${esc(e.nombre)}`:"Nuevo equipo",`<div class="fgrid"><label class="f wide">Nombre<input class="inp" id="q-nom" value="${esc(e.nombre)}"${dis}></label>
+ abrir(cod?`${esc(cod)} · ${esc(e.nombre)}`:"Nuevo equipo",`${G?`<div class="leer"><button type="button" class="btn sm" id="q-pdf-b">Leer ficha técnica (PDF)</button><input type="file" id="q-pdf" accept="application/pdf,.pdf" hidden><span class="muted small">Toma marca, modelo, serie, potencia, voltaje y capacidad. El archivo no se guarda.</span></div><div id="q-leido"></div>`:""}<div class="fgrid"><label class="f wide">Nombre<input class="inp" id="q-nom" value="${esc(e.nombre)}"${dis}></label>
   <label class="f">Área<select class="inp" id="q-area"${dis}>${AREAS.map(a=>`<option${e.area===a?" selected":""}>${a}</option>`).join("")}</select></label>
   <label class="f">Centro de costos<select class="inp" id="q-cc"${dis}>${centros().map(c=>`<option value="${esc(c.id)}"${e.cc===c.id?" selected":""}>${esc(c.nombre)}</option>`).join("")}</select></label>
   <label class="f">Estado<select class="inp" id="q-est"${dis}><option value="activo"${e.estado==="activo"?" selected":""}>Activo</option><option value="fuera"${e.estado==="fuera"?" selected":""}>Fuera de servicio</option><option value="baja"${e.estado==="baja"?" selected":""}>Dado de baja</option></select></label>
   ${CAMPOS.map(([k,t])=>`<label class="f">${t}<input class="inp" data-c="${k}" value="${esc(e[k]||"")}"${dis}></label>`).join("")}
   <label class="f wide">Descripción<textarea id="q-desc" rows="3"${dis}>${esc(e.descripcion||"")}</textarea></label></div>
  <h4 class="sec">Plan de mantenimiento preventivo</h4><div id="q-plan">${(e.plan||[]).map(planRow).join("")}</div>${G?'<button class="btn sm" id="q-pl-add">Agregar actividad</button>':""}
- <p class="muted small">Las actividades mensuales o más espaciadas aparecen en el calendario. La primera fecha es opcional.</p>
+ <p class="muted small">Las actividades mensuales o más espaciadas aparecen en el calendario. La primera fecha es opcional. Ningún preventivo se programa en domingo: si cae domingo, pasa al lunes.</p>
  ${e.manual||G?`<details class="mas"${cod?"":" open"}><summary><b>Instrucciones y recomendaciones (manual)</b></summary><textarea id="q-man" rows="10"${dis}>${esc(e.manual||"")}</textarea></details>`:""}
  ${cod?`<h4 class="sec">Bitácora del equipo (${bit.length})</h4>${bit.length?`<ul class="hist">${bit.map(([id,o])=>`<li><a href="#" data-bo="${id}"><b>${id}</b></a> · ${fecha(o.fecha)} · ${TIPO[o.tipo]||""} · ${chipE(estadoM(o))}<br>${esc((o.terminado?.txt||o.desc||"").slice(0,160))}</li>`).join("")}</ul>`:'<p class="muted">Sin registros todavía.</p>'}`:""}`,
  `${cod&&S.rol!=="lector"?'<button class="btn izq" id="q-sol">Solicitar mantenimiento</button>':""}<button class="btn" data-cerrar>${G?"Cancelar":"Cerrar"}</button>${G?'<button class="btn pri" id="q-ok">Guardar</button>':""}`);
  dlg.classList.add("ancho");dlg.onclose=()=>dlg.classList.remove("ancho");
  dlg.querySelectorAll("[data-bo]").forEach(a=>a.onclick=ev=>{ev.preventDefault();dlgOrden(a.dataset.bo)});
  if($("#q-sol"))$("#q-sol").onclick=()=>dlgNueva(cod);
+ if($("#q-pdf-b")){$("#q-pdf-b").onclick=()=>$("#q-pdf").click();$("#q-pdf").onchange=async ev=>{const f=ev.target.files[0];ev.target.value="";if(!f)return;const box=$("#q-leido");box.innerHTML='<p class="muted small">Leyendo el PDF…</p>';
+  try{const r=leerFicha(await textoPDF(f)),ok=[],dif=[];
+   for(const[k,t]of CAMPOS){if(!r[k])continue;const i=dlg.querySelector(`[data-c="${k}"]`);if(!i)continue;if(!i.value.trim()){i.value=r[k];i.dataset.r="ok";ok.push(t.toLowerCase())}else if(norm(i.value)!==norm(r[k]))dif.push(`${t}: en el PDF dice «${esc(r[k])}»`)}
+   box.innerHTML=ok.length||dif.length?`<div class="leido${ok.length?" ok":""}"><b>${ok.length?"Se llenaron: "+ok.join(", ")+".":"No se llenó nada nuevo."}</b>${dif.length?`<br><span class="small">No se cambiaron (ya tenían dato): ${dif.join(" · ")}</span>`:""}<br><span class="muted small">Revisa los campos en verde antes de guardar.</span></div>`
+    :'<div class="leido">No se encontraron marca, modelo, serie ni datos eléctricos en el PDF. Escríbelos a mano.</div>'}
+  catch(err){box.innerHTML=`<div class="leido">${esc(err.message||"No se pudo leer el PDF.")}</div>`}}}
  const leerPlan=()=>[...dlg.querySelectorAll("[data-pl]")].map((r,i)=>{const p=(e.plan||[])[+r.dataset.pl]||{};const o={id:p.id||"p"+(Date.now()%1e6)+i,frec:r.querySelector('[data-k="frec"]').value,act:r.querySelector('[data-k="act"]').value.trim()};const pr=r.querySelector('[data-k="prox"]').value;if(pr)o.prox=pr;if(p.check)o.check=p.check;return o}).filter(p=>p.act);
  const bindPl=()=>dlg.querySelectorAll("[data-plx]").forEach(b=>b.onclick=()=>b.closest(".pl-row").remove());bindPl();
  if($("#q-pl-add"))$("#q-pl-add").onclick=()=>{const d=document.createElement("div");d.innerHTML=planRow({frec:"mensual",act:""},900+dlg.querySelectorAll("[data-pl]").length);$("#q-plan").append(d.firstChild);bindPl()};
@@ -833,6 +845,28 @@ function dlgEquipo(cod){const e=cod?eqs().get(cod):{nombre:"",area:"Productos na
   const mn=$("#q-man")?.value.trim();if(mn)d.manual=mn;else delete d.manual;
   let k=cod;if(!k){let m=0;for(const x of eqs().keys())m=Math.max(m,+x.replace(/\D/g,"")||0);k="EQ-"+String(m+1).padStart(3,"0");d.cod=k}
   await DB.set(COLM.eq,k,d);dlg.close();toast(cod?"Equipo actualizado.":`Equipo ${k} creado.`);render()})}
+
+
+/* ---------- Lectura de ficha técnica (PDF digital). El archivo no se guarda. ---------- */
+let pdfP=null;
+const cargarPDF=()=>pdfP||(pdfP=new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+ s.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";res(window.pdfjsLib)};s.onerror=()=>{pdfP=null;rej({message:"No se pudo cargar el lector de PDF. Revisa la conexión."})};document.head.appendChild(s)}));
+async function textoPDF(file){if(file.size>25e6)throw{message:"El PDF es muy pesado (más de 25 MB)."};const L=await cargarPDF();
+ const doc=await L.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;let t="";
+ for(let i=1;i<=Math.min(doc.numPages,8);i++){const c=await(await doc.getPage(i)).getTextContent();for(const it of c.items)t+=it.str+(it.hasEOL?"\n":" ")}
+ t=t.replace(/[ \t]+/g," ");if(t.replace(/\s/g,"").length<40)throw{message:"Este PDF parece una foto o un escaneo y no tiene texto para leer. Escribe los datos a mano."};return t}
+function leerFicha(t){const r={},L=t.split(/\n/).map(x=>x.trim()).filter(Boolean);
+ const ROT={marca:/^(marca|fabricante|brand|manufacturer|make)\b/i,modelo:/^(modelo|model|referencia|ref\.?)\b/i,serie:/^(n[uú]mero de serie|no\.? ?de serie|serie|serial(?: number| no\.?)?|s\/n|sn)\b/i,
+  potencia:/^(potencia|power|hp|kw)\b/i,voltaje:/^(voltaje|tensi[oó]n|voltage|volt(?:s|ios)?|alimentaci[oó]n)\b/i,capacidad:/^(capacidad|capacity|caudal|flow|volumen)\b/i};
+ const limpiar=v=>v.replace(/^[\s:.\-#=|]+/,"").split(/\s{2,}|\s\|\s/)[0].replace(/[\s;,]+$/,"").trim().slice(0,60);
+ const esRot=v=>Object.values(ROT).some(re=>re.test(v));
+ for(let i=0;i<L.length;i++)for(const[k,re]of Object.entries(ROT)){if(r[k])continue;const m=L[i].match(re);if(!m)continue;
+  let v=limpiar(L[i].slice(m[0].length));if((!v||v.length<2)&&L[i+1]&&!esRot(L[i+1]))v=limpiar(L[i+1]);
+  if(v&&v.length>=2&&!esRot(v)&&/[a-z0-9]/i.test(v))r[k]=v}
+ if(!r.potencia){const m=t.match(/\b(\d+(?:[.,]\d+)?)\s*(hp|kw|cv)\b/i);if(m)r.potencia=m[1]+" "+m[2].toUpperCase()}
+ if(!r.voltaje){const m=t.match(/\b(\d{3}(?:\s*\/\s*\d{3})?)\s*(v|vac|volt(?:s|ios)?)\b/i);if(m)r.voltaje=m[1].replace(/\s/g,"")+" V"}
+ for(const k of["potencia","voltaje","capacidad"])if(r[k]&&!/\d/.test(r[k]))delete r[k];
+ return r}
 
 /* ---------- Inventario ---------- */
 function vInv(){const w=cargando(COLM.inv,COLM.mov,COLM.pre,COLM.ord);if(w)return w;const f=S.inv,ST=stock();const all=[...items()].filter(([,i])=>i.activo!==false);
