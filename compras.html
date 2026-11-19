@@ -581,7 +581,7 @@ function dlgEmpresa(){const e=empresa();abrir("Datos de la empresa",`<p class="m
  $("#e-ok").onclick=ev=>guardando(ev.target,async()=>{const d={};for(const[k,id]of[["direccion","#e-dir"],["telefono","#e-tel"],["correo","#e-mail"]]){const v=$(id).value.trim();if(v)d[k]=v}await DB.set(COL.cfg,"empresa",d);dlg.close();toast("Datos guardados.");render()})}
 
 /* =================== ÓRDENES DE PEDIDO (ciclo de compra) =================== */
-const EST={ "por-aprobar":["Por aprobar","warn",1],"rechazado":["Rechazado","bad",0],"aprobado":["Por cotizar","info",2],"en-cotizacion":["En cotización","info",3],
+const EST={ "devuelto":["Devuelto","warn",1],"por-aprobar":["Por aprobar","warn",1],"rechazado":["Rechazado","bad",0],"aprobado":["Por cotizar","info",2],"en-cotizacion":["En cotización","info",3],
  "por-aprobar-gerencia":["Por aprobar Gerencia","warn",4],"cotizado":["Falta soporte","info",4],"soportado":["Cotizado","info",5],"por-pagar":["Por pagar","warn",5],"comprado":["Comprado","ok",6],"despachado":["Despachado","ok",7],
  "con-novedad":["Con novedad","bad",8],"recibido":["Recibido","ok",9],"novedad-resuelta":["Novedad resuelta","ok",9],"cerrado":["Cerrado","",10],"anulado":["Anulado","",11]};
 const TOPE_GERENCIA=1000000;
@@ -600,7 +600,7 @@ const totItem=i=>(+i.cant||0)*(+i.precio||0)*(1+(+i.iva||0)/100);
 const totOrden=o=>activos(o).reduce((s,i)=>s+totItem(i),0);
 const subOrden=o=>activos(o).reduce((s,i)=>s+(+i.cant||0)*(+i.precio||0),0);
 /* Estado automático según los datos ingresados (pedido de Laura). Solo aprobación, recepción y novedad se marcan a mano. */
-function estado(o){if(o.anulada)return"anulado";const it=activos(o);
+function estado(o){if(o.anulada)return"anulado";if(o.dev)return"devuelto";const it=activos(o);
  if(o.aprob&&o.aprob.ok===false)return"rechazado";if(!o.aprob?.ok)return"por-aprobar";
  if(!it.length)return"anulado";
  /* Si todo ya llegó, manda la recepción (pedidos antiguos recibidos sin OC o sin proveedor en la base) */
@@ -632,7 +632,8 @@ function pendientes(){const me=ME(),L=[],C=[];
    if(["soportado","comprado","despachado","recibido","novedad-resuelta"].includes(e)&&factura(o)!=="ok")C.push([id,"Registrar factura"]);
    }
   if(o.sol===me&&["comprado","despachado"].includes(e))L.push([id,"Confirmar que llegó"]);
-  if(o.sol===me&&e==="rechazado"&&!o.visto)L.push([id,"Fue rechazado: revisa el motivo"])}
+  if(o.sol===me&&e==="rechazado"&&!o.visto)L.push([id,"Fue rechazado: revisa el motivo"]);
+  if(o.sol===me&&e==="devuelto")L.push([id,"Te lo devolvieron: "+String(o.dev.motivo||"").slice(0,70)])}
  if(DB.listo(COL.pag))for(const[lid,l]of lotes()){const Ls=l.lineas||[];const prog=Ls.filter(x=>x.estado==="programado").length;
   if(prog&&S.pagos)L.push([lid,`Registrar ${prog} pago${prog>1?"s":""} del lote`]);
   if(Ls.some(x=>x.estado==="diferencia"&&x.dif?.estado!=="por-aprobar")&&(S.pagos||S.gestion))(S.pagos&&!S.gestion?L:C).push([lid,"Conciliar diferencia de pago"]);
@@ -645,7 +646,7 @@ function pendientes(){const me=ME(),L=[],C=[];
  const ord=X=>X.sort((a,b)=>(a[0]==="RECOT"||a[0]==="EVAL"?1:0)-(b[0]==="RECOT"||b[0]==="EVAL"?1:0)||b[0].localeCompare(a[0]));
  /* Gerencia ve aparte el trabajo de Compras (Laura); a Compras se le suma a su lista */
  if(S.rol==="admin")return{mios:ord(L),compras:ord(C)};return{mios:ord(L.concat(C)),compras:[]}}
-const FILTROS=[["","Todas"],["abiertas","Abiertas"],["por-aprobar","Por aprobar"],["por-cotizar","Por cotizar"],["por-pagar-f","Por pagar"],["en-camino","Comprado / en camino"],["con-novedad","Con novedad"],["sin-factura","Sin factura"],["pago-pend","Pago pendiente"],["cerrado","Cerradas"],["anulado","Anuladas o rechazadas"]];
+const FILTROS=[["","Todas"],["abiertas","Abiertas"],["devuelto","Devueltos"],["por-aprobar","Por aprobar"],["por-cotizar","Por cotizar"],["por-pagar-f","Por pagar"],["en-camino","Comprado / en camino"],["con-novedad","Con novedad"],["sin-factura","Sin factura"],["pago-pend","Pago pendiente"],["cerrado","Cerradas"],["anulado","Anuladas o rechazadas"]];
 function pasaFiltro(o,f){const e=estado(o);switch(f){case"":return true;case"abiertas":return!["cerrado","anulado","rechazado"].includes(e);case"por-aprobar":return e==="por-aprobar"||e==="por-aprobar-gerencia";
  case"por-cotizar":return e==="aprobado"||e==="en-cotizacion"||e==="cotizado";case"por-pagar-f":return e==="soportado"||e==="por-pagar";case"en-camino":return e==="comprado"||e==="despachado";case"sin-factura":return!["anulado","rechazado","por-aprobar"].includes(e)&&factura(o)!=="ok"&&EST[e][2]>=5;
  case"pago-pend":return EST[e][2]>=5&&e!=="anulado"&&["pend","parcial"].includes(pago(o));case"anulado":return e==="anulado"||e==="rechazado";default:return e===f}}
@@ -749,6 +750,39 @@ function abrirDoc(html,titulo){const w=window.open("","_blank");if(w){w.document
  d.querySelector("iframe").srcdoc=html;$("#d2x").onclick=()=>d.close();d.onclose=()=>d.classList.remove("doc");d.showModal()}
 
 /* ---------- Nuevo pedido ---------- */
+
+/* Corregir un pedido devuelto: quien pidió ajusta artículos, cantidades y notas, responde y lo reenvía.
+   Si lo devolvió Compras vuelve a Compras (la aprobación se mantiene); si lo devolvió el jefe, vuelve al jefe. */
+function dlgCorregir(id){const o0=ords().get(id);if(!o0||!o0.dev)return;const o=JSON.parse(JSON.stringify(o0)),A=[...arts()].filter(([,d])=>!d.unido);
+ const its=(o.items||[]).map((it,i)=>[it,i]).filter(([it])=>!it.anulado);
+ const fila=(it,i)=>`<div class="it-row" data-orig="${i??""}"><label class="f a">Artículo<input class="it-art" list="arts-c" autocomplete="off" value="${esc(it?artNom(it):"")}"></label>
+  <label class="f c">Cantidad<input class="it-cant" type="number" min="0" step="any" inputmode="decimal" value="${it?esc(it.cant):""}"></label><label class="f u">Unidad<input class="it-u" list="unids-c" value="${esc(it?.u||"unidad")}"></label>
+  <label class="f n">Nota<input class="it-nota" value="${esc(it?.nota||"")}" placeholder="Referencia, medida, marca, para qué…"></label><button type="button" class="x it-del" aria-label="Quitar">×</button></div>`;
+ abrir(`Corregir ${id}`,`<div class="sug"><b>Motivo de la devolución:</b> ${esc(o.dev.motivo)}</div>
+  <h4 class="sec">Artículos</h4><div id="c-items">${its.map(([it,i])=>fila(it,i)).join("")}</div><button type="button" class="btn sm" id="c-mas">+ Agregar otro artículo</button>
+  <datalist id="arts-c">${A.map(([,d])=>`<option value="${esc(d.nombre)}">`).join("")}</datalist><datalist id="unids-c">${UNIDADES.map(u=>`<option value="${u}">`).join("")}</datalist>
+  <label class="f" style="margin-top:14px">Observaciones del pedido<textarea id="c-nota">${esc(o.nota||"")}</textarea></label>
+  <label class="f" style="margin-top:10px">Respuesta a la devolución<textarea id="c-resp" placeholder="Explica qué corregiste o aclara lo que te preguntaron"></textarea></label>
+  <p class="muted small">${o.dev.rol==="jefe"?"Al reenviarlo vuelve a "+esc(persona(o.jefe))+" para aprobar.":"Al reenviarlo vuelve a Compras; no necesita aprobarse otra vez."}</p>`,
+  '<button class="btn" id="c-cancel">Cancelar</button><button class="btn pri" id="c-ok">Reenviar pedido</button>');
+ const bind=r=>{r.querySelector(".it-del").onclick=()=>{if($("#c-items").children.length>1)r.remove()}};$("#c-items").querySelectorAll(".it-row").forEach(bind);
+ $("#c-mas").onclick=()=>{$("#c-items").insertAdjacentHTML("beforeend",fila(null,null));const r=$("#c-items").lastElementChild;bind(r);r.querySelector(".it-art").focus()};
+ $("#c-cancel").onclick=()=>dlgOrden(id);
+ $("#c-ok").onclick=ev=>guardando(ev.target,async()=>{const resp=$("#c-resp").value.trim();if(!resp)throw{message:"Escribe la respuesta a la devolución."};
+  const me=ME(),n=JSON.parse(JSON.stringify(o0)),usados=new Set(),nuevos=[];
+  for(const r of $("#c-items").children){const t=r.querySelector(".it-art").value.trim(),c=+String(r.querySelector(".it-cant").value).replace(",",".");if(!t&&!c)continue;
+   if(!t)throw{message:"Falta el nombre de un artículo."};if(!(c>0))throw{message:`Falta la cantidad de “${t}”.`};
+   const oi=r.dataset.orig===""?null:+r.dataset.orig,base=oi!=null?n.items[oi]:{};if(oi!=null)usados.add(oi);
+   const d=A.find(([,x])=>norm(x.nombre)===norm(t));
+   if(d){if(base.art!==d[0]){base.art=d[0];base.iva=base.iva??d[1].iva??0;delete base.txt}}else{if(artNom(base)!==t){delete base.art;base.txt=t}}
+   base.cant=c;base.u=r.querySelector(".it-u").value.trim()||"unidad";const nt=r.querySelector(".it-nota").value.trim();if(nt)base.nota=nt;else delete base.nota;
+   if(oi==null)nuevos.push(base)}
+  if(!usados.size&&!nuevos.length)throw{message:"Deja al menos un artículo."};
+  its.forEach(([,i])=>{if(!usados.has(i))n.items[i].anulado={por:me,fecha:hoy(),motivo:"Quitado al corregir el pedido"}});
+  n.items.push(...nuevos);const nota=$("#c-nota").value.trim();if(nota)n.nota=nota;else delete n.nota;
+  n.devs=[...(n.devs||[]),{...n.dev,resp:{fecha:hoy(),txt:resp}}];delete n.dev;
+  const fr=await DB.fresco(COL.ord,id);if(fr&&JSON.stringify(fr)!==JSON.stringify(o0)){toast("El pedido cambió mientras lo corregías. Se recargó: revisa y vuelve a intentar.",6000);dlgOrden(id);return}
+  await DB.set(COL.ord,id,n);toast(o0.dev.rol==="jefe"?"Pedido reenviado al jefe.":"Pedido reenviado a Compras.");dlg.close();render()})}
 function dlgNuevo(){const L=centros().filter(c=>c.activo!==false),A=[...arts()].filter(([,d])=>!d.unido);
  const filaHTML=k=>`<div class="it-row" data-k="${k}"><label class="f a">Artículo<input class="it-art" list="arts-l" autocomplete="off" placeholder="Escribe y elige"></label>
   <label class="f c">Cantidad<input class="it-cant" type="number" min="0" step="any" inputmode="decimal"></label><label class="f u">Unidad<input class="it-u" list="unids" value="unidad"></label>
@@ -920,7 +954,9 @@ function dlgRecot(k){const a=arts().get(k),up=a.unidadPrecio&&a.unidadPrecio!==a
 
 async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.parse(JSON.stringify(o0)),e=estado(o),me=ME();
  const G=S.gestion,dueno=o.sol===me,esJefe=o.jefe===me,ger=S.rol==="admin";
- const puedeEditarPedido=dueno&&e==="por-aprobar";
+ const puedeEditarPedido=dueno&&(e==="por-aprobar"||e==="devuelto");
+ /* Devolver a quien pidió (falta información): Compras antes del soporte del precio; el jefe mientras está por aprobar */
+ const puedeDevolver=(G&&["aprobado","en-cotizacion","cotizado"].includes(e)&&!activos(o).some(i=>i.oc||i.rec))||(e==="por-aprobar"&&(esJefe||ger));
  const pv=[...new Set(activos(o).map(i=>i.prov).filter(Boolean))];
  const inp=(k,i,v,attrs="")=>`<input class="inp" data-i="${i}" data-k="${k}" value="${esc(v??"")}" ${attrs}>`;
  const itemHTML=(it,i)=>{const a=it.art?arts().get(it.art):null,pr=it.prov?provs().get(it.prov):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad?a.unidadPrecio:"",fac=a?.factor||1;
@@ -955,15 +991,18 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
  const acciones=[];
  if(ger&&(o.items||[]).some(x=>x.cambio?.estado==="pendiente"))acciones.push((o.items||[]).map((x,i)=>x.cambio?.estado==="pendiente"?`<div class="cambio-ap"><span><b>${esc(artNom(x))}</b>: cambio de precio ${peso(x.cambio.ant)} → ${peso(x.cambio.nuevo)} por ${esc(x.u)} (${esc(persona(x.cambio.por))}: ${esc(x.cambio.motivo)})</span><button class="btn pri sm" data-cap="${i}" data-v="1">Aprobar cambio</button><button class="btn danger sm" data-cap="${i}" data-v="0">No aprobar</button></div>`:"").join(""));
  if(e==="por-aprobar"&&(esJefe||ger))acciones.push('<button class="btn pri" data-ap="1">Aprobar</button><button class="btn danger" data-ap="0">Rechazar</button>');
+ if(e==="devuelto"&&dueno)acciones.push('<button class="btn pri" id="o-corr">Corregir y reenviar</button>');
  if(e==="por-aprobar-gerencia"&&ger)acciones.push('<button class="btn pri" data-gap="1">Aprobar el gasto</button><button class="btn danger" data-gap="0">No aprobar</button>');
- const puedeAnular=!["anulado","cerrado"].includes(e)&&(G||(dueno&&e==="por-aprobar"));
+ const puedeAnular=!["anulado","cerrado"].includes(e)&&(G||(dueno&&(e==="por-aprobar"||e==="devuelto")));
  abrir(`${id} ${chipEst(e)}`,`<div class="o-info"><div><span>Pidió</span><b>${esc(quien(o))}</b></div><div><span>Fecha</span><b>${fecha(o.fecha)}</b></div><div><span>Centro de costos</span><b>${esc(ccNom(o.cc))}</b></div>
   <div><span>Aprobación</span><b>${o.aprob?.hist?"Aprobado antes de la app (histórico de OC)":o.aprob?.auto?"No requiere (jefe de área)":o.aprob?(o.aprob.ok?"Aprobó ":"Rechazó ")+esc(persona(o.aprob.por)):"Pendiente: "+esc(persona(o.jefe))}</b></div>
   <div><span>Total con IVA</span><b>${totOrden(o)?peso(totOrden(o)):"Sin cotizar"}</b></div>${totOrden(o)>=TOPE_GERENCIA&&(o.ger||!activos(o).every(i=>i.oc))?`<div><span>Gerencia</span><b>${o.ger?(o.ger.ok?"Aprobó":"No aprobó"):"Pendiente"}</b></div>`:""}</div>
   ${o.nota?`<p class="o-nota">${esc(o.nota)}</p>`:""}${o.aprob?.motivo?`<p class="sug">Motivo del rechazo: ${esc(o.aprob.motivo)}</p>`:""}${o.anulada?`<p class="sug">Anulado por ${esc(persona(o.anulada.por))}: ${esc(o.anulada.motivo||"")}</p>`:""}
+  ${o.dev?`<div class="sug"><b>Devuelto por ${esc(persona(o.dev.por))} el ${fecha(o.dev.fecha)}${o.dev.rol==="jefe"?" (jefe)":" (Compras)"}:</b> ${esc(o.dev.motivo)}<br><span class="small">${dueno?"Corrige o completa la información y pulsa <b>Corregir y reenviar</b>.":"Espera a que "+esc(quien(o))+" lo corrija y lo reenvíe."}</span></div>`:""}
+  ${(o.devs||[]).length?`<details class="mas"><summary>Devoluciones anteriores (${o.devs.length})</summary><ul class="small" style="margin:6px 0;padding-left:18px">${o.devs.map(d=>`<li><b>${fecha(d.fecha)}</b> · ${esc(persona(d.por))}: ${esc(d.motivo)}${d.resp?`<br>Respuesta (${fecha(d.resp.fecha)}): ${esc(d.resp.txt||"")}`:""}</li>`).join("")}</ul></details>`:""}
   ${acciones.length?`<div class="o-acc">${acciones.join("")}</div>`:""}
   <h4 class="sec">Artículos</h4>
-  ${G&&!["anulado","rechazado","por-aprobar"].includes(e)?`<div class="leer"><button type="button" class="btn sm" id="cot-b">Leer cotización (PDF)</button><input type="file" id="cot-f" accept="application/pdf,.pdf" hidden><span class="muted small">Toma proveedor, número de cotización y precios; revisas antes de guardar. El archivo no se guarda.</span></div><div id="cot-r"></div>`:""}
+  ${G&&!["anulado","rechazado","por-aprobar","devuelto"].includes(e)?`<div class="leer"><button type="button" class="btn sm" id="cot-b">Leer cotización (PDF)</button><input type="file" id="cot-f" accept="application/pdf,.pdf" hidden><span class="muted small">Toma proveedor, número de cotización y precios; revisas antes de guardar. El archivo no se guarda.</span></div><div id="cot-r"></div>`:""}
   ${(o.items||[]).map(itemHTML).join("")}
   ${pv.length&&(G||S.verCuentas)?`<h4 class="sec">Pago por proveedor</h4>${pv.map(n=>{const p=(o.pagos||{})[n]||{},sub=activos(o).filter(i=>i.prov===n).reduce((s,i)=>s+totItem(i),0);
    return`<div class="pago"><div class="pago-t"><b>${esc(provs().get(n)?.nombre||n)}</b><span class="muted small">${peso(sub)} con IVA${p.abonado?` · pagado ${peso(p.abonado)}${p.neto&&p.neto-p.abonado>0?" · saldo "+peso(p.neto-p.abonado):""}${p.lote?" ("+esc(p.lote)+")":""}`:""}${ctas().get(n)?" · cuenta "+esc(ctas().get(n).numero)+(ctas().get(n).banco?" "+esc(ctas().get(n).banco):""):""}</span>${G&&activos(o).filter(i=>i.prov===n).every(i=>+i.precio>0)?`<button type="button" class="btn sm" data-docp="${n}">Orden de pedido al proveedor</button>`:""}</div>
@@ -972,7 +1011,7 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
    :`<p class="small" style="margin:4px 0">${{pagado:"Pagado",credito:"A crédito"}[p.estado]||"Pendiente"}${p.comp?" · "+esc(p.comp):""}${p.fecha?" · "+fecha(p.fecha):""}</p>`}</div>`}).join("")}`:""}
   <datalist id="provs-l">${G?[...provs()].map(([n,d])=>`<option value="${esc(d.nombre)} · ${n}">`).join(""):""}</datalist><datalist id="arts-l2">${G?[...arts()].filter(([,d])=>!d.unido).map(([k,d])=>`<option value="${esc(d.nombre)} · ${k}">`).join(""):""}</datalist>
   <details class="mas" id="o-hist"><summary>Historial de cambios</summary><div class="muted small">Cargando…</div></details>`,
-  `${puedeAnular?'<button class="btn danger izq" id="o-anular">Anular</button>':""}<button type="button" class="btn" id="o-pdf" title="Descargar el pedido en PDF">PDF</button><a class="btn" href="${wa(`Pedido ${id} (${ccNom(o.cc)}): ${EST[e][0]}. ${({"por-aprobar":"Pendiente de tu aprobación.","por-aprobar-gerencia":"Pendiente de aprobación de Gerencia.","comprado":"Ya está comprado (pagado); confirma cuando llegue.","despachado":"Va en camino; confirma cuando llegue."})[e]||""} Ábrelo aquí: ${enlace(id)}`)}" target="_blank" rel="noopener">WhatsApp</a><button class="btn" data-cerrar>Cerrar</button>${G&&!["anulado","rechazado","por-aprobar"].includes(e)?'<button class="btn pri" id="o-ok">Guardar</button>':""}`);
+  `${puedeAnular?'<button class="btn danger izq" id="o-anular">Anular</button>':""}${puedeDevolver?'<button class="btn" id="o-dev">Devolver</button>':""}<button type="button" class="btn" id="o-pdf" title="Descargar el pedido en PDF">PDF</button><a class="btn" href="${wa(`Pedido ${id} (${ccNom(o.cc)}): ${EST[e][0]}. ${({"por-aprobar":"Pendiente de tu aprobación.","por-aprobar-gerencia":"Pendiente de aprobación de Gerencia.","comprado":"Ya está comprado (pagado); confirma cuando llegue.","despachado":"Va en camino; confirma cuando llegue.","devuelto":"Falta información: "+(o.dev?.motivo||"")+". Corrígelo y reenvíalo."})[e]||""} Ábrelo aquí: ${enlace(id)}`)}" target="_blank" rel="noopener">WhatsApp</a><button class="btn" data-cerrar>Cerrar</button>${G&&!["anulado","rechazado","por-aprobar","devuelto"].includes(e)?'<button class="btn pri" id="o-ok">Guardar</button>':""}`);
  dlg.classList.add("ancho");dlg.addEventListener("close",()=>dlg.classList.remove("ancho"),{once:true});
  /* Guardado seguro: si otra persona cambió la orden mientras estaba abierta, no se pisa su cambio. */
  const guardar=async(cambiar,msg)=>{const fresca=await DB.fresco(COL.ord,id);if(fresca&&JSON.stringify(fresca)!==JSON.stringify(o0)){toast("Otra persona cambió este pedido mientras lo tenías abierto. Se recargó: revisa y vuelve a guardar.",6000);dlgOrden(id);return}
@@ -983,6 +1022,10 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
  dlg.querySelectorAll("[data-rec]").forEach(b=>b.onclick=async()=>{const i=+b.dataset.rec,ok=b.dataset.v==="ok";let nota="";if(!ok){nota=await pedir("Llegó con novedad","¿Qué pasó? Faltó cantidad, llegó dañado, otro producto…");if(!nota)return}
   guardando(b,()=>guardar(n=>{n.items[i].rec={estado:ok?"ok":"nov",fecha:hoy(),por:me};if(nota)n.items[i].rec.nota=nota},ok?"Recepción confirmada.":"Novedad registrada; Compras la verá en sus pendientes."))});
  dlg.querySelectorAll("[data-anit]").forEach(b=>b.onclick=async()=>{if(await pedir("Quitar artículo","Motivo para quitarlo del pedido"))guardando(b,()=>guardar(n=>{n.items[+b.dataset.anit].anulado={por:me,fecha:hoy()}},"Artículo quitado."))});
+ if($("#o-dev"))$("#o-dev").onclick=async ev=>{const m=await pedir("Devolver a quien pidió","¿Qué falta o qué debe aclarar? (lo verá "+quien(o)+")");if(!m)return;
+  await guardando(ev.target,()=>guardar(n=>{n.dev={por:me,rol:G?"compras":"jefe",fecha:hoy(),motivo:m}},"Pedido devuelto."));
+  if(o.sol&&ords().get(id)?.dev){const txt=`Hola, te devolví el pedido ${id}: ${m}. Corrígelo y reenvíalo aquí: ${enlace(id)}`;abrir(`Pedido ${id} devuelto`,`<p>Quedó devuelto a <b>${esc(quien(o))}</b> con el motivo:</p><p class="o-nota">${esc(m)}</p><p class="muted small">Le llega el aviso en la app. Si quieres, avísale también por WhatsApp:</p><a class="btn pri" href="${wa(txt)}" target="_blank" rel="noopener">Avisar por WhatsApp</a>`,'<button class="btn" data-cerrar>Listo</button>')}};
+ if($("#o-corr"))$("#o-corr").onclick=()=>dlgCorregir(id);
  if($("#o-anular"))$("#o-anular").onclick=async ev=>{const m=await pedir("Anular el pedido","Motivo (queda registrado; el pedido no se borra)");if(m)guardando(ev.target,()=>guardar(n=>{n.anulada={por:me,fecha:hoy(),motivo:m}},"Pedido anulado."))};
  dlg.querySelectorAll('[data-k="tot"]').forEach(t=>t.oninput=()=>{const i=+t.dataset.i,it=o.items[i],a=it.art?arts().get(it.art):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad,fac=a?.factor||1;
   const iva=+dlg.querySelector(`[data-i="${i}"][data-k="iva"]`).value,tot=+t.value;if(tot>0&&+it.cant>0){const pu=tot/(1+iva/100)/it.cant;dlg.querySelector(`[data-i="${i}"][data-k="pUni"]`).value=+(up?pu/fac:pu).toFixed(2)}});
