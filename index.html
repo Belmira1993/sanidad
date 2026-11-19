@@ -373,7 +373,7 @@ const MODS={
  tablero:{n:"Dashboard",d:"Lo más importante de Sanidad y Compras: lo bueno, lo que preocupa e indicadores.",ic:"M4 20V11|M10 20V5|M16 20v-6|M21 20H3"},
  sanidad:{n:"Sanidad",d:"Agua y clima, eventos sanitarios, lotes y alertas de las fincas.",ic:"M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z|M8 11h.01"},
  compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261118c"},
- mantenimiento:{n:"Mantenimiento",d:"Solicitudes, cronograma preventivo, equipos e inventario.",ic:"M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z",url:"mantenimiento.html?v=20261117b"}};
+ mantenimiento:{n:"Mantenimiento",d:"Solicitudes, cronograma preventivo, equipos e inventario.",ic:"M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z",url:"mantenimiento.html?v=20261118a"}};
 const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras",tecnico:"Técnico",jefe:"Jefe de mantenimiento",director:"Dirección"};
 function modulosDe(u){const am=u?.app_metadata||{};const m=am.modulos&&typeof am.modulos==="object"?{...am.modulos}:{sanidad:am.rol||"registro"};
  if(am.rol==="admin")for(const k of Object.keys(MODS))m[k]="admin";if(am.tablero&&!m.tablero)m.tablero="lector";for(const k of Object.keys(m))if(!MODS[k])delete m[k];return m}
@@ -1472,6 +1472,7 @@ const MANTA=(()=>{
  const finMes=(y,m)=>new Date(Date.UTC(y,m+1,0)).toISOString().slice(0,10);
  const addM=(f,n)=>{const y=+f.slice(0,4),m=+f.slice(5,7)-1,d=+f.slice(8,10);const fm=finMes(y,m+n);return d>=28?fm:fm.slice(0,8)+String(Math.min(d,+fm.slice(8))).padStart(2,"0")};
  const sumar=(f,fr)=>FR[fr][1]==="m"?addM(f,FR[fr][0]):addD(f,FR[fr][0]);
+ const noDomA=f=>f&&new Date(f+"T12:00:00Z").getUTCDay()===0?addD(f,1):f;
  const dias=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/864e5);
  const fe=f=>f?f.slice(8,10)+"/"+f.slice(5,7):"—";
  const horas=ms=>ms/36e5;
@@ -1508,7 +1509,7 @@ const MANTA=(()=>{
   const ult=(c,pid)=>{let u=null;for(const[,o]of L)if(o.prev&&o.prev.eq===c&&o.prev.plan===pid&&o.terminado){const f=o.terminado.fecha.slice(0,10);if(!u||f>u)u=f}return u};
   const abiertaPrev=(c,pid)=>L.some(([,o])=>o.prev&&o.prev.eq===c&&o.prev.plan===pid&&!o.terminado);
   let venc=0,venc7=[];const ym=h.slice(0,7),mp=addM(ym+"-15",-1).slice(0,7);let progMP=0,hechoMP=0;
-  for(const[c,e]of E){if(e.estado!=="activo")continue;for(const p of e.plan||[]){if(!CAL.includes(p.frec))continue;const u=ult(c,p.id),prox=u?sumar(u,p.frec):primera(p,c,h);
+  for(const[c,e]of E){if(e.estado!=="activo")continue;for(const p of e.plan||[]){if(!CAL.includes(p.frec))continue;const u=ult(c,p.id),prox=noDomA(u?sumar(u,p.frec):primera(p,c,h));
    if(prox<h&&!abiertaPrev(c,p.id)){venc++;if(dias(prox,h)>7)venc7.push(eqN(c))}
    let f=u||prox,g=0;while(f<mp+"-01"&&g++<60)f=sumar(f,p.frec);while(f.slice(0,7)===mp&&g++<80){progMP++;f=sumar(f,p.frec)}}}
   for(const[,o]of L)if(o.prev&&o.terminado&&(o.prev.vence||"").slice(0,7)===mp)hechoMP++;
