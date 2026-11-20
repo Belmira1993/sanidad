@@ -329,8 +329,8 @@ const AGUA=[
  {k:"tAire",n:"Temp. del aire",u:"°C",min:-5,max:40,agg:"max"},
  {k:"lluvia",n:"Lluvia",u:"mm",min:0,max:400,agg:"sum"}];
 const CAUSAS=["Sin causa aparente","Enfermedad (ver necropsia)","Baja de oxígeno","Temperatura alta","Turbidez o creciente","Manejo (clasificación, traslado, pesca)","Depredación (aves, nutria)","Agresión o canibalismo","Deformidad o descarte","Otra"];
-const DIAGS=["Flavobacteriosis (columnaris)","Enfermedad bacteriana de agua fría (F. psychrophilum)","Boca roja entérica (Yersinia ruckeri)","Aeromoniasis (Aeromonas spp.)","Lactococosis / estreptococosis","Necrosis pancreática infecciosa (IPN)","Ictioftiriasis (punto blanco)","Saprolegniosis (hongo)","Enfermedad branquial bacteriana","Parásitos branquiales o de piel","Hipoxia (falta de oxígeno)","Daño branquial por sedimentos","Problema nutricional","Trauma o manejo","Sin diagnóstico concluyente"];
-const AGENTES=["Flavobacterium columnare","Flavobacterium psychrophilum","Yersinia ruckeri","Aeromonas hydrophila","Aeromonas salmonicida","Lactococcus garvieae","Streptococcus iniae","Virus IPN","Ichthyophthirius multifiliis","Ichthyobodo (Costia)","Gyrodactylus spp.","Saprolegnia spp.","Sin aislamiento"];
+const DIAGS=["Flavobacteriosis (columnaris)","Enfermedad bacteriana de agua fría (F. psychrophilum)","Boca roja entérica (Yersinia ruckeri)","Aeromoniasis (Aeromonas spp.)","Lactococosis / estreptococosis","Weissellosis (Weissella spp.)","Necrosis pancreática infecciosa (IPN)","Ictioftiriasis (punto blanco)","Saprolegniosis (hongo)","Enfermedad branquial bacteriana","Parásitos branquiales o de piel","Hipoxia (falta de oxígeno)","Daño branquial por sedimentos","Problema nutricional","Trauma o manejo","Sin diagnóstico concluyente","Otro (escribir cuál)"];
+const AGENTES=["Flavobacterium columnare","Flavobacterium psychrophilum","Yersinia ruckeri","Aeromonas hydrophila","Aeromonas salmonicida","Lactococcus garvieae","Streptococcus iniae","Virus IPN","Ichthyophthirius multifiliis","Ichthyobodo (Costia)","Gyrodactylus spp.","Saprolegnia spp.","Weissella spp.","Sin aislamiento","Otro (escribir cuál)"];
 const TIPOS={evaluacion:"Evaluación o visita",tratamiento:"Tratamiento",suplementacion:"Suplementación",necropsia:"Necropsia de campo",laboratorio:"Laboratorio",observacion:"Observación"};
 const FW=t=>t==="observacion"||t==="evaluacion";
 const CAMPOS={
@@ -534,6 +534,8 @@ function compute(){
   const nivel=!us.length&&!al.length?"sin":al.some(a=>a.nivel==="alta")?"alta":al.some(a=>a.nivel==="media")?"media":"ok";
   return{...f,us,al,vivos:us.reduce((a,u)=>a+u.vivos,0),biomasa:us.every(u=>u.biomasa!=null)&&us.length?us.reduce((a,u)=>a+u.biomasa,0):null,m7:v0?mu/v0*100:null,mu7:mu,nivel,lotes:new Set(us.map(u=>u.lote.id)).size,regHoy,aguaHoy,pisUlt:pU}});
 }
+/* "Otro (escribir cuál)": al elegirlo se limpia la casilla para escribir el diagnóstico o agente que no está en la lista */
+const OTRO="Otro (escribir cuál)";
 const canon=s=>{const n=norm(s);const hit=[...DIAGS,...AGENTES].find(x=>norm(x)===n);return hit||String(s).trim()};
 function ventana(u,desde,hasta){let m=0,v0=null,regs=0;const i0=Math.max(0,desde-u.start),i1=Math.min(u.dias.length-1,hasta-u.start);for(let i=i0;i<=i1;i++){const x=u.dias[i];if(v0==null)v0=x.vivos;m+=x.muertos;if(x.reg)regs++}return{muertos:m,vivos0:v0,pct:v0?m/v0*100:null,regs,dias:Math.max(0,i1-i0+1)}}
 function vivosEn(u,d){const i=d-u.start;if(i<0)return u.inicial;if(i<u.dias.length)return u.dias[i].vivos;return u.vivos}
@@ -834,7 +836,7 @@ V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.ev
   const fields=CAMPOS[st.tipo].map(c=>{if(st.datos[c.k]==null)st.datos[c.k]=c.t==="select"?c.opts[0]:c.t==="date"&&(c.k==="inicio")?st.fecha:"";const val=st.datos[c.k];const on=e=>{st.datos[c.k]=e.target.value;st.tocado=true};let i;
    if(c.t==="select"){i=el("select",{onchange:on},c.opts.map(o=>el("option",{value:o,text:o})));i.value=val}
    else if(c.t==="textarea"){i=el("textarea",{oninput:on,placeholder:c.ph});i.value=val}
-   else i=el("input",{type:c.t==="date"?"date":"text",inputmode:c.t==="number"?"decimal":null,list:c.list,value:val,placeholder:c.ph,max:c.t==="date"&&c.k!=="fin"?hoyStr():null,oninput:on});
+   else i=el("input",{type:c.t==="date"?"date":"text",inputmode:c.t==="number"?"decimal":null,list:c.list,value:val,placeholder:c.ph||(c.list?"Elige de la lista o escribe otro":null),max:c.t==="date"&&c.k!=="fin"?hoyStr():null,oninput:e=>{if(c.list&&e.target.value===OTRO){e.target.value="";e.target.placeholder="Escribe cuál";setTimeout(()=>e.target.focus(),0)}on(e)}});
    return el("label",{class:"f"+(c.t==="textarea"?" wide":"")},c.l+(c.req?" *":""),c.hint?el("span",{class:"hint",text:c.hint}):null,i)});
   const notas=el("textarea",{oninput:e=>{st.notas=e.target.value;st.tocado=true}});notas.value=st.notas;
   add(body,[el("div",{class:"fgrid",style:"margin-top:14px"},el("label",{class:"f"},"Finca *",fs),el("label",{class:"f"},FW(st.tipo)?"Lote (opcional)":"Lote *",ls),tanquesSel,
