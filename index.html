@@ -376,7 +376,7 @@ function sv(tag,a,...kids){const e=document.createElementNS(SVGNS,tag);if(a)for(
 const MODS={
  tablero:{n:"Dashboard",d:"Lo más importante de Sanidad y Compras: lo bueno, lo que preocupa e indicadores.",ic:"M4 20V11|M10 20V5|M16 20v-6|M21 20H3"},
  sanidad:{n:"Sanidad",d:"Agua y clima, eventos sanitarios, lotes y alertas de las fincas.",ic:"M3 12c3-4 7-5 11-3l4-3v12l-4-3c-4 2-8 1-11-3z|M8 11h.01"},
- compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261120a"},
+ compras:{n:"Compras",d:"Pedidos, aprobaciones, cotizaciones, pagos y recepción.",ic:"M6 6h15l-1.5 9h-12z|M6 6 5 3H2|M9 20h.01|M18 20h.01",url:"compras.html?v=20261123a"},
  mantenimiento:{n:"Mantenimiento",d:"Solicitudes, cronograma preventivo, equipos e inventario.",ic:"M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z",url:"mantenimiento.html?v=20261119a"}};
 const ROLN={admin:"Administrador",registro:"Registro",lector:"Consulta",solicitante:"Solicita",aprobador:"Solicita y aprueba",compras:"Gestión de compras",tecnico:"Técnico",jefe:"Jefe de mantenimiento",director:"Dirección"};
 function modulosDe(u){const am=u?.app_metadata||{};const m=am.modulos&&typeof am.modulos==="object"?{...am.modulos}:{sanidad:am.rol||"registro"};
@@ -1721,6 +1721,8 @@ const PC={act:o=>(o.items||[]).filter(i=>!i.anulado),tot:o=>PC.act(o).reduce((s,
  estado(o){if(o.anulada)return"anulado";if(o.dev)return"devuelto";const it=PC.act(o);
   if(o.aprob&&o.aprob.ok===false)return"rechazado";if(!o.aprob?.ok)return"por-aprobar";if(!it.length)return"anulado";
   if(it.every(i=>i.rec)){if(it.some(i=>i.rec.estado==="nov"&&!i.sol))return"con-novedad";if(it.every(i=>i.fac))return"cerrado";return it.some(i=>i.sol)?"novedad-resuelta":"recibido"}
+  {const st=i=>i.prov?(o.pagos||{})[i.prov]?.estado:"",cz=it.every(i=>i.prov&&+i.precio>0);
+   if(it.some(i=>["pagado","credito","parcial"].includes(st(i)))&&!it.every(i=>["pagado","credito"].includes(st(i)))&&!it.some(i=>i.rec?.estado==="nov"&&!i.sol)&&!(cz&&PC.tot(o)>=1000000&&!o.ger?.ok))return"compra-parcial"}
   if(!it.every(i=>i.prov&&+i.precio>0))return it.some(i=>i.prov||i.cot||+i.precio>0)?"en-cotizacion":"aprobado";
   const pg=PC.pago(o),pagado=pg==="ok"||pg==="credito";
   if(PC.tot(o)>=1000000&&!pagado){if(o.ger?.ok===false)return"rechazado";if(!o.ger?.ok)return"por-aprobar-gerencia"}
@@ -1735,9 +1737,9 @@ const PC={act:o=>(o.items||[]).filter(i=>!i.anulado),tot:o=>PC.act(o).reduce((s,
    if(admin&&e==="por-aprobar-gerencia")L.push(id);
    if(admin&&PC.act(o).some(i=>i.cambio?.estado==="pendiente"))L.push(id);
    if(gest&&!admin){if(["aprobado","en-cotizacion","cotizado","con-novedad"].includes(e))L.push(id);
-    if(["soportado","comprado","despachado","recibido","novedad-resuelta"].includes(e)&&PC.factura(o)!=="ok")L.push(id);
+    if(e==="compra-parcial"||["soportado","comprado","despachado","recibido","novedad-resuelta"].includes(e)&&PC.factura(o)!=="ok")L.push(id);
    }
-   if(o.sol===me&&["comprado","despachado"].includes(e))L.push(id);
+   if(o.sol===me&&["comprado","compra-parcial","despachado"].includes(e))L.push(id);
    if(o.sol===me&&e==="devuelto")L.push(id);
    if(o.sol===me&&e==="rechazado"&&!o.visto)L.push(id)}
   if(rol==="compras"&&S.pcArt&&S.pcProv){const r=EVP.recot(S.pcArt);if(r.pend&&(r.venc||new Date().getDay()===1))L.push("RECOT");const e=EVP.evalu(S.pcProv,ords,S.pcCfg);if(e.venc)L.push("EVAL");if(e.sincl&&new Date().getDay()===1)L.push("EVAL")}
