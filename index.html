@@ -267,6 +267,8 @@ details.mas summary{color:var(--accent);font-weight:700;padding:8px 0;font-size:
 body.en-tablero .grid2{margin-bottom:16px}body.en-tablero #nav,body.en-tablero #mnav{display:none!important}
 @media (max-width:760px){body.en-tablero main{padding-bottom:30px}.tb-tit{font-size:1.5rem}.tb-k b{font-size:1.4rem}}
 .mod-tx .mod-pend{display:inline-flex;width:auto;align-self:flex-start;margin-top:6px;background:var(--bad);color:#fff;font-size:.76rem;font-weight:700;padding:2px 10px;border-radius:99px}.mod-tx .mod-pend[hidden]{display:none}
+.chips-r{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.chip-b{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:99px;padding:4px 10px;font:inherit;font-size:.8rem;cursor:pointer;min-height:30px}.chip-b:hover{border-color:var(--brand,var(--ink))}
+.calc-v{padding:9px 0;font-weight:600}
 </style>
 <script>try{const t=JSON.parse(localStorage.getItem("sanidad:tema"));if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
@@ -337,7 +339,9 @@ const CAMPOS={
  evaluacion:[{k:"motivo",l:"Motivo",t:"select",opts:["Visita de rutina","Aviso por teléfono","Seguimiento de tratamiento","Evaluación antes de cosecha","Ingreso de lote"]},{k:"peces",l:"Peces observados",t:"number"},{k:"comportamiento",l:"Comportamiento y consumo",t:"textarea",ph:"Nado, apetito, boqueo, aglomeración en la entrada"},{k:"hallazgos",l:"Hallazgos",t:"textarea",req:1,ph:"Piel, aletas, branquias, ojos, instalaciones, agua"},{k:"recomendaciones",l:"Recomendaciones dejadas",t:"textarea"},{k:"seguimiento",l:"Próxima revisión",t:"date"}],
  suplementacion:[{k:"producto",l:"Producto",req:1},{k:"clase",l:"Tipo",t:"select",opts:["Vitaminas","Probiótico","Inmunoestimulante","Minerales o sales","Otro"]},{k:"motivo",l:"Motivo",ph:"Ej.: estrés por clasificación, post-tratamiento"},{k:"dosis",l:"Dosis"},{k:"via",l:"Vía",t:"select",opts:["Alimento","Baño o agua"]},{k:"inicio",l:"Inicio",t:"date",req:1},{k:"fin",l:"Fin",t:"date"},{k:"prescribe",l:"Quién lo indica"}],
  tratamiento:[{k:"producto",l:"Producto comercial",req:1},{k:"principio",l:"Principio activo"},{k:"loteProducto",l:"Lote del producto"},{k:"motivo",l:"Motivo o diagnóstico",list:"dl-diag"},{k:"dosis",l:"Dosis",ph:"Ej.: 75 mg/kg de pez/día"},{k:"via",l:"Vía",t:"select",opts:["Alimento medicado","Baño","Inyectable","Otra"]},{k:"inicio",l:"Inicio",t:"date",req:1},{k:"fin",l:"Fin",t:"date",req:1},{k:"retiro",l:"Tiempo de retiro",t:"number",req:1,hint:"Según etiqueta o fórmula"},{k:"retiroUnidad",l:"Unidad del retiro",t:"select",opts:["grados-día","días"]},{k:"prescribe",l:"Médico veterinario que formula",req:1}],
- necropsia:[{k:"n",l:"Peces examinados",t:"number",req:1},{k:"externos",l:"Signos externos",t:"textarea",ph:"Piel, aletas, branquias, ojos, comportamiento"},{k:"internos",l:"Signos internos",t:"textarea",ph:"Hígado, bazo, riñón, intestino, vejiga natatoria"},{k:"diagnostico",l:"Diagnóstico presuntivo",list:"dl-diag",req:1},{k:"muestras",l:"¿Se enviaron muestras?",t:"select",opts:["No","Sí"]}],
+ necropsia:[{k:"etapa",l:"Etapa",t:"etapa"},{k:"enfermos",l:"Animales enfermos",t:"number",ph:"Número de peces"},{k:"pctEnf",l:"% del lote o tanque",t:"calc"},{k:"n",l:"Peces examinados",t:"number",req:1},
+  {k:"externos",l:"Signos clínicos",t:"textarea",ph:"Comportamiento y aspecto externo: nado, apetito, color, branquias, ojos",chips:["Nado errático","Letargia","Inapetencia","Oscurecimiento","Boqueo en superficie","Aglomeración en la entrada","Exoftalmia","Natación en espiral","Mucosidad excesiva","Aletas deshilachadas"]},
+  {k:"internos",l:"Lesiones",t:"textarea",ph:"Externas e internas: branquias, piel, aletas, hígado, bazo, riñón, intestino",chips:["Branquias pálidas","Branquias necróticas","Erosión de aletas","Úlceras en piel","Hemorragias en piel o aletas","Boca roja","Hígado pálido","Bazo agrandado","Riñón inflamado","Intestino inflamado","Ascitis (líquido abdominal)","Petequias en grasa visceral"]},{k:"diagnostico",l:"Diagnóstico presuntivo",list:"dl-diag",req:1},{k:"muestras",l:"¿Se enviaron muestras?",t:"select",opts:["No","Sí"]}],
  laboratorio:[{k:"laboratorio",l:"Laboratorio"},{k:"muestra",l:"Tipo de muestra",ph:"Peces vivos, órganos, agua"},{k:"analisis",l:"Análisis",ph:"Bacteriología, PCR, histopatología",req:1},{k:"resultado",l:"Resultado",t:"select",opts:["Pendiente","Positivo","Negativo","No concluyente"],req:1},{k:"agente",l:"Agente aislado",list:"dl-agente"},{k:"antibiograma",l:"Antibiograma o sensibilidad",t:"textarea"},{k:"fechaResultado",l:"Fecha del resultado",t:"date"}],
  muestreo:[{k:"n",l:"Peces muestreados",t:"number",req:1},{k:"peso",l:"Peso promedio (g)",t:"number",req:1},{k:"talla",l:"Talla promedio (cm)",t:"number"},{k:"cv",l:"Coeficiente de variación (%)",t:"number"}],
  observacion:[{k:"texto",l:"Observación",t:"textarea",req:1}]
@@ -833,11 +837,25 @@ V.evento=v=>{const M=S.M;const pre=S.evPre||{};S.evPre=null;const ex=pre.id?S.ev
      cs.map(c=>el("button",{type:"button","aria-pressed":!todos&&marcados.has(c)?"true":"false",onclick:()=>toggle(c)},c))))})();
   if(st.lote&&!us.some(u=>u.lote.id===st.lote)&&S.lotes.get(st.lote))ls.append(el("option",{value:st.lote,text:"Lote "+S.lotes.get(st.lote).codigo+" (fuera de periodo)"}));ls.value=st.lote;
   if(!st.lote&&us.length===1&&!FW(st.tipo)){st.lote=us[0].lote.id;ls.value=st.lote}
-  const fields=CAMPOS[st.tipo].map(c=>{if(st.datos[c.k]==null)st.datos[c.k]=c.t==="select"?c.opts[0]:c.t==="date"&&(c.k==="inicio")?st.fecha:"";const val=st.datos[c.k];const on=e=>{st.datos[c.k]=e.target.value;st.tocado=true};let i;
+  /* Inventario de los tanques elegidos ese día (Piscis): para la etapa y el % de enfermos en la necropsia */
+  const inv=(()=>{const u=st.lote?M.byKey.get(st.lote+"|"+st.finca):null;if(!u?.canales||d==null)return null;const marc=new Set(String(st.canal||"").split(",").map(x=>x.trim()).filter(Boolean));
+   let dd=d;if(![...u.canales.values()].some(c=>c.dias.has(dd)))dd=Math.min(d,u.end);let peces=0,kg=0;
+   for(const c of u.canales.values()){if(marc.size&&!marc.has(c.nombre))continue;const x=c.dias.get(dd);if(x){peces+=x.fin||0;kg+=x.kg||0}}
+   return peces>0?{peces,peso:kg/peces*1000}:null})();
+  const etAuto=inv?etapaDe(inv.peso)?.n||"":"";
+  const pctTxt=()=>{const e=num(st.datos.enfermos);return inv&&e>0?`${fmtN(Math.round(e/inv.peces*1000)/10,1)} % de ${fmtN(inv.peces)} peces`:""};
+  const fields=CAMPOS[st.tipo].map(c=>{if(st.datos[c.k]==null)st.datos[c.k]=c.t==="select"?c.opts[0]:c.t==="date"&&(c.k==="inicio")?st.fecha:"";
+   if(c.t==="etapa"&&(st.etapaAuto!==false||!st.datos.etapa)&&!st.id){st.datos.etapa=etAuto;st.etapaAuto=true}if(c.t==="calc"){st.datos[c.k]=pctTxt()}
+   const val=st.datos[c.k];const on=e=>{st.datos[c.k]=e.target.value;st.tocado=true};let i;
+   if(c.t==="etapa"){const E=(S.cfg.etapas||DEF.etapas).map(e=>e.n);i=el("select",{onchange:e=>{st.etapaAuto=false;on(e)}},el("option",{value:"",text:"—"}),E.map(o=>el("option",{value:o,text:o})),val&&!E.includes(val)?el("option",{value:val,text:val}):null);i.value=val;
+    return el("label",{class:"f"},c.l,el("span",{class:"hint",text:inv?`Según Piscis: ${etAuto||"—"} (peso promedio ${fmtN(Math.round(inv.peso*10)/10,1)} g)`:"Elige el lote para calcularla"}),i)}
+   if(c.t==="calc"){i=el("div",{class:"calc-v",text:val||(inv?"Escribe los animales enfermos":"Elige el lote y el tanque")});return el("div",{class:"f"},el("b",{text:c.l}),i)}
    if(c.t==="select"){i=el("select",{onchange:on},c.opts.map(o=>el("option",{value:o,text:o})));i.value=val}
    else if(c.t==="textarea"){i=el("textarea",{oninput:on,placeholder:c.ph});i.value=val}
    else i=el("input",{type:c.t==="date"?"date":"text",inputmode:c.t==="number"?"decimal":null,list:c.list,value:val,placeholder:c.ph||(c.list?"Elige de la lista o escribe otro":null),max:c.t==="date"&&c.k!=="fin"?hoyStr():null,oninput:e=>{if(c.list&&e.target.value===OTRO){e.target.value="";e.target.placeholder="Escribe cuál";setTimeout(()=>e.target.focus(),0)}on(e)}});
-   return el("label",{class:"f"+(c.t==="textarea"?" wide":"")},c.l+(c.req?" *":""),c.hint?el("span",{class:"hint",text:c.hint}):null,i)});
+   if(c.k==="enfermos"&&st.tipo==="necropsia"){const i0=i;i0.addEventListener("input",()=>{const v=i0.closest(".fgrid")?.querySelector(".calc-v");st.datos.pctEnf=pctTxt();if(v)v.textContent=st.datos.pctEnf||"—"})}
+   const chips=c.chips?el("div",{class:"chips-r"},c.chips.map(t=>el("button",{type:"button",class:"chip-b",onclick:ev=>{ev.preventDefault();const cur=i.value.trim();if(norm(cur).includes(norm(t)))return;i.value=cur?cur.replace(/[\s,.;]+$/,"")+", "+t.toLowerCase():t;st.datos[c.k]=i.value;st.tocado=true}},t))):null;
+   return el("label",{class:"f"+(c.t==="textarea"?" wide":"")},c.l+(c.req?" *":""),c.hint?el("span",{class:"hint",text:c.hint}):null,i,chips)});
   const notas=el("textarea",{oninput:e=>{st.notas=e.target.value;st.tocado=true}});notas.value=st.notas;
   add(body,[el("div",{class:"fgrid",style:"margin-top:14px"},el("label",{class:"f"},"Finca *",fs),el("label",{class:"f"},FW(st.tipo)?"Lote (opcional)":"Lote *",ls),tanquesSel,
    el("label",{class:"f"},"Fecha *",el("input",{type:"date",value:st.fecha,max:hoyStr(),onchange:e=>{st.fecha=e.target.value;draw()}})),fields,el("label",{class:"f wide"},"Notas",notas)),adjBox(st,draw),
