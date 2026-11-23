@@ -8,7 +8,8 @@
 <link rel="icon" type="image/svg+xml" href="icono.svg">
 <link rel="apple-touch-icon" href="icono-app.png">
 <link rel="manifest" href="manifest.webmanifest">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script src="mock_c.js"></script>
+
 <style>
 :root{
   --bg:#ECF1F1;--surface:#FFFFFF;--surface-2:#DFE8E8;--ink:#13232A;--ink-2:#4A5D63;--line:#C7D4D5;
@@ -333,6 +334,7 @@ dialog.dlg.chico{width:min(460px,94vw);height:auto;max-height:90vh}
 .o-nota{margin:10px 0 0;padding:8px 12px;border-left:3px solid var(--accent);background:var(--info-bg);border-radius:0 6px 6px 0}
 .o-acc{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding:12px;border:1px solid var(--warn);background:var(--warn-bg);border-radius:8px}
 .oi{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px}.oi.anulado{opacity:.55}
+.chip-l{cursor:pointer;border:0;font:inherit}.div-p{border:1px solid var(--line);margin:10px 0}
 .oi-h{display:flex;gap:10px;align-items:flex-start}.oi-n{flex:none;width:26px;height:26px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
 .oi-t{flex:1;min-width:0;overflow-wrap:anywhere}.oi-t .sub{display:block;font-size:.84rem;color:var(--ink-2)}
 .oi-f{margin-top:10px}.oi-d{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:8px 0 0 36px;font-size:.88rem}.oi-d dt{color:var(--ink-2)}.oi-d dd{margin:0;overflow-wrap:anywhere}
@@ -583,7 +585,7 @@ function dlgEmpresa(){const e=empresa();abrir("Datos de la empresa",`<p class="m
 
 /* =================== ÓRDENES DE PEDIDO (ciclo de compra) =================== */
 const EST={ "devuelto":["Devuelto","warn",1],"por-aprobar":["Por aprobar","warn",1],"rechazado":["Rechazado","bad",0],"aprobado":["Por cotizar","info",2],"en-cotizacion":["En cotización","info",3],
- "por-aprobar-gerencia":["Por aprobar Gerencia","warn",4],"cotizado":["Falta soporte","info",4],"soportado":["Cotizado","info",5],"por-pagar":["Por pagar","warn",5],"comprado":["Comprado","ok",6],"despachado":["Despachado","ok",7],
+ "por-aprobar-gerencia":["Por aprobar Gerencia","warn",4],"cotizado":["Falta soporte","info",4],"soportado":["Cotizado","info",5],"por-pagar":["Por pagar","warn",5],"compra-parcial":["Comprado en parte","warn",6],"comprado":["Comprado","ok",6],"despachado":["Despachado","ok",7],
  "con-novedad":["Con novedad","bad",8],"recibido":["Recibido","ok",9],"novedad-resuelta":["Novedad resuelta","ok",9],"cerrado":["Cerrado","",10],"anulado":["Anulado","",11]};
 const TOPE_GERENCIA=1000000;
 const TIPODOC=["Factura electrónica","Cuenta de cobro","Documento soporte"];
@@ -607,6 +609,8 @@ function estado(o){if(o.anulada)return"anulado";if(o.dev)return"devuelto";const 
  /* Si todo ya llegó, manda la recepción (pedidos antiguos recibidos sin OC o sin proveedor en la base) */
  if(it.every(i=>i.rec)){if(it.some(i=>i.rec.estado==="nov"&&!i.sol))return"con-novedad";if(it.every(i=>i.fac))return"cerrado";return it.some(i=>i.sol)?"novedad-resuelta":"recibido"}
  const cotizado=it.every(i=>i.prov&&+i.precio>0);
+ /* Compra parcial: ya se pagó (o quedó a crédito) una parte de los artículos y el resto sigue en trámite */
+ if(compraParcial(o,it,cotizado))return"compra-parcial";
  if(!cotizado)return it.some(i=>i.prov||i.cot||+i.precio>0)?"en-cotizacion":"aprobado";
  /* Comprado = pagado (lote con comprobante) o a crédito. El soporte (cotización u OC) no es la compra. */
  const pg=pago(o),pagado=pg==="ok"||pg==="credito";
@@ -616,9 +620,19 @@ function estado(o){if(o.anulada)return"anulado";if(o.dev)return"devuelto";const 
  if(pagado)return"comprado";
  if(!it.every(i=>i.oc))return"cotizado";
  return it.every(i=>i.fac)?"por-pagar":"soportado"}
+function compraParcial(o,it,cotizado){const st=i=>i.prov?(o.pagos||{})[i.prov]?.estado:"";
+ if(!it.some(i=>["pagado","credito","parcial"].includes(st(i)))||it.every(i=>["pagado","credito"].includes(st(i))))return false;
+ if(it.some(i=>i.rec?.estado==="nov"&&!i.sol))return false;
+ return!(cotizado&&totOrden(o)>=TOPE_GERENCIA&&!o.ger?.ok)}
 function factura(o){const it=activos(o);const n=it.filter(i=>i.fac).length;return!it.length?"":n===it.length?"ok":n?"parcial":"pend"}
 function pago(o){const nits=[...new Set(activos(o).map(i=>i.prov).filter(Boolean))];if(!nits.length)return"";const p=o.pagos||{};
  if(nits.every(n=>p[n]?.estado==="pagado"))return"ok";if(nits.some(n=>p[n]?.estado==="parcial"))return"parcial";if(nits.some(n=>p[n]?.estado==="credito"))return"credito";return nits.some(n=>p[n]?.estado==="pagado")?"parcial":"pend"}
+/* Estado de cada artículo (compra parcial: ver qué se pagó, qué está cotizado y qué no se ha gestionado) */
+function estItem(o,it){if(it.anulado)return it.anulado.a?["info","Para después: "+it.anulado.a]:["","Anulado"];
+ if(it.rec)return it.rec.estado==="ok"?["ok","Recibido"]:(it.sol?["ok","Novedad resuelta"]:["bad","Llegó con novedad"]);if(it.rem)return["ok","Despachado"];
+ const p=it.prov?(o.pagos||{})[it.prov]?.estado:"";if(p==="pagado")return["ok","Pagado"];if(p==="credito")return["ok","A crédito"];if(p==="parcial")return["warn","Abonado"];
+ if(it.oc)return["info","Con soporte del precio"];if(it.prov&&+it.precio>0)return["info","Cotizado"];if(it.prov||it.cot||+it.precio>0)return["info","En cotización"];return["","Sin gestión"]}
+const movible=(o,it)=>!it.anulado&&!it.rec&&!it.rem&&!it.fac&&it.cambio?.estado!=="pendiente"&&!["pagado","credito","parcial"].includes(it.prov?(o.pagos||{})[it.prov]?.estado:"");
 const chipEst=e=>`<span class="chip ${EST[e][1]}">${EST[e][0]}</span>`;
 const IND={ok:["ok","Sí"],parcial:["warn","Parcial"],pend:["","Pendiente"],credito:["info","Crédito"]};
 const chipInd=(t,v)=>v?`<span class="chip ${IND[v][0]}" title="${t}">${t}: ${IND[v][1]}</span>`:"";
@@ -630,9 +644,10 @@ function pendientes(){const me=ME(),L=[],C=[];
   if(e==="por-aprobar-gerencia"&&S.rol==="admin")L.push([id,"Aprobar el gasto (más de $1.000.000)"]);
   if(S.rol==="admin"&&activos(o).some(i=>i.cambio?.estado==="pendiente"))L.push([id,"Aprobar cambio de precio"]);
   if(S.gestion){if(e==="aprobado")C.push([id,"Cotizar"]);else if(e==="en-cotizacion")C.push([id,"Terminar cotización"]);else if(e==="cotizado")C.push([id,"Registrar soporte del precio (cotización u OC)"]);else if(e==="con-novedad")C.push([id,"Resolver la novedad"]);
-   if(["soportado","comprado","despachado","recibido","novedad-resuelta"].includes(e)&&factura(o)!=="ok")C.push([id,"Registrar factura"]);
+   else if(e==="compra-parcial"){const f=activos(o).filter(i=>!["pagado","credito"].includes(i.prov?(o.pagos||{})[i.prov]?.estado:""));if(f.some(i=>!(i.prov&&+i.precio>0)))C.push([id,"Cotizar lo que falta (compra parcial)"]);else if(f.some(i=>!i.oc))C.push([id,"Soporte del precio de lo que falta"])}
+   if(["soportado","compra-parcial","comprado","despachado","recibido","novedad-resuelta"].includes(e)&&factura(o)!=="ok")C.push([id,"Registrar factura"]);
    }
-  if(o.sol===me&&["comprado","despachado"].includes(e))L.push([id,"Confirmar que llegó"]);
+  if(o.sol===me&&["comprado","compra-parcial","despachado"].includes(e))L.push([id,"Confirmar que llegó"]);
   if(o.sol===me&&e==="rechazado"&&!o.visto)L.push([id,"Fue rechazado: revisa el motivo"]);
   if(o.sol===me&&e==="devuelto")L.push([id,"Te lo devolvieron: "+String(o.dev.motivo||"").slice(0,70)])}
  if(DB.listo(COL.pag))for(const[lid,l]of lotes()){const Ls=l.lineas||[];const prog=Ls.filter(x=>x.estado==="programado").length;
@@ -649,12 +664,12 @@ function pendientes(){const me=ME(),L=[],C=[];
  if(S.rol==="admin")return{mios:ord(L),compras:ord(C)};return{mios:ord(L.concat(C)),compras:[]}}
 const FILTROS=[["","Todas"],["abiertas","Abiertas"],["devuelto","Devueltos"],["por-aprobar","Por aprobar"],["por-cotizar","Por cotizar"],["por-pagar-f","Por pagar"],["en-camino","Comprado / en camino"],["con-novedad","Con novedad"],["sin-factura","Sin factura"],["pago-pend","Pago pendiente"],["cerrado","Cerradas"],["anulado","Anuladas o rechazadas"]];
 function pasaFiltro(o,f){const e=estado(o);switch(f){case"":return true;case"abiertas":return!["cerrado","anulado","rechazado"].includes(e);case"por-aprobar":return e==="por-aprobar"||e==="por-aprobar-gerencia";
- case"por-cotizar":return e==="aprobado"||e==="en-cotizacion"||e==="cotizado";case"por-pagar-f":return e==="soportado"||e==="por-pagar";case"en-camino":return e==="comprado"||e==="despachado";case"sin-factura":return!["anulado","rechazado","por-aprobar"].includes(e)&&factura(o)!=="ok"&&EST[e][2]>=5;
+ case"por-cotizar":return e==="aprobado"||e==="en-cotizacion"||e==="cotizado";case"por-pagar-f":return e==="soportado"||e==="por-pagar";case"en-camino":return e==="comprado"||e==="compra-parcial"||e==="despachado";case"sin-factura":return!["anulado","rechazado","por-aprobar"].includes(e)&&factura(o)!=="ok"&&EST[e][2]>=5;
  case"pago-pend":return EST[e][2]>=5&&e!=="anulado"&&["pend","parcial"].includes(pago(o));case"anulado":return e==="anulado"||e==="rechazado";default:return e===f}}
 function vPedidos(){const w=cargando(COL.ord,COL.art,COL.cfg,COL.prov);if(w)return w;
  const f=S.fo||(S.fo={q:"",est:"abiertas",cc:"",prov:""}),PP=pendientes(),P=PP.mios,PC=PP.compras;
  let rows=[...ords()].filter(([id,o])=>pasaFiltro(o,f.est)&&(!f.cc||o.cc===f.cc)&&(!f.prov||activos(o).some(i=>i.prov===f.prov))&&
-  (!f.q||coincide(id+" "+quien(o)+" "+ccNom(o.cc)+" "+(o.nota||"")+" "+activos(o).map(i=>artNom(i)+" "+(i.oc||"")+" "+(i.fac||"")+" "+(provs().get(i.prov)?.nombre||"")).join(" "),f.q)));
+  (!f.q||coincide(id+" "+(o.de?.ord||"")+" "+(o.partes||[]).map(p=>p.ord).join(" ")+" "+quien(o)+" "+ccNom(o.cc)+" "+(o.nota||"")+" "+activos(o).map(i=>artNom(i)+" "+(i.oc||"")+" "+(i.fac||"")+" "+(provs().get(i.prov)?.nombre||"")).join(" "),f.q)));
  rows.sort((a,b)=>b[0].localeCompare(a[0]));const total=rows.length;rows=rows.slice(0,S.lim.ord||100);
  const cnt=k=>[...ords().values()].filter(o=>pasaFiltro(o,k)).length;
  const provsUsados=[...new Set([...ords().values()].flatMap(o=>activos(o).map(i=>i.prov)).filter(Boolean))].map(n=>[n,provs().get(n)?.nombre||n]).sort((a,b)=>a[1].localeCompare(b[1],"es"));
@@ -673,7 +688,7 @@ function vPedidos(){const w=cargando(COL.ord,COL.art,COL.cfg,COL.prov);if(w)retu
  ${total?`<div class="panel scroll lista" style="padding:0"><table><thead><tr><th>Número</th><th>Fecha</th><th>Pidió</th><th>Centro</th><th>Artículos</th><th>Proveedor</th><th>Estado</th><th class="n">Total</th></tr></thead><tbody>
  ${R.map(({id,o,e,pv})=>`<tr data-ord="${id}"><td class="mono"><b>${id}</b></td><td class="mono">${fecha(o.fecha)}</td><td>${esc(quien(o))}</td><td>${esc(ccNom(o.cc))}</td>
   <td>${esc(activos(o).slice(0,2).map(artNom).join(", "))}${activos(o).length>2?` <span class="muted">+${activos(o).length-2}</span>`:""}</td><td>${esc(pv.join(", ")||"—")}</td>
-  <td>${chipEst(e)}<span class="inds">${chipInd("Factura",EST[e][2]>=5?factura(o):"")}${chipInd("Pago",EST[e][2]>=5?pago(o):"")}</span></td><td class="n mono">${totOrden(o)?peso(totOrden(o)):"—"}</td></tr>`).join("")}</tbody></table></div>
+  <td>${chipEst(e)}${o.de?` <span class="chip" title="Se dejó para después desde ${esc(o.de.ord)}">De ${esc(o.de.ord)}</span>`:""}${(o.partes||[]).length?` <span class="chip" title="Parte se compra después">Resto en ${esc(o.partes.map(p=>p.ord).join(", "))}</span>`:""}<span class="inds">${chipInd("Factura",EST[e][2]>=5?factura(o):"")}${chipInd("Pago",EST[e][2]>=5?pago(o):"")}</span></td><td class="n mono">${totOrden(o)?peso(totOrden(o)):"—"}</td></tr>`).join("")}</tbody></table></div>
  <div class="cards">${R.map(({id,o,e,pv})=>`<button class="card-it" data-ord="${id}"><span class="row" style="justify-content:space-between;margin:0;color:var(--ink)"><b>${id}</b>${chipEst(e)}</span>
   <span class="ci-t">${esc(activos(o).slice(0,3).map(artNom).join(", "))}</span><span class="row">${fecha(o.fecha)} · ${esc(quien(o))} · ${esc(ccNom(o.cc))}${totOrden(o)?" · "+peso(totOrden(o)):""}</span>
   ${pv.length?`<span class="row">${esc(pv.join(", "))}</span>`:""}</button>`).join("")}</div>
@@ -999,7 +1014,7 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
    ${it.recotizar&&!(+it.precio>0)?`<span class="chip info">Por recotizar (antes ${peso(it.recotizar.ant)})</span>`:""}${it.provPend&&!it.prov?`<span class="chip warn">Proveedor por crear: ${esc(it.provPend)}</span>`:""}
    ${nuevoArt?`<span class="chip ${nc>=3?"ok":"warn"}">Artículo nuevo: ${nc}/3 cotizaciones</span>`:""}${it.sin3?`<span class="chip" title="${esc(it.sin3.motivo)}">Comprado sin 3 cotizaciones</span>`:""}
    ${it.cambio?.estado==="pendiente"?`<span class="chip warn">Cambio de precio por aprobar: ${peso(it.cambio.ant)} → ${peso(it.cambio.nuevo)} · ${esc(it.cambio.motivo)}</span>`:it.cambio?`<span class="chip ${it.cambio.estado==="aprobado"?"ok":"bad"}">Cambio de precio ${it.cambio.estado} por ${esc(persona(it.cambio.aprobo||""))}</span>`:""}</div>
-   ${it.anulado?'<span class="chip">Anulado</span>':it.rec?(it.rec.estado==="ok"?'<span class="chip ok">Recibido</span>':`<span class="chip bad">Novedad</span>`):""}</div>
+   ${(([c,t])=>it.anulado?.a?`<button type="button" class="chip ${c} chip-l" data-ir="${esc(it.anulado.a)}" title="${esc(it.anulado.motivo||"")}">${esc(t)}</button>`:`<span class="chip ${c}">${esc(t)}</span>`)(estItem(o,it))}</div>
   ${G&&!it.anulado&&EST[e][2]>=2&&e!=="anulado"?`<div class="fgrid oi-f">
    ${!it.art?`<label class="f wide">Artículo del catálogo<input class="inp" data-i="${i}" data-k="artTxt" list="arts-l2" autocomplete="off" placeholder="Elige uno de la lista o créalo aquí"><span class="hint">Pedido como: ${esc(it.txt)}</span><button type="button" class="btn sm" data-newart="${i}" hidden style="margin-top:6px;align-self:flex-start"></button></label>`:""}
    ${lk?`<p class="lock wide">🔒 Precio aprobado${it.oc?" ("+esc(docCompra(it))+")":" por Gerencia"}: proveedor, precio e IVA ya no se editan.${it.cambio?.estado==="pendiente"?"":` <button type="button" class="linkbtn" data-cambio="${i}">Solicitar cambio de precio</button>`}</p>`:`<div class="wide row" style="gap:8px"><button type="button" class="btn sm" data-comp="${i}">Comparar cotizaciones${nc?` (${nc})`:""}</button></div>`}
@@ -1026,14 +1041,20 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
  if(e==="devuelto"&&dueno)acciones.push('<button class="btn pri" id="o-corr">Corregir y reenviar</button>');
  if(e==="por-aprobar-gerencia"&&ger)acciones.push('<button class="btn pri" data-gap="1">Aprobar el gasto</button><button class="btn danger" data-gap="0">No aprobar</button>');
  const puedeAnular=!["anulado","cerrado"].includes(e)&&(G||(dueno&&(e==="por-aprobar"||e==="devuelto")));
+ /* Compra parcial: Compras (o Gerencia) deja para después los artículos menos urgentes; pasan a un pedido nuevo enlazado */
+ const puedeDividir=activos(o).length>=2&&(o.items||[]).some(x=>movible(o,x))&&((G&&["aprobado","en-cotizacion","cotizado","soportado","por-pagar","compra-parcial","despachado","por-aprobar-gerencia"].includes(e))||(ger&&e==="por-aprobar-gerencia"));
+ const avance=(()=>{const m=new Map();for(const x of activos(o)){const t=estItem(o,x)[1];m.set(t,(m.get(t)||0)+1)}const n=activos(o).length;return n>1&&m.size>1?[...m].map(([t,k])=>`${k} ${t.toLowerCase()}`).join(" · "):""})();
  abrir(`${id} ${chipEst(e)}`,`<div class="o-info"><div><span>Pidió</span><b>${esc(quien(o))}</b></div><div><span>Fecha</span><b>${fecha(o.fecha)}</b></div><div><span>Centro de costos</span><b>${esc(ccNom(o.cc))}</b></div>
   <div><span>Aprobación</span><b>${o.aprob?.hist?"Aprobado antes de la app (histórico de OC)":o.aprob?.auto?"No requiere (jefe de área)":o.aprob?(o.aprob.ok?"Aprobó ":"Rechazó ")+esc(persona(o.aprob.por)):"Pendiente: "+esc(persona(o.jefe))}</b></div>
   <div><span>Total con IVA</span><b>${totOrden(o)?peso(totOrden(o)):"Sin cotizar"}</b></div>${totOrden(o)>=TOPE_GERENCIA&&(o.ger||!activos(o).every(i=>i.oc))?`<div><span>Gerencia</span><b>${o.ger?(o.ger.ok?"Aprobó":"No aprobó"):"Pendiente"}</b></div>`:""}</div>
   ${o.nota?`<p class="o-nota">${esc(o.nota)}</p>`:""}${o.aprob?.motivo?`<p class="sug">Motivo del rechazo: ${esc(o.aprob.motivo)}</p>`:""}${o.anulada?`<p class="sug">Anulado por ${esc(persona(o.anulada.por))}: ${esc(o.anulada.motivo||"")}</p>`:""}
   ${o.dev?`<div class="sug"><b>Devuelto por ${esc(persona(o.dev.por))} el ${fecha(o.dev.fecha)}${o.dev.rol==="jefe"?" (jefe)":" (Compras)"}:</b> ${esc(o.dev.motivo)}<br><span class="small">${dueno?"Corrige o completa la información y pulsa <b>Corregir y reenviar</b>.":"Espera a que "+esc(quien(o))+" lo corrija y lo reenvíe."}</span></div>`:""}
   ${(o.devs||[]).length?`<details class="mas"><summary>Devoluciones anteriores (${o.devs.length})</summary><ul class="small" style="margin:6px 0;padding-left:18px">${o.devs.map(d=>`<li><b>${fecha(d.fecha)}</b> · ${esc(persona(d.por))}: ${esc(d.motivo)}${d.resp?`<br>Respuesta (${fecha(d.resp.fecha)}): ${esc(d.resp.txt||"")}`:""}</li>`).join("")}</ul></details>`:""}
+  ${o.de?`<div class="sug">Viene de <button type="button" class="linkbtn" data-ir="${esc(o.de.ord)}">${esc(o.de.ord)}</button>: se dejó para después el ${fecha(o.de.fecha)} por ${esc(persona(o.de.por))}. Motivo: ${esc(o.de.motivo||"")}</div>`:""}
+  ${(o.partes||[]).length?`<div class="sug">Parte de este pedido se compra después en ${o.partes.map(p=>{const h=ords().get(p.ord);return`<button type="button" class="linkbtn" data-ir="${esc(p.ord)}">${esc(p.ord)}</button>${h?" ("+EST[estado(h)][0].toLowerCase()+")":""}`}).join(", ")}.</div>`:""}
   ${acciones.length?`<div class="o-acc">${acciones.join("")}</div>`:""}
-  <h4 class="sec">Artículos</h4>
+  <div id="div-p"></div>
+  <h4 class="sec">Artículos</h4>${avance?`<p class="small muted" style="margin:-4px 0 8px">Avance: ${avance}</p>`:""}
   ${G&&!["anulado","rechazado","por-aprobar","devuelto"].includes(e)?`<div class="leer"><button type="button" class="btn sm" id="cot-b">Leer cotización (PDF)</button><input type="file" id="cot-f" accept="application/pdf,.pdf" hidden><span class="muted small">Toma proveedor, número de cotización y precios; revisas antes de guardar. El archivo no se guarda.</span></div><div id="cot-r"></div>`:""}
   ${(o.items||[]).map(itemHTML).join("")}
   ${pv.length&&(G||S.verCuentas)?`<h4 class="sec">Pago por proveedor</h4>${pv.map(n=>{const p=(o.pagos||{})[n]||{},sub=activos(o).filter(i=>i.prov===n).reduce((s,i)=>s+totItem(i),0);
@@ -1043,13 +1064,31 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
    :`<p class="small" style="margin:4px 0">${{pagado:"Pagado",credito:"A crédito"}[p.estado]||"Pendiente"}${p.comp?" · "+esc(p.comp):""}${p.fecha?" · "+fecha(p.fecha):""}</p>`}</div>`}).join("")}`:""}
   <datalist id="provs-l">${G?[...provs()].map(([n,d])=>`<option value="${esc(d.nombre)} · ${n}">`).join(""):""}</datalist><datalist id="arts-l2">${G?[...arts()].filter(([,d])=>!d.unido).map(([k,d])=>`<option value="${esc(d.nombre)} · ${k}">`).join(""):""}</datalist>
   <details class="mas" id="o-hist"><summary>Historial de cambios</summary><div class="muted small">Cargando…</div></details>`,
-  `${puedeAnular?'<button class="btn danger izq" id="o-anular">Anular</button>':""}${puedeDevolver?'<button class="btn" id="o-dev">Devolver</button>':""}<button type="button" class="btn" id="o-pdf" title="Descargar el pedido en PDF">PDF</button><a class="btn" href="${wa(`Pedido ${id} (${ccNom(o.cc)}): ${EST[e][0]}. ${({"por-aprobar":"Pendiente de tu aprobación.","por-aprobar-gerencia":"Pendiente de aprobación de Gerencia.","comprado":"Ya está comprado (pagado); confirma cuando llegue.","despachado":"Va en camino; confirma cuando llegue.","devuelto":"Falta información: "+(o.dev?.motivo||"")+". Corrígelo y reenvíalo."})[e]||""} Ábrelo aquí: ${enlace(id)}`)}" target="_blank" rel="noopener">WhatsApp</a><button class="btn" data-cerrar>Cerrar</button>${G&&!["anulado","rechazado","por-aprobar","devuelto"].includes(e)?'<button class="btn pri" id="o-ok">Guardar</button>':""}`);
+  `${puedeAnular?'<button class="btn danger izq" id="o-anular">Anular</button>':""}${puedeDevolver?'<button class="btn" id="o-dev">Devolver</button>':""}${puedeDividir?'<button class="btn" id="o-div" title="Comprar primero lo urgente y pasar el resto a otro pedido">Dejar para después</button>':""}<button type="button" class="btn" id="o-pdf" title="Descargar el pedido en PDF">PDF</button><a class="btn" href="${wa(`Pedido ${id} (${ccNom(o.cc)}): ${EST[e][0]}. ${({"por-aprobar":"Pendiente de tu aprobación.","por-aprobar-gerencia":"Pendiente de aprobación de Gerencia.","comprado":"Ya está comprado (pagado); confirma cuando llegue.","despachado":"Va en camino; confirma cuando llegue.","devuelto":"Falta información: "+(o.dev?.motivo||"")+". Corrígelo y reenvíalo."})[e]||""} Ábrelo aquí: ${enlace(id)}`)}" target="_blank" rel="noopener">WhatsApp</a><button class="btn" data-cerrar>Cerrar</button>${G&&!["anulado","rechazado","por-aprobar","devuelto"].includes(e)?'<button class="btn pri" id="o-ok">Guardar</button>':""}`);
  dlg.classList.add("ancho");dlg.addEventListener("close",()=>dlg.classList.remove("ancho"),{once:true});
  /* Guardado seguro: si otra persona cambió la orden mientras estaba abierta, no se pisa su cambio. */
  const guardar=async(cambiar,msg)=>{const fresca=await DB.fresco(COL.ord,id);if(fresca&&JSON.stringify(fresca)!==JSON.stringify(o0)){toast("Otra persona cambió este pedido mientras lo tenías abierto. Se recargó: revisa y vuelve a guardar.",6000);dlgOrden(id);return}
   const n=JSON.parse(JSON.stringify(fresca||o0));if(await cambiar(n)===false)return;await DB.set(COL.ord,id,n);toast(msg);dlg.close();render()};
  dlg.querySelectorAll("[data-ap]").forEach(b=>b.onclick=async()=>{const ok=b.dataset.ap==="1";let motivo="";if(!ok){motivo=await pedir("Rechazar el pedido","Motivo del rechazo (lo verá quien pidió)");if(!motivo)return}
   guardando(b,()=>guardar(n=>{n.aprob={ok,por:me,fecha:hoy()};if(motivo)n.aprob.motivo=motivo},ok?"Pedido aprobado.":"Pedido rechazado."))});
+ dlg.querySelectorAll("[data-ir]").forEach(b=>b.onclick=()=>{const t=b.dataset.ir;if(!ords().has(t)){toast("Ese pedido no está cargado.");return}dlg.close();dlgOrden(t)});
+ const bDiv=$("#o-div");if(bDiv)bDiv.onclick=()=>{const P=$("#div-p");if(P.innerHTML){P.innerHTML="";return}
+  P.innerHTML=`<div class="panel div-p"><b>Dejar para después</b><p class="small muted" style="margin:4px 0 8px">Marca lo que se compra más tarde. Pasa a un pedido nuevo con la misma aprobación, quien pidió y centro de costos. Aquí queda tachado y enlazado.</p>
+   ${(o.items||[]).map((x,i)=>movible(o,x)?`<label class="row" style="gap:8px;margin:4px 0"><input type="checkbox" data-divi="${i}"> <span><b>${esc(artNom(x))}</b> · ${fmtN(x.cant)} ${esc(x.u)}${+x.precio>0?" · "+peso(totItem(x)):""}</span></label>`:"").join("")}
+   <label class="f" style="margin-top:8px">Motivo<input class="inp" id="div-m" placeholder="Ej.: no es urgente, esperar presupuesto"></label>
+   <div class="row" style="margin-top:8px"><button type="button" class="btn pri sm" id="div-ok">Pasar a un pedido nuevo</button><button type="button" class="btn sm" id="div-x">Cancelar</button></div></div>`;
+  P.scrollIntoView({block:"nearest"});$("#div-x").onclick=()=>P.innerHTML="";
+  $("#div-ok").onclick=ev=>{const sel=[...P.querySelectorAll("[data-divi]:checked")].map(x=>+x.dataset.divi),mot=$("#div-m").value.trim();
+   if(!sel.length){toast("Marca los artículos que se compran después.");return}if(!mot){toast("Escribe el motivo.");$("#div-m").focus();return}
+   if(sel.length>=activos(o).length){toast("Debe quedar al menos un artículo en este pedido.");return}
+   guardando(ev.target,async()=>{const fresca=await DB.fresco(COL.ord,id);if(fresca&&JSON.stringify(fresca)!==JSON.stringify(o0)){toast("Otra persona cambió este pedido mientras lo tenías abierto. Se recargó: revisa y vuelve a intentar.",6000);dlgOrden(id);return}
+    const b=JSON.parse(JSON.stringify(fresca||o0));if(sel.some(i=>!movible(b,b.items[i]))||activos(b).length-sel.length<1){toast("El pedido cambió; revisa los artículos.");dlgOrden(id);return}
+    const k=await DB.siguiente(),nid="ORD-"+String(k).padStart(4,"0"),f=hoy(),nu=JSON.parse(JSON.stringify(b));
+    for(const q of["pagos","ger","dev","devs","partes","visto","anulada","hist"])delete nu[q];
+    nu.n=k;nu.items=sel.map(i=>{const c=JSON.parse(JSON.stringify(b.items[i]));for(const q of["rem","rec","fac","facTipo","sol"])delete c[q];return c});nu.de={ord:id,por:me,fecha:f,motivo:mot};
+    await DB.insert(COL.ord,nid,nu);
+    for(const i of sel)b.items[i].anulado={por:me,fecha:f,motivo:"Para después: "+mot,a:nid};b.partes=[...(b.partes||[]),{ord:nid,por:me,fecha:f,motivo:mot}];
+    await DB.set(COL.ord,id,b);toast(`Listo: ${sel.length} artículo${sel.length>1?"s":""} pasaron a ${nid}.`,5000);dlg.close();render()})}};
  dlg.querySelectorAll("[data-gap]").forEach(b=>b.onclick=()=>guardando(b,()=>guardar(n=>{n.ger={ok:b.dataset.gap==="1",por:me,fecha:hoy()}},"Listo.")));
  dlg.querySelectorAll("[data-rec]").forEach(b=>b.onclick=async()=>{const i=+b.dataset.rec,ok=b.dataset.v==="ok";let nota="";if(!ok){nota=await pedir("Llegó con novedad","¿Qué pasó? Faltó cantidad, llegó dañado, otro producto…");if(!nota)return}
   guardando(b,()=>guardar(n=>{n.items[i].rec={estado:ok?"ok":"nov",fecha:hoy(),por:me};if(nota)n.items[i].rec.nota=nota},ok?"Recepción confirmada.":"Novedad registrada; Compras la verá en sus pendientes."))});
