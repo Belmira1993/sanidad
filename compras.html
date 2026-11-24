@@ -712,11 +712,15 @@ function numCO(t){t=String(t).trim();if(/,\d{1,2}$/.test(t)&&t.includes("."))ret
    3) Cada renglón se propone para un artículo del pedido; Laura confirma o cambia. Lo que Laura asigna se recuerda por proveedor (compras_config "cot_alias"). */
 const esNum=s=>/^\$?\s*\d[\d.,]*\s*%?$/.test(s.trim())&&/\d/.test(s);
 const numTxt=s=>numCO(String(s).replace(/[$\s%]/g,""));
-const claveDesc=d=>norm(d).split(" ").filter(w=>w.length>2&&!/^\d+$/.test(w)).slice(0,6).join(" ");
+/* Clave para recordar un renglón del proveedor. Conserva los números (40 %, 45 %) para no confundir referencias parecidas. */
+const claveDesc=d=>norm(d).split(" ").filter(w=>w.length>2||/^\d+$/.test(w)).slice(0,7).join(" ");
+const claveVieja=d=>norm(d).split(" ").filter(w=>w.length>2&&!/^\d+$/.test(w)).slice(0,6).join(" ");
 const snapIva=p=>[0,5,19].find(t=>Math.abs(t-p)<=1.5)??Math.round(p);
 function filasTabla(P){/* P: [{x,y,w,s}] de una página */
  const cant=P.filter(p=>/^cant(idad)?\.?$/i.test(p.s.trim())).sort((a,b)=>b.y-a.y)[0];if(!cant)return null;
- const hdr=P.filter(p=>Math.abs(p.y-cant.y)<=16&&!esNum(p.s)),yTop=Math.min(...hdr.map(p=>p.y),cant.y)-2,cx=cant.x+cant.w/2,xNum=cant.x-12;
+ const yNum=P.filter(p=>esNum(p.s)&&Math.abs(p.y-cant.y)>3).map(p=>p.y);
+ /* Títulos de la tabla: cerca del título "Cantidad", sin tomar un renglón de datos que esté muy cerca (caso Solla) */
+ const hdr=P.filter(p=>Math.abs(p.y-cant.y)<=16&&!esNum(p.s)&&(Math.abs(p.y-cant.y)<=3||!yNum.some(y=>Math.abs(y-p.y)<=3))),yTop=Math.min(...hdr.map(p=>p.y),cant.y)-2,cx=cant.x+cant.w/2,xNum=cant.x-12;
  const pie=P.filter(p=>p.y<yTop&&/^(sub\s*-?\s*total|total|t[eé]rminos|observaciones|valor en letras|son:)/i.test(p.s.trim())).sort((a,b)=>b.y-a.y)[0],yBot=pie?pie.y+2:-1e9;
  const zona=P.filter(p=>p.y<yTop&&p.y>yBot);
  const nums=zona.filter(p=>esNum(p.s)&&p.x+p.w>=xNum&&numTxt(p.s)>0);
@@ -747,10 +751,14 @@ function leerCotizacion(t,o,pags){const r={items:[],filas:[]};const N=t.replace(
   for(const l of N.split(/\n/).map(x=>x.trim()).filter(Boolean)){const parts=l.split(/\s+/),V=parts.filter(x=>esNum(x)).map(numTxt).filter(v=>v>=50);if(V.length<2)continue;
    const desc=parts.filter(x=>!esNum(x)).join(" ");if(desc.length<3)continue;r.filas.push({desc,cant:null,pu:Math.min(...V),iva:null,sub:null,tot:Math.max(...V),seguro:false})}}
  /* Proponer artículo del pedido para cada renglón (lo aprendido primero) */
- const its=activos(o).map(it=>({it,i:o.items.indexOf(it),n:norm(artNom(it)),tk:norm(artNom(it)).split(" ").filter(w=>w.length>2&&!/^\d+$/.test(w))}));
- const pares=[];r.filas.forEach((f,fi)=>{const nd=norm(f.desc),cd=nd.replace(/ /g,""),al=r.prov&&AL[r.prov+"|"+claveDesc(f.desc)];
-  for(const x of its){let s=al&&al===x.n?2:0;if(!s&&x.tk.length){s=x.tk.filter(w=>nd.split(" ").includes(w)||cd.includes(w)).length/x.tk.length}if(s>=.5)pares.push({fi,i:x.i,s})}});
+ /* Puntaje: lo aprendido (clave nueva 3, clave antigua 1), palabras del nombre (0 a 1) y cantidad igual a la del pedido (+1,5; también en kg u otra unidad de precio) */
+ const its=activos(o).map(it=>{const a=it.art?arts().get(it.art):null;return{it,i:o.items.indexOf(it),n:norm(artNom(it)),tk:norm(artNom(it)).split(" ").filter(w=>w.length>2&&!/^\d+$/.test(w)),qs:[+it.cant,a?.factor>0?+it.cant*a.factor:null].filter(v=>v>0)}});
+ const pares=[];r.filas.forEach((f,fi)=>{const nd=norm(f.desc),cd=nd.replace(/ /g,""),al=r.prov&&AL[r.prov+"|"+claveDesc(f.desc)],alv=r.prov&&AL[r.prov+"|"+claveVieja(f.desc)];
+  for(const x of its){let s=al?(al===x.n?3:0):(alv&&alv===x.n?1:0);if(x.tk.length)s+=x.tk.filter(w=>nd.split(" ").includes(w)||cd.includes(w)).length/x.tk.length;
+   if(f.cant>0&&x.qs.some(q=>Math.abs(q-f.cant)<=Math.max(.01,q*.005)))s+=1.5;if(s>=.5)pares.push({fi,i:x.i,s})}});
  pares.sort((a,b)=>b.s-a.s);const usF=new Set(),usI=new Set();for(const p of pares){if(usF.has(p.fi)||usI.has(p.i))continue;usF.add(p.fi);usI.add(p.i);r.filas[p.fi].i=p.i}
+ /* Si queda un solo renglón y un solo artículo sin pareja, se proponen juntos */
+ const fl=r.filas.map((f,fi)=>fi).filter(fi=>!usF.has(fi)),il=its.filter(x=>!usI.has(x.i)&&!(+x.it.precio>0));if(fl.length===1&&il.length===1)r.filas[fl[0]].i=il[0].i
  return r}
 /* ---------- Orden de pedido al proveedor (documento para enviar) ---------- */
 /* Artículos de un proveedor agrupados por documento (OC de World Office o cotización), para ver el desglose y sacar una orden por cada OC */
@@ -1163,18 +1171,18 @@ async function dlgOrden(id){const o0=ords().get(id);if(!o0)return;const o=JSON.p
     ${r.filas.length?'<button type="button" class="btn sm pri" id="cot-ap">Pasar estos datos al pedido</button>':""}</div>`;
    if($("#cot-ap"))$("#cot-ap").onclick=async()=>{const pv=$("#cr-prov").value.trim(),nit=(pv.match(/·\s*(\d+)\s*$/)||[])[1]||(provs().has(pv.replace(/\D/g,""))?pv.replace(/\D/g,""):""),cot=$("#cr-cot").value.trim();
     if(pv&&!nit){toast("Elige el proveedor de la lista.");return}
-    const val=(k,c)=>R.querySelector(`[data-cf="${k}"][data-ck="${c}"]`).value;let n=0;const nuevo={};
+    const val=(k,c)=>R.querySelector(`[data-cf="${k}"][data-ck="${c}"]`).value;let n=0;const nuevo={},borrar=[];
     r.filas.forEach((x,k)=>{const iv=val(k,"i");if(iv==="")return;const i=+iv,it=o.items[i],pu=+val(k,"pu"),iva=+val(k,"iva");
      const q=(c,v)=>{const el=dlg.querySelector(`[data-i="${i}"][data-k="${c}"]`);if(el&&v!=null&&v!==""){el.value=v;el.dataset.r="ok"}};
      const a=it.art?arts().get(it.art):null,up=a?.unidadPrecio&&a.unidadPrecio!==a.unidad,fac=a?.factor||1;
      /* Si la cotización viene en la unidad de precio (kg, caja…), el unitario ya está en esa unidad */
      const enUP=up&&x.cant!=null&&Math.abs(x.cant-it.cant*fac)<Math.abs(x.cant-it.cant);
      if(nit)q("provTxt",provs().get(nit).nombre+" · "+nit);if(cot)q("cot",cot);if(pu>0)q("pUni",+(up&&!enUP?pu/fac:pu).toFixed(2));q("iva",iva);n++;
-     if(nit){const key=nit+"|"+claveDesc(x.desc);if(claveDesc(x.desc)&&(DB.docs(COL.cfg).get("cot_alias")?.m||{})[key]!==norm(artNom(it)))nuevo[key]=norm(artNom(it))}});
+     if(nit){const key=nit+"|"+claveDesc(x.desc),kv=nit+"|"+claveVieja(x.desc),AM=DB.docs(COL.cfg).get("cot_alias")?.m||{};if(claveDesc(x.desc)&&AM[key]!==norm(artNom(it)))nuevo[key]=norm(artNom(it));if(kv!==key&&AM[kv]&&AM[kv]!==norm(artNom(it)))borrar.push(kv)}});
     if(nit)for(const d of r.doms||[])if((DB.docs(COL.cfg).get("cot_alias")?.m||{})["dom|"+d]!==nit&&!/gmail|hotmail|outlook|yahoo/.test(d))nuevo["dom|"+d]=nit;
     toast(n?`Datos pasados a ${n} artículo${n>1?"s":""}. Revisa los campos en verde y pulsa Guardar.`:"No asignaste ningún renglón a un artículo del pedido.",5000);
     /* Aprender: la próxima cotización de este proveedor ya propone el mismo artículo */
-    if(Object.keys(nuevo).length&&S.gestion){try{const cur=DB.docs(COL.cfg).get("cot_alias")||{m:{}};await DB.set(COL.cfg,"cot_alias",{m:{...cur.m,...nuevo}})}catch(e){}}}}
+    if((Object.keys(nuevo).length||borrar.length)&&S.gestion){try{const cur=DB.docs(COL.cfg).get("cot_alias")||{m:{}},m={...cur.m,...nuevo};for(const k of borrar)delete m[k];await DB.set(COL.cfg,"cot_alias",{m})}catch(e){}}}}
   catch(err){R.innerHTML=`<div class="sug">${esc(err.message||"No se pudo leer la cotización.")}</div>`}}}
  $("#o-hist").addEventListener("toggle",async ev=>{if(!ev.target.open||ev.target.dataset.ok)return;ev.target.dataset.ok=1;
   try{const H=await DB.historial(COL.ord,id);const nom=uid=>[...S.equipo.values()].find(u=>u.id===uid)?.nombre||"—";
