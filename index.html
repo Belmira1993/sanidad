@@ -1558,6 +1558,8 @@ const TB={
  tot:i=>(+i.cant||0)*(+i.precio||0)*(1+(+i.iva||0)/100),
  estado(o){if(o.anulada)return"anulado";if(o.dev)return"devuelto";const it=TB.act(o);if(o.aprob&&o.aprob.ok===false)return"rechazado";if(!o.aprob?.ok)return"por-aprobar";if(!it.length)return"anulado";
   if(it.every(i=>i.rec)){if(it.some(i=>i.rec.estado==="nov"&&!i.sol))return"con-novedad";return it.every(i=>i.fac)?"cerrado":"recibido"}
+  {const st=i=>i.prov?(o.pagos||{})[i.prov]?.estado:"",cz=it.every(i=>i.prov&&+i.precio>0);
+   if(it.some(i=>["pagado","credito","parcial"].includes(st(i)))&&!it.every(i=>["pagado","credito"].includes(st(i)))&&!it.some(i=>i.rec?.estado==="nov"&&!i.sol)&&!(cz&&it.reduce((s,i)=>s+TB.tot(i),0)>=1e6&&!o.ger?.ok))return"compra-parcial"}
   if(!it.every(i=>i.prov&&+i.precio>0))return"cotizando";const t=it.reduce((s,i)=>s+TB.tot(i),0);
   const pagado=TB.pagado(o);if(t>=1e6&&!pagado){if(o.ger?.ok===false)return"rechazado";if(!o.ger?.ok)return"por-aprobar-gerencia"}
   if(it.some(i=>i.rec?.estado==="nov"&&!i.sol))return"con-novedad";if(pagado||it.some(i=>i.rem||i.rec))return"comprado";if(!it.every(i=>i.oc))return"por-soporte";return"por-pagar"},
@@ -1587,14 +1589,16 @@ function tbSanidad(M,P){const hoy=M.hoy,F=[];let vivT=0,muT=0,v0T=0,muP=0,v0P=0;
  return{F,vivT,muT,pct:v0T?muT/v0T*100:null,pctP:v0P?muP/v0P*100:null,trat:ev.filter(r=>r.tipo==="tratamiento").length,tratP:evP.filter(r=>r.tipo==="tratamiento").length,
   nEv:ev.length,diag,prods,retiro,top,altas:M.alertas.filter(a=>a.nivel==="alta"),medias:M.alertas.filter(a=>a.nivel==="media")}}
 function tbCompras(hoyD,P){const C=S.C,dIn=(f,a,b)=>{const d=dn(f);return d!=null&&d>=a&&d<=b},a0=hoyD-P+1,p0=hoyD-2*P+1,p1=hoyD-P;
- const R={comprado:0,compradoP:0,nuevos:0,nuevosP:0,abiertos:0,porAprob:[],porGer:0,nov:0,sinFac:0,pagoPend:0,vencidos:[],alzas:[],alzas90:0,sin3:0,cambios:0,cc:new Map(),prov:new Map(),tOC:[],tRec:[],cotiz:0};
+ const R={comprado:0,compradoP:0,nuevos:0,nuevosP:0,abiertos:0,porAprob:[],porGer:0,nov:0,sinFac:0,pagoPend:0,vencidos:[],alzas:[],alzas90:0,sin3:0,cambios:0,cc:new Map(),prov:new Map(),tOC:[],tRec:[],cotiz:0,parcial:[]};
  for(const[id,o]of C.ord){const e=TB.estado(o),it=TB.act(o);
   if(!o.hist&&dIn(o.fecha,a0,hoyD))R.nuevos++;if(!o.hist&&dIn(o.fecha,p0,p1))R.nuevosP++;
   if(!["cerrado","anulado","rechazado"].includes(e))R.abiertos++;
   if(e==="por-aprobar")R.porAprob.push({id,dias:hoyD-dn(o.fecha)});if(e==="por-aprobar-gerencia")R.porGer++;
   if(e==="cotizando")R.cotiz++;
+  /* Compra parcial: se compró una parte y el resto sigue pendiente; días desde el primer pago */
+  if(e==="compra-parcial"){const fs=it.map(i=>i.prov?TB.fPago(o,i.prov):null).filter(Boolean).map(dn);R.parcial.push({id,dias:fs.length?hoyD-Math.min(...fs):null})}
   if(e==="con-novedad")R.nov++;
-  if(["por-pagar","comprado","recibido","con-novedad"].includes(e)&&it.some(i=>i.oc&&!i.fac))R.sinFac++;
+  if(["por-pagar","compra-parcial","comprado","recibido","con-novedad"].includes(e)&&it.some(i=>i.oc&&!i.fac))R.sinFac++;
   for(const i of it){const t=TB.tot(i);
    const fp=i.prov?TB.fPago(o,i.prov):null;
    if(fp){if(dIn(fp,a0,hoyD)){R.comprado+=t;R.cc.set(o.cc,(R.cc.get(o.cc)||0)+t);if(i.prov)R.prov.set(i.prov,(R.prov.get(i.prov)||0)+t)}if(dIn(fp,p0,p1))R.compradoP+=t;
@@ -1607,7 +1611,7 @@ function tbCompras(hoyD,P){const C=S.C,dIn=(f,a,b)=>{const d=dn(f);return d!=nul
   for(const n of nits){const pg=(o.pagos||{})[n]||{};if(pg.estado==="pagado")continue;const sub=it.filter(i=>i.prov===n).reduce((s,i)=>s+TB.tot(i),0);R.pagoPend+=sub;
    if(pg.fecha&&dn(pg.fecha)<hoyD)R.vencidos.push({id,n,sub,fecha:pg.fecha})}}
  const prom=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;R.dOC=prom(R.tOC);R.dRec=prom(R.tRec);
- R.alzas.sort((a,b)=>(b.i.alza.pct||0)-(a.i.alza.pct||0));R.porAprob.sort((a,b)=>b.dias-a.dias);return R}
+ R.alzas.sort((a,b)=>(b.i.alza.pct||0)-(a.i.alza.pct||0));R.porAprob.sort((a,b)=>b.dias-a.dias);R.parcial.sort((a,b)=>(b.dias??-1)-(a.dias??-1));return R}
 function tbResumen(s,c,P){let malo=[],bueno=[];const out={},per=P===7?"la semana anterior":"el mes anterior";
  for(const x of s.F){if(x.pct==null)continue;const ch=TB.cambio(x.pct,x.pctP);
   if(ch!=null&&ch>=20&&x.mu>=20)malo.push(`Mortalidad en ${x.f.nombre} subió a ${pct(x.pct)} (${pct(x.pctP)} ${per}).`);
@@ -1624,6 +1628,7 @@ function tbResumen(s,c,P){let malo=[],bueno=[];const out={},per=P===7?"la semana
   if(c.porGer||c.cambios)malo.push(`Te esperan ${[c.porGer?c.porGer+" gasto"+(c.porGer>1?"s":"")+" por aprobar":"",c.cambios?c.cambios+" cambio"+(c.cambios>1?"s":"")+" de precio":""].filter(Boolean).join(" y ")}.`);
   if(c.vencidos.length)malo.push(`${c.vencidos.length} pago${c.vencidos.length>1?"s":""} vencido${c.vencidos.length>1?"s":""} por ${TB.peso(c.vencidos.reduce((a,x)=>a+x.sub,0))}.`);
   if(c.dOC!=null&&c.dOC<=3)bueno.push(`Compras escribe la OC en ${fmtN(c.dOC,1)} días en promedio.`);else if(c.dOC!=null&&c.dOC>7)malo.push(`La OC tarda ${fmtN(c.dOC,1)} días en promedio desde el pedido.`);
+  {const v=c.parcial.filter(x=>x.dias!=null&&x.dias>15);if(v.length)malo.push(`${v.length} pedido${v.length>1?"s":""} comprado${v.length>1?"s":""} en parte con artículos pendientes hace más de 15 días (${v.slice(0,3).map(x=>x.id).join(", ")}${v.length>3?"…":""}).`)}
   if(c.sin3)malo.push(`${c.sin3} compra${c.sin3>1?"s":""} de artículo nuevo sin 3 cotizaciones.`)}
  out.com={malo,bueno};return out}
 
@@ -1691,7 +1696,7 @@ V.tablero=v=>{if(!S.mods.tablero){v.append(card("Sin acceso",el("p",{text:"El Da
  v.append(el("div",{class:"tb-kpis"},
   kpi("Comprado (pagado)",TB.millones(c.comprado),`${per}: ${TB.millones(c.compradoP)}`,flecha(c.comprado,c.compradoP,null)),
   kpi("Pedidos nuevos",fmtN(c.nuevos),`${per}: ${fmtN(c.nuevosP)}`),
-  kpi("Pedidos abiertos",fmtN(c.abiertos),`${c.porAprob.length} por aprobar · ${c.cotiz} cotizando`),
+  kpi("Pedidos abiertos",fmtN(c.abiertos),`${c.porAprob.length} por aprobar · ${c.cotiz} cotizando${c.parcial.length?` · ${c.parcial.length} comprado${c.parcial.length>1?"s":""} en parte`:""}`),
   kpi("Días para cotizar",c.dOC==null?"—":fmtN(c.dOC,1),"Del pedido al soporte del precio · 90 días"),
   kpi("Días pago → llegada",c.dRec==null?"—":fmtN(c.dRec,1),"Promedio últimos 90 días"),
   kpi("Por pagar",TB.millones(c.pagoPend),c.vencidos.length?`${c.vencidos.length} vencido${c.vencidos.length>1?"s":""}`:"Nada vencido")));
@@ -1710,6 +1715,7 @@ V.tablero=v=>{if(!S.mods.tablero){v.append(card("Sin acceso",el("p",{text:"El Da
    el("li",{},el("span",{},"Con novedad sin resolver"),el("b",{class:c.nov?"tb-mal":""},String(c.nov))),
    el("li",{},el("span",{},"Gastos por aprobar (Gerencia)"),el("b",{},String(c.porGer))),
    el("li",{},el("span",{},"Cambios de precio por aprobar"),el("b",{},String(c.cambios))),
+   el("li",{},el("span",{},"Comprados en parte (falta comprar el resto)"),el("b",{class:c.parcial.some(x=>x.dias>15)?"tb-mal":""},String(c.parcial.length))),
    el("li",{},el("span",{},"Comprados sin factura"),el("b",{},String(c.sinFac))),
    el("li",{},el("span",{},"Artículos nuevos sin 3 cotizaciones"),el("b",{class:c.sin3?"tb-mal":""},String(c.sin3)))))));
  v.append(el("div",{class:"grid2"},
